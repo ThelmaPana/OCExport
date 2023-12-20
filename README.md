@@ -11,22 +11,34 @@ Predict ocean carbon export
 
 -   get environmental data (<https://data.up.ethz.ch/shared/AtlantECO/>)
 
-    -   SST + cline
+    -   SST:
 
-    -   SSS + cline
+    -   SSS:
 
-    -   MLD
+    -   MLD:
 
     -   nutrients + clines
 
-    -   Zeu
+    -   Zeu: computed from surface chl a
 
     -   O2
 
-    -   PAR
+    -   PAR (see https://ads.atmosphere.copernicus.eu/cdsapp#!/dataset/cams-solar-radiation-timeseries?tab=form)
 
 -   get carbon export data (<https://zenodo.org/records/8253973> & <https://www.nature.com/articles/s41586-023-06772-4>)
 
 -   investigate BARTs (<https://cran.r-project.org/web/packages/BART/vignettes/the-BART-R-package.pdf>)
 
 -   generate proxis of diversity for zooplankton (taxonomic, trophic & morphologic)
+
+## Repo organisation
+
+### Data
+
+Contains data
+
+### Scripts
+
+-   `00.get_carbon.R`
+
+-   `01.get_env.R`
