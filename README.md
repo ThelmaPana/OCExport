@@ -39,6 +39,13 @@ Contains data
 
 ### Scripts
 
--   `00.get_carbon.R`
+-   `00.get_carbon.R`: download POC data
 
--   `01.get_env.R`
+-   `01.get_env.R`: download environmental data
+
+-   `02.assemble.R`: assemble poc and environmental data
+
+-   `03.xgboost.R`: fit a tidymodel XGBoost to predict POC values from env data
+
+-   `04.bart.R`: fit a tidymodel BART to predict POC values from env data
+
