@@ -5,56 +5,39 @@
 # Author: Thelma Panaïotis
 #--------------------------------------------------------------------------#
 
-
-library(tidyverse)
-library(R.matlab)
-
-toto <- readMat("data/raw/Cexp_CAFE_kl24h.mat")
-titi <- toto$EXP
-str(titi)
-tata <- titi[,,1]$POCexp
-image(t(tata))
-
-dim(tata)
-
-lat <- dim(tata)[1]
-lon <- dim(tata)[2]
-
-# Reformat data as akima::interp output
-x <- unique(df_int$dist)
-y <- unique(df_int$depth)
-z <- matrix(df_int[[variable]], nrow = length(x), byrow = TRUE)
-list_int <- list(x=x, y=y, z=z)
-
-length(c(1:180))
-length(seq(from = 2, to = 360, by = 2))
+source("utils.R")
 
 
+## Read data as matrix ----
+#--------------------------------------------------------------------------#
+d_mat <- readMat("data/raw/Cexp_CAFE_kl24h.mat")$EXP[,,1]$POCexp
+
+# Generate colnames as longitudes and rownames as latitudes
+colnames(d_mat) <- (c(0.5:179.5) * 2)
+rownames(d_mat) <- (c(0:90) * 2) - 90
 
 
-
-colnames(tata) <- (c(0.5:179.5) * 2)
-rownames(tata) <- (c(0:90) * 2) - 90
-
-
-foo <- tata %>%
+## Convert to dataframe ----
+#--------------------------------------------------------------------------#
+df_c <- d_mat %>%
   as.data.frame() %>%
   rownames_to_column(var = "lat") %>%
   as_tibble() %>%
   pivot_longer(cols = -lat, names_to = "lon", values_to = "poc") %>%
   mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
   mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
-  mutate(poc = ifelse(poc == 0, NA, poc))
+  mutate(poc = ifelse(poc == 0, NA, poc)) %>%
+  arrange(lon, lat)
 
-foo %>%
+df_c %>%
   ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group)) +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
   geom_raster(aes(x = lon, y = lat, fill = poc)) +
-  scale_fill_viridis_c(na.value = NA)
+  scale_fill_viridis_c(na.value = NA) +
+  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
+  coord_quickmap()
 
-foo %>%
-  ggplot() +
-  geom_raster(aes(x = lon, y = lat, fill = poc==0))
 
-world <- fortify(map_data('world')) %>% rename(lon=long)
-summary(world)
+## Save ----
+#--------------------------------------------------------------------------#
+save(df_c, file = file.path(data_dir, "00.carbon_data.Rdata"))
