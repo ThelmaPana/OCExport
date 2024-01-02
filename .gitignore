@@ -50,3 +50,6 @@ rsconnect/
 
 # Folders
 data/
+
+# draft
+draft.R
