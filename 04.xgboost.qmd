@@ -1,0 +1,253 @@
+---
+title: "Fit a XGBoost model"
+subtitle: "Predict poc values from environmental data and plankton diversity."
+format: html
+editor: visual
+---
+
+## Set-up and load data
+
+```{r}
+#| output: false
+source("utils.R")
+load("data/03.all_data.Rdata")
+```
+
+## Data inspection
+
+Let’s have a look at our response variable: POC value. We do not need to inspect response variables as the model we are going to use are robust to non-normal distributions.
+
+```{r}
+df %>% ggplot() + geom_histogram(aes(x = poc), bins = 100)
+```
+
+The distribution is not normal, this is problematic. Let’s try a log-transformation.
+
+```{r}
+df <- df %>% mutate(poc_log = log(poc))
+df %>% ggplot() + geom_histogram(aes(x = poc_log), bins = 100)
+```
+
+This is much better. We’ll then try to predict `log(poc)`.
+
+## Data split
+
+Let’s take 80% of the data to fit the model, and keep 20% to test the model at the very end. We stratify our split by `poc_log`, the response value, so that both training and testing sets are representative of the whole range of values.
+
+```{r}
+# Train VS test, stratified
+df_split <- initial_split(df, prop = 0.8, strata = poc_log)
+df_train <- training(df_split)
+df_test <- testing(df_split)
+```
+
+To evaluate model performance during training, we’ll use cross-validation on the training set, with 10 folds, again stratified by `poc_log`.
+
+```{r}
+# Cross-validation, 10 folds, stratified
+df_folds <- vfold_cv(df_train, v = 10, strata = poc_log)
+```
+
+## Model definition
+
+Let’s define a XGBoost regression model, with tunable hyperparameters:
+
+-   `trees`: number of trees
+
+-   `tree_depth`: maximum depth (i.e. number of splits) in a tree
+
+-   `min_n`: minimum number of objects in a node to split further
+
+-   `learn_rate`
+
+```{r}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  tree_depth = tune(),
+  min_n = tune(),
+  #loss_reduction = tune(),
+  #sample_size = tune(),
+  #mtry = tune(),
+  learn_rate = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost", num.threads = n_cores)
+extract_parameter_set_dials(xgb_spec)
+```
+
+The model will be run on `r n_cores` cores in parallel.
+
+## Recipe
+
+Let’s use a recipe to define the model formula and assign roles to variables. We want to predict `poc_log` from all other variables expect `lon`, `lat` and original `poc` values, yet it is convenient to keep these in the dataset.
+
+```{r}
+xgb_rec <- recipe(poc_log ~ ., data = df_train) %>%
+  update_role(lon, lat, new_role = "coords") %>% # These variables can be retained in the data but not included in the model
+  update_role(poc, new_role = "untransformed outcome")
+summary(xgb_rec)
+```
+
+## Workflow
+
+Set-up the workflow with the recipe and the model.
+
+```{r}
+xgb_wflow <- workflow() %>%
+  add_recipe(xgb_rec) %>%
+  add_model(xgb_spec)
+```
+
+## Gridsearch
+
+It is now time to perform the gridsearch to find the best hyperparameters for our model. We first need to define a grid with the hyperparameters we want to try. We use `grid_latin_hypercube` to generate a space-filling grid of size `30`.
+
+```{r}
+xgb_grid <- grid_latin_hypercube(
+  trees(),
+  learn_rate(),
+  tree_depth(),
+  min_n(),
+  #loss_reduction(),
+  #sample_size = sample_prop(),
+  #finalize(mtry(), df_train),
+  size = 30
+)
+xgb_grid
+```
+
+Tune the grid to find the best hyperparameters, in parallel. This is done on our cross-validation folds: for each fold, a model is fitted on training data and evaluated on validation data.
+
+```{r}
+doParallel::registerDoParallel()
+xgb_res <- tune_grid(
+  xgb_wflow,
+  resamples = df_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+autoplot(xgb_res)
+```
+
+Select the best set of hyperparameters based on `rmse` value.
+
+```{r}
+show_best(xgb_res, metric = "rmse")
+best_xgb <- select_best(xgb_res, metric = "rmse")
+```
+
+## Finalize
+
+Let’s now finalize our model with the selected set of hyperparameters.
+
+```{r}
+final_xgb <- finalize_workflow(
+  xgb_wflow,
+  best_xgb
+)
+```
+
+Fit the model on training data.
+
+```{r}
+final_res <- fit(final_xgb, df_train)
+```
+
+Predict test data, and apply `exp` transformation as we predict the `log` of `poc` values. Still, we will evaluate model performances with predictions of `poc_log` as it is closer to a normal distribution.
+
+```{r}
+preds <- augment(final_res, new_data = df_test) %>%
+  rename(.pred_logged = .pred) %>%
+  mutate(.pred = exp(.pred_logged))
+```
+
+## Model evaluation
+
+### Prediction metrics
+
+Let’s have a look at prediction metrics on the test set.
+
+```{r}
+rmse(preds, truth = poc_log, estimate = .pred_logged)
+rsq(preds, truth = poc_log, estimate = .pred_logged)
+```
+
+### Prediction VS truth
+
+Plot predictions VS truth, both in the log-transformed space and in the non log-transformed space.
+
+```{r}
+preds %>%
+  ggplot() +
+  geom_point(aes(x = poc_log, y = .pred_logged)) +
+  geom_abline(slope = 1, color = "red") +
+  labs(title = "Pred VS truth in log-transformed space")
+
+preds %>%
+  ggplot() +
+  geom_point(aes(x = poc, y = .pred)) +
+  geom_abline(slope = 1, color = "red") +
+  labs(title = "Pred VS truth")
+```
+
+### Residuals
+
+Finally, let’s have a look at residuals.
+
+```{r}
+preds %>%
+  mutate(residuals = .pred_logged - poc_log) %>%
+  ggplot() +
+  geom_density(aes(x = residuals)) +
+  labs(x = "Residuals")
+```
+
+## Model interpretation
+
+Let’s feed our model to `explain_tidymodel`, but first we need to select predictors only.
+
+```{r}
+# Select only predictors
+vip_train <- xgb_rec %>% prep() %>% bake(new_data = NULL, all_predictors())
+
+
+# Explainer
+xgb_explain <-
+  explain_tidymodels(
+    model = extract_fit_parsnip(final_res),
+    data = vip_train,
+    y = df_train %>%  pull(poc_log)
+  )
+```
+
+### Variable importance
+
+```{r}
+xgb_var_imp <- model_parts(xgb_explain)
+ggplot_imp(xgb_var_imp)
+```
+
+### Partial dependence plots
+
+```{r}
+xgb_pdp_temp <- model_profile(explainer = xgb_explain, variables = c("temperature_mean"))
+ggplot_pdp(xgb_pdp_temp, temperature_mean) +
+  labs(x = "Temperature_mean", y = "Logged predicted POC")
+
+xgb_pdp_phos <- model_profile(explainer = xgb_explain, variables = c("phosphate_mean"))
+ggplot_pdp(xgb_pdp_phos, phosphate_mean) +
+  labs(x = "Phosphate_mean", y = "Logged predicted POC")
+
+xgb_pdp_nit <- model_profile(explainer = xgb_explain, variables = c("nitrate_mean"))
+ggplot_pdp(xgb_pdp_nit, nitrate_mean) +
+  labs(x = "Nitrate_mean", y = "Logged predicted POC")
+
+xgb_pdp_pielou <- model_profile(explainer = xgb_explain, variables = c("t_pielou"))
+ggplot_pdp(xgb_pdp_pielou, t_pielou) +
+  labs(x = "Pielou", y = "Logged predicted POC")
+```
+
+## Conclusion
+
+Plankton diversity seems to have low effect on `poc` values compared to environment, but still not negligible.
