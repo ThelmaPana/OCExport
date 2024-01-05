@@ -22,7 +22,6 @@ profiles <- o %>% select(sampleid, lon, lat) %>% unique()
 o <- o %>%
   filter(str_starts(lineage, "living")) %>%
   filter(!taxon %in% c("artefact", "detritus"))
-unique(o$taxon)
 
 
 ## Compute diversity indices per profile ----
