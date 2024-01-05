@@ -31,6 +31,16 @@ Predict ocean carbon export
 
 -   generate proxis of diversity for zooplankton (taxonomic, trophic & morphologic)
 
+
+
+Regarding data, source has yet to be determined:
+
+- NPP climatologies from Oregon group
+
+- other env data?
+
+- monthly VS yearly?
+
 ## Repo organisation
 
 ### Data
@@ -43,9 +53,11 @@ Contains data
 
 -   `01.get_env.R`: download environmental data
 
--   `02.assemble.R`: assemble poc and environmental data
+-   `02.get_uvp.R`: get UVP data
 
--   `03.xgboost.R`: fit a tidymodel XGBoost to predict POC values from env data
+-   `03.assemble.R`: assemble poc and environmental data
 
--   `04.bart.R`: fit a tidymodel BART to predict POC values from env data
+-   `04.xgboost.R`: fit a tidymodel XGBoost to predict POC values from env data
+
+-   `05.bart.R`: fit a tidymodel BART to predict POC values from env data
 
