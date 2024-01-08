@@ -24,7 +24,12 @@ o <- o %>%
   filter(!taxon %in% c("artefact", "detritus"))
 
 
-## Compute diversity indices per profile ----
+## List taxa ----
+#--------------------------------------------------------------------------#
+taxa <- o %>% pull(taxon) %>% unique() %>% sort()
+
+
+## Compute taxonomic diversity indices ----
 #--------------------------------------------------------------------------#
 # Taxonomic richness
 # Shannon Diversity
@@ -74,5 +79,15 @@ div %>%
 profiles <- profiles %>% left_join(div, by = join_by(sampleid, lon, lat))
 
 
-# Save
+## Compute trophic diversity indices ----
+#--------------------------------------------------------------------------#
+
+taxa
+
+## Compute morphological indices ----
+#--------------------------------------------------------------------------#
+#TODO
+
+## Save ----
+#--------------------------------------------------------------------------#
 save(profiles, file = "data/02.uvp_profiles.Rdata")
