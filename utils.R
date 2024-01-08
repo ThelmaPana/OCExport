@@ -3,9 +3,10 @@
 library(tidyverse)
 library(parallel)
 
-# Reading
+# Reading & downloading
 library(ncdf4)
 library(R.matlab)
+library(ecotaxarapi)
 
 # Processing
 library(glue)
@@ -14,6 +15,7 @@ library(fields)
 library(abind)
 library(oce)
 library(vegan)
+library(morphr)
 
 # Plots
 library(cmocean)

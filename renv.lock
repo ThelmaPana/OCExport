@@ -707,6 +707,24 @@
       ],
       "Hash": "54ed3ea01b11e81a86544faaecfef8e2"
     },
+    "ecotaxarapi": {
+      "Package": "ecotaxarapi",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "ecotaxarapi",
+      "RemoteUsername": "ecotaxa",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "7a3a3b42de0057db84f894cd22808cde30a44c59",
+      "Requirements": [
+        "dplyr",
+        "httr2",
+        "stats",
+        "stringr"
+      ],
+      "Hash": "559f7d1d63758637dda064241cedad7e"
+    },
     "ellipsis": {
       "Package": "ellipsis",
       "Version": "0.3.2",
@@ -1137,6 +1155,27 @@
         "openssl"
       ],
       "Hash": "ac107251d9d9fd72f0ca8049988f1d7f"
+    },
+    "httr2": {
+      "Package": "httr2",
+      "Version": "1.0.0",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "R6",
+        "cli",
+        "curl",
+        "glue",
+        "lifecycle",
+        "magrittr",
+        "openssl",
+        "rappdirs",
+        "rlang",
+        "vctrs",
+        "withr"
+      ],
+      "Hash": "e2b30f1fc039a0bab047dd52bb20ef71"
     },
     "iBreakDown": {
       "Package": "iBreakDown",
