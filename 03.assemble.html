@@ -305,10 +305,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(poc, lon, lat, <span class="fu">contains</span>(<span class="st">"t_"</span>), <span class="fu">contains</span>(<span class="st">"mean"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
+<section id="run-a-quick-exploration-with-a-pca" class="level2">
+<h2 class="anchored" data-anchor-id="run-a-quick-exploration-with-a-pca">Run a quick exploration with a PCA</h2>
+<p>This allows us to have at correlations within our datasets as well as the main axes of variance.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Need to remove lon and lat and to scale because units differ between variables</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> <span class="fu">rda</span>(df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat)), <span class="at">scale =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(pca_all, <span class="at">display =</span> <span class="fu">c</span>(<span class="st">"sites"</span>, <span class="st">"species"</span>), <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"text"</span>, <span class="st">"points"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="03.assemble_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>The two first axes are:</p>
+<ul>
+<li><p>PC1: nutrient-rich in positive values VS nutrient-poor in negative values</p></li>
+<li><p>PC2: oxygen-rich in positive values VS taxonomic diversity in negative values</p></li>
+</ul>
+</section>
 <section id="save-the-resulting-dataset" class="level2">
 <h2 class="anchored" data-anchor-id="save-the-resulting-dataset">Save the resulting dataset</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(df, <span class="at">file =</span> <span class="fu">file.path</span>(data_dir, <span class="st">"03.all_data.Rdata"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(df, <span class="at">file =</span> <span class="fu">file.path</span>(data_dir, <span class="st">"03.all_data.Rdata"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 
