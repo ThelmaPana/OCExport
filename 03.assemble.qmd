@@ -54,6 +54,8 @@ Now let’s round the coordinates and replot the map. We also need to average UV
 
 [TODO: is it okay to average plankton diversity metrics on new grid? Or should we group the profiles before computing diversity metrics?]{style="color: red;"}
 
+[TODO: which depth to consider for UVP data?]{style="color: red;"}
+
 ```{r}
 profiles <- profiles %>%
   mutate(
