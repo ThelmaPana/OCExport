@@ -1,7 +1,9 @@
 ---
 title: "Fit a XGBoost model"
 subtitle: "Predict poc values from environmental data and plankton diversity."
-format: html
+format:
+  html:
+    toc: true
 editor: visual
 ---
 
@@ -10,7 +12,7 @@ editor: visual
 ```{r}
 #| output: false
 source("utils.R")
-load("data/03.all_data.Rdata")
+load("data/04.all_data.Rdata")
 ```
 
 ## Data inspection

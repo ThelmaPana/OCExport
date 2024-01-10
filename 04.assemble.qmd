@@ -1,6 +1,8 @@
 ---
-title: "Data preparation and exploration"
-format: html
+title: "Assemble POC, environmental and UVP data"
+format:
+  html:
+    toc: true
 editor: visual
 ---
 
@@ -13,7 +15,7 @@ source("utils.R")
 
 load("data/00.carbon_data.Rdata")
 load("data/01.env_data.Rdata")
-load("data/02.uvp_profiles.Rdata")
+load("data/03.uvp_profiles.Rdata")
 rm(env_m, coast)
 ```
 
@@ -69,7 +71,7 @@ n_profiles <- profiles %>% count(lon, lat)
 
 profiles <- profiles %>% 
   # Average all values on carbon pixels
-  group_by(lon, lat) %>%
+  group_by(sample_ids, lon, lat) %>%
   summarise_all(mean, na.rm = TRUE) %>%
   ungroup()
 
@@ -98,7 +100,7 @@ Let’s have a quick look at Shannon diversity on this new grid.
 profiles %>% 
   ggplot() +
   geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = t_shannon), size = 0.5) +
+  geom_point(aes(x = lon, y = lat, colour = ta_shannon), size = 0.5) +
   scale_colour_viridis_c() +
   coord_quickmap()
 ```
@@ -164,11 +166,11 @@ df %>%
 
 ## Subsample env variables
 
-For now, just keep `mean` variables and ignore `sd` variables.
+For now, just keep `mean` variables and ignore `sd` and `var` variables.
 
 ```{r}
 df <- df %>% 
-  select(poc, lon, lat, contains("t_"), contains("mean"))
+  select(poc, lon, lat, contains("ta_"), contains("mean"))
 ```
 
 ## Run a quick exploration with a PCA
@@ -185,10 +187,10 @@ The two first axes are:
 
 -   PC1: nutrient-rich in positive values VS nutrient-poor in negative values
 
--   PC2: oxygen-rich in positive values VS taxonomic diversity in negative values
+-   PC2: oxygen-rich and big plankton in positive values VS taxonomic diversity in negative values
 
 ## Save the resulting dataset
 
 ```{r}
-save(df, file = file.path(data_dir, "03.all_data.Rdata"))
+# save(df, file = file.path(data_dir, "04.all_data.Rdata"))
 ```
