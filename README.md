@@ -53,11 +53,13 @@ Contains data
 
 -   `01.get_env.R`: download environmental data
 
--   `02.get_uvp.R`: get UVP data
+-   `02.get_uvp.R`: download UVP data from Ecotaxa
 
--   `03.assemble.R`: assemble poc and environmental data
+-   `03.uvp_diversity.R`: compute diversity metrics for UVP data
 
--   `04.xgboost.R`: fit a tidymodel XGBoost to predict POC values from env data
+-   `04.assemble.R`: assemble poc and environmental data
 
--   `05.bart.R`: fit a tidymodel BART to predict POC values from env data
+-   `05.xgboost.R`: fit a tidymodel XGBoost to predict POC values from env data
+
+-   `06.bart.R`: fit a tidymodel BART to predict POC values from env data
 
