@@ -140,6 +140,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>Now let’s round the coordinates and replot the map. We also need to average UVP data on our new grid, but before that let’s also compute the number of UVP profiles per carbon pixel.</p>
 <p><span style="color: red;">TODO: is it okay to average plankton diversity metrics on new grid? Or should we group the profiles before computing diversity metrics?</span></p>
+<p><span style="color: red;">TODO: which depth to consider for UVP data?</span></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>profiles <span class="ot">&lt;-</span> profiles <span class="sc">%&gt;%</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
