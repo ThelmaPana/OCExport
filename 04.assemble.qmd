@@ -103,7 +103,8 @@ Since all three datasets use the same round coordinates, we can join them togeth
 ```{r}
 df <- profiles %>%
   left_join(env,  by = join_by(lon, lat)) %>%
-  left_join(df_c, by = join_by(lon, lat))
+  left_join(df_c, by = join_by(lon, lat)) %>% 
+  select(lon, lat, everything())
 ```
 
 Our dataset contains `r nrow(df)` points.
@@ -145,7 +146,7 @@ ggmap(df, "poc", type = "point")
 For now, just keep `mean` variables and ignore `sd` and `var` variables.
 
 ```{r}
-#df <- df %>% select(poc, lon, lat, contains("ta_"), contains("mean"))
+df <- df %>% select(lon, lat, poc, contains("ta_"), contains("mean"))
 ```
 
 ## Run a quick exploration with a PCA
@@ -153,8 +154,8 @@ For now, just keep `mean` variables and ignore `sd` and `var` variables.
 This allows us to have at correlations within our datasets as well as the main axes of variance.
 
 ```{r}
-# Need to remove sample_ids, lon and lat and to scale because units differ between variables
-pca_all <- FactoMineR::PCA(df %>% select(-c(sample_ids, lon, lat)), scale.unit = TRUE, graph = FALSE)
+# Need to remove lon and lat and to scale because units differ between variables
+pca_all <- FactoMineR::PCA(df %>% select(-c(lon, lat)), scale.unit = TRUE, graph = FALSE)
 ```
 
 Plot eigenvalues.
@@ -192,9 +193,9 @@ plot(pca_all, choix="var", axes = c(1, 2))
 
 The two first axes are:
 
--   PC1: oxygen-rich in positive values VS warm in negative values
+-   PC1:
 
--   PC2: deep mixed layer in positive values
+-   PC2:
 
 Extract coordinates in the PCA space.
 
@@ -205,7 +206,6 @@ inds <- pca_all$ind$coord %>% as_tibble()
 colnames(inds) <- str_c("dim", paste(c(1:ncol(inds))))
 # And join with initial dataframe of objects
 inds <- df %>%
-  select(sample_ids:lat) %>%
   bind_cols(inds)
 ```
 
