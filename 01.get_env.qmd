@@ -527,7 +527,7 @@ par_1 <- do.call(rbind, par_1)
 Plot a map for January.
 
 ```{r}
-ggmap_ras(par_1 %>% filter(month == 1), "par")
+gg_map(par_1 %>% filter(month == 1), "par", type = "raster")
 ```
 
 This is a bit messy because of inland data but this will be cleaned below.
@@ -582,7 +582,7 @@ env_m <- env_m %>% left_join(par_1, by = join_by(lon, lat, month))
 Let’s do a quick plot to check everything is fine.
 
 ```{r}
-ggmap_ras(env_m, "temperature") + facet_wrap(~month, ncol = 3)
+gg_map(env_m, "temperature", type = "raster") + facet_wrap(~month, ncol = 3)
 ```
 
 ## Remove internal seas, lakes and land
@@ -628,10 +628,10 @@ env_m <- env_m %>% as_tibble() %>% select(lon, lat, month, everything())
 Plot a few maps without land to check.
 
 ```{r}
-ggmap_ras(env_m %>% filter(month == 1), "temperature", land = FALSE)
-ggmap_ras(env_m %>% filter(month == 1), "par", land = FALSE)
-ggmap_ras(env_m %>% filter(month == 1), "mld", land = FALSE)
-ggmap_ras(env_m %>% filter(month == 1), "mld_argo", land = FALSE)
+gg_map(env_m %>% filter(month == 1), "temperature", type = "raster", land = FALSE)
+gg_map(env_m %>% filter(month == 1), "par", type = "raster", land = FALSE)
+gg_map(env_m %>% filter(month == 1), "mld", type = "raster", land = FALSE)
+gg_map(env_m %>% filter(month == 1), "mld_argo", type = "raster", land = FALSE)
 ```
 
 Seems all good!
@@ -668,7 +668,7 @@ var_names <- env_m %>% select(-c(lon, lat, month)) %>% colnames()
 to_plot <- apply(expand.grid(var_names, c("_mean", "_sd")) %>% arrange(Var1), 1, paste, collapse="")
 
 plot_list <- list()
-for (i in 1:length(to_plot)){plot_list[[i]] <- ggmap_ras(env, to_plot[i])}
+for (i in 1:length(to_plot)){plot_list[[i]] <- gg_map(env, to_plot[i], type = "raster")}
 
 plot_list
 

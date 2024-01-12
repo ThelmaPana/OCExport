@@ -58,7 +58,10 @@ max_depth_woa <- 500
 # Data will be averaged from the surface to this layer
 layer_bottom <- 10
 
-## Colour palettes
+# Minimum number of objects in a UVP profile to consider it
+n_min_uvp <- 5
+
+## Colour palettes for image.plot
 col_temp = cmocean("thermal")(100)
 col_sal  = cmocean("haline")(100)
 col_dens = cmocean("dense")(100)
@@ -69,10 +72,11 @@ col_sil  = brewer_colors(100, "PuBu")
 col_chl  = cmocean("algae")(100)
 col_irr  = cmocean("solar")(100)
 col_depth  = cmocean("deep")(100)
-
 col_poc  = cmocean("matter")(100)
-
 col_misc  = viridis_colors(100)
+
+## Colour palettes for ggplot
+div_pal <- scale_colour_gradient2(low = "#4575b4", mid = "#ffffbf", high = "#d73027") # diverging palette centered at 0
 
 
 ## Get world map data ----
@@ -98,7 +102,9 @@ percent_na <- function(x) {
   return(res)
 }
 
-#' Plot a raster map
+## Plot a nice ggplot map ----
+#--------------------------------------------------------------------------#
+#' Plot a map, whether raster or points
 #'
 #' Generate a ggplot raster map from a dataframe and a variable name.
 #' Palette can be inferred from the name of the variable or provided in the arguments.
@@ -107,20 +113,23 @@ percent_na <- function(x) {
 #'
 #' @param df a dataframe, must contain at least 3 columns: `lon`, `lat` and var to plot
 #' @param var a character, name of variable to plot
+#' @param type a character, defining type of map (raster or points)
 #' @param land a boolean, whether to plot land or not
 #' @param palette a filling palette, will be generated if none is
 #'
 #' @return a ggplot object
 #' @export
 #'
-#' @examples ggmap_ras(df, var = "temperature")
-ggmap_ras <- function(df, var, land = TRUE, palette = NULL) {
+#' @examples ggmap(df, var = "temperature", type = "raster")
+ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = NULL) {
   ## Check args
   # df is a dataframe containing "lon", "lat" and var
-  checkmate::assert_data_frame(df, types = c("numeric", "factor"))
+  checkmate::assert_data_frame(df)
   checkmate::assert_names(names(df), must.include = c("lon", "lat", var))
   # var is a character
   checkmate::assert_character(var)
+  # type is either "raster" or "point"
+  checkmate::assert_choice(type, c("raster", "point"))
   # land is a boolean
   checkmate::assert_logical(land)
   # palette is a palette or NULL
@@ -135,31 +144,35 @@ ggmap_ras <- function(df, var, land = TRUE, palette = NULL) {
 
     # List of palettes for common variables
     pals <- tribble(
-      ~vars, ~palette,
-      "temperature", scale_fill_cmocean(name = "thermal", na.value = NA),
-      "salinity",    scale_fill_cmocean(name = "haline", na.value = NA),
-      "density",     scale_fill_cmocean(name = "dense", na.value = NA),
-      "oxygen",      scale_fill_distiller(palette = "Blues", na.value = NA),
-      "nitrate",     scale_fill_cmocean(name = "tempo", na.value = NA),
-      "phosphate",   scale_fill_distiller(palette = "BuPu", na.value = NA, direction = 1),
-      "silicate",    scale_fill_distiller(palette = "PuBu", na.value = NA, direction = 1),
-      "chl",         scale_fill_cmocean(name = "algae", na.value = NA),
-      "par",         scale_fill_cmocean(name = "solar", na.value = NA),
-      "mld",         scale_fill_cmocean(name = "deep", na.value = NA),
-      "mld_argo",         scale_fill_cmocean(name = "deep", na.value = NA),
-      "pyc",         scale_fill_cmocean(name = "deep", na.value = NA),
-      "z_eu",        scale_fill_cmocean(name = "deep", na.value = NA),
-      "s_cline",     scale_fill_cmocean(name = "deep", na.value = NA),
-      "p_cline",     scale_fill_cmocean(name = "deep", na.value = NA),
-      "n_cline",     scale_fill_cmocean(name = "deep", na.value = NA),
-      "poc",         scale_fill_cmocean(name = "matter", na.value = NA)
+      ~vars, ~raster, ~point,
+      "temperature", scale_fill_cmocean(name = "thermal", na.value = NA),                  scale_colour_cmocean(name = "thermal", na.value = NA),
+      "salinity",    scale_fill_cmocean(name = "haline", na.value = NA),                   scale_colour_cmocean(name = "haline", na.value = NA),
+      "density",     scale_fill_cmocean(name = "dense", na.value = NA),                    scale_colour_cmocean(name = "dense", na.value = NA),
+      "oxygen",      scale_fill_distiller(palette = "Blues", na.value = NA),               scale_colour_distiller(palette = "Blues", na.value = NA),
+      "nitrate",     scale_fill_cmocean(name = "tempo", na.value = NA),                    scale_colour_cmocean(name = "tempo", na.value = NA),
+      "phosphate",   scale_fill_distiller(palette = "BuPu", na.value = NA, direction = 1), scale_colour_distiller(palette = "BuPu", na.value = NA, direction = 1),
+      "silicate",    scale_fill_distiller(palette = "PuBu", na.value = NA, direction = 1), scale_colour_distiller(palette = "PuBu", na.value = NA, direction = 1),
+      "chl",         scale_fill_cmocean(name = "algae", na.value = NA),                    scale_colour_cmocean(name = "algae", na.value = NA),
+      "par",         scale_fill_cmocean(name = "solar", na.value = NA),                    scale_colour_cmocean(name = "solar", na.value = NA),
+      "mld",         scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "mld_argo",    scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "pyc",         scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "z_eu",        scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "s_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "p_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "n_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "poc",         scale_fill_cmocean(name = "matter", na.value = NA),                   scale_colour_cmocean(name = "matter", na.value = NA)
     )
 
     # Find the matching palette for variable to plot
-    pal <- pals %>% filter(vars == var_pal) %>% pull(palette)
+    pal <- pals %>% filter(vars == var_pal) %>% pull(all_of(type))
 
     # If no palette is found, use viridis
-    if (length(pal) == 0){pal <- scale_fill_viridis_c(na.value = NA)}
+    if (length(pal) == 0 & type == "raster"){
+      pal <- scale_fill_viridis_c(na.value = NA)
+    } else if (length(pal) == 0 & type == "point"){
+      pal <- scale_colour_viridis_c(na.value = NA)
+    }
 
   } else { # If palette is supplied, use it!
     pal <- palette
@@ -171,8 +184,12 @@ ggmap_ras <- function(df, var, land = TRUE, palette = NULL) {
     scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
     coord_quickmap()
 
-  # add raster layer
-  p <- p + geom_raster(aes(x = lon, y = lat, fill = .data[[var]]), na.rm = TRUE)
+  # add raster or point layer
+  if (type == "raster"){
+    p <- p + geom_raster(aes(x = lon, y = lat, fill = .data[[var]]), na.rm = TRUE)
+  } else {
+    p <- p + geom_point(aes(x = lon, y = lat, colour = .data[[var]]), na.rm = TRUE)
+  }
 
   # add land if required
   if (land){p <- p + geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray")}
