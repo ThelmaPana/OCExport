@@ -92,17 +92,25 @@ woa <- mclapply(vars, function(var) {
 names(woa) <- vars
 
 
+
+dim(woa$temperature)
+image.plot(woa$temperature[,,1,1], col = cmocean("thermal")(100))
+image.plot(woa$temperature[,,1,1], col = brewer_colors(100, "Blues"))
+
+brewer_colors(100, "Blues")
+
+
 ## Compute density ----
 #--------------------------------------------------------------------------#
 # Compute pressure rather than depth
 press <- array(NA, dim = dim(woa$temperature)[1:3])
 
 # compute for one longitude
-for (j in seq(along=lat)) {
-  press[1,j,] <- swPressure(depth[1:depth_count], latitude=lat[j])
+for (j in seq(along = lat)) {
+  press[1,j,] <- swPressure(depth[1:depth_count], latitude = lat[j])
 }
 # replicate for all longitudes
-for (i in seq(along=lon)) {
+for (i in seq(along = lon)) {
   press[i,,] <- press[1,,]
 }
 
@@ -123,7 +131,7 @@ woa$density <- mclapply(1:12, function(m) { # in parallel
 woa$density <- do.call(abind, list(woa$density, along = 4))
 
 
-image.plot(woa$density[,,10,1])
+image.plot(woa$density[,, 10, 1])
 
 
 ## Compute MLD ----
@@ -158,7 +166,7 @@ ggplot(ssub) +
 # -> we indeed want the pycnocline
 
 # for each pixel of each month, interpolate density over depth and derive pycnocline depth
-depths_i <- seq(0, max_depth_WOA, by = 5)
+depths_i <- seq(0, max_depth_woa, by = 5)
 
 pycno <- mclapply(1:12, function(m) { # in parallel
   # pycno <- mclapply(c(1,7), function(m) { # test
@@ -208,9 +216,9 @@ env_monthly <- mclapply(vars, function(var) {
     for (j in seq(along = lat)) {
       for (m in 1:12) {
         # compute average if >80% of data is present
-        keep <- X[i,j,depth <= layer_bottom,m]
-        if (percent_na(keep)<=0.2) {
-          res[i,j,m] <- mean(keep, na.rm=TRUE)
+        keep <- X[i, j, depth <= layer_bottom, m]
+        if (percent_na(keep) <= 0.2) {
+          res[i, j, m] <- mean(keep, na.rm=TRUE)
         }
       }
     }

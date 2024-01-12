@@ -31,12 +31,16 @@ library(DALEXtra)
 ## Default values ----
 #--------------------------------------------------------------------------#
 
+# Number of cores for parallel computing
+n_cores <- 14
+
 # GGplot theme
 theme_set(theme_minimal())
 
 # Path to data folder
 data_dir <- "data"
 
+## WOA
 # Path to local WOA links
 woa_loc <- dir <- file.path(data_dir, "raw/woa")
 dir.create(woa_loc, showWarnings=FALSE, recursive=TRUE)
@@ -44,25 +48,40 @@ dir.create(woa_loc, showWarnings=FALSE, recursive=TRUE)
 # Path to WOA dataset
 woa_dir <- "~/Documents/work/datasets/woa"
 
-# Number of cores for parallel computing
-n_cores <- 14
-
 # Whether to perform download for WOA data
 download_woa <- FALSE
 
-# Max depth for WOA data
-max_depth_WOA <- 500
+# Max depth for WOA data, this data will be used to compute clines
+max_depth_woa <- 500
 
 # Max depth of the layer we consider for predictors
-layer_bottom <- 100
+# Data will be averaged from the surface to this layer
+layer_bottom <- 10
+
+## Colour palettes
+col_temp = cmocean("thermal")(100)
+col_sal  = cmocean("haline")(100)
+col_dens = cmocean("dense")(100)
+col_oxy  = brewer_colors(100, "Blues")
+col_nit  = cmocean("tempo")(100)
+col_phos = brewer_colors(100, "BuPu")
+col_sil  = brewer_colors(100, "PuBu")
+col_chl  = cmocean("algae")(100)
+col_irr  = cmocean("solar")(100)
+col_depth  = cmocean("deep")(100)
+
+col_poc  = cmocean("matter")(100)
+
+col_misc  = viridis_colors(100)
+
 
 ## Get world map data ----
 #--------------------------------------------------------------------------#
 # For plots
-world <- fortify(map_data('world', wrap = c(-180, 180))) %>% rename(lon=long)
+world <- fortify(map_data('world', wrap = c(-180, 180))) %>% rename(lon = long)
 
 # To compute inland points
-coast <- read_csv("data/raw/gshhg_world_c.csv", col_types=cols())
+coast <- read_csv("data/raw/gshhg_world_c.csv", col_types = cols())
 
 
 ## Compute percentage of NA in a vector ----
@@ -77,6 +96,92 @@ percent_na <- function(x) {
     res <- sum(is.na(x)) / length(x)
   }
   return(res)
+}
+
+#' Plot a raster map
+#'
+#' Generate a ggplot raster map from a dataframe and a variable name.
+#' Palette can be inferred from the name of the variable or provided in the arguments.
+#' If no palette is found, it defaults to viridis.
+#' Land is plotted by default but this can be changed in arguments.
+#'
+#' @param df a dataframe, must contain at least 3 columns: `lon`, `lat` and var to plot
+#' @param var a character, name of variable to plot
+#' @param land a boolean, whether to plot land or not
+#' @param palette a filling palette, will be generated if none is
+#'
+#' @return a ggplot object
+#' @export
+#'
+#' @examples ggmap_ras(df, var = "temperature")
+ggmap_ras <- function(df, var, land = TRUE, palette = NULL) {
+  ## Check args
+  # df is a dataframe containing "lon", "lat" and var
+  checkmate::assert_data_frame(df, types = c("numeric", "factor"))
+  checkmate::assert_names(names(df), must.include = c("lon", "lat", var))
+  # var is a character
+  checkmate::assert_character(var)
+  # land is a boolean
+  checkmate::assert_logical(land)
+  # palette is a palette or NULL
+  checkmate::assert_multi_class(palette, c("ScaleContinuous", "Scale", "NULL"))
+
+  ## Palettes
+  # To look for palette, remove "_mean" in case we are working with annual climatology values
+  var_pal <- str_remove(var, "_mean")
+
+  # If no palette is supplied, generate one
+  if(is.null(palette)){
+
+    # List of palettes for common variables
+    pals <- tribble(
+      ~vars, ~palette,
+      "temperature", scale_fill_cmocean(name = "thermal", na.value = NA),
+      "salinity",    scale_fill_cmocean(name = "haline", na.value = NA),
+      "density",     scale_fill_cmocean(name = "dense", na.value = NA),
+      "oxygen",      scale_fill_distiller(palette = "Blues", na.value = NA),
+      "nitrate",     scale_fill_cmocean(name = "tempo", na.value = NA),
+      "phosphate",   scale_fill_distiller(palette = "BuPu", na.value = NA, direction = 1),
+      "silicate",    scale_fill_distiller(palette = "PuBu", na.value = NA, direction = 1),
+      "chl",         scale_fill_cmocean(name = "algae", na.value = NA),
+      "par",         scale_fill_cmocean(name = "solar", na.value = NA),
+      "mld",         scale_fill_cmocean(name = "deep", na.value = NA),
+      "mld_argo",         scale_fill_cmocean(name = "deep", na.value = NA),
+      "pyc",         scale_fill_cmocean(name = "deep", na.value = NA),
+      "z_eu",        scale_fill_cmocean(name = "deep", na.value = NA),
+      "s_cline",     scale_fill_cmocean(name = "deep", na.value = NA),
+      "p_cline",     scale_fill_cmocean(name = "deep", na.value = NA),
+      "n_cline",     scale_fill_cmocean(name = "deep", na.value = NA),
+      "poc",         scale_fill_cmocean(name = "matter", na.value = NA)
+    )
+
+    # Find the matching palette for variable to plot
+    pal <- pals %>% filter(vars == var_pal) %>% pull(palette)
+
+    # If no palette is found, use viridis
+    if (length(pal) == 0){pal <- scale_fill_viridis_c(na.value = NA)}
+
+  } else { # If palette is supplied, use it!
+    pal <- palette
+  }
+
+  ## Plot
+  # Base plot
+  p <- ggplot(df) +
+    scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
+    coord_quickmap()
+
+  # add raster layer
+  p <- p + geom_raster(aes(x = lon, y = lat, fill = .data[[var]]), na.rm = TRUE)
+
+  # add land if required
+  if (land){p <- p + geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray")}
+
+  # add palette
+  p <- p + pal
+
+  ## Return plot
+  return(p)
 }
 
 
