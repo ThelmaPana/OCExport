@@ -52,7 +52,7 @@ profiles %>%
 
 ```{r}
 # Keep only profiles with enough objects
-profiles <- profiles %>% filter(n_obj > n_min_uvp)
+profiles <- profiles %>% filter(n_obj > n_min_uvp) %>% select(-n_obj)
 
 # Drop objects that do not belong to these profiles
 o <- o %>% filter(sample_ids %in% profiles$sample_ids)
@@ -93,7 +93,7 @@ Plot features distributions.
 #| column: screen
 #| out-width: 60%
 #| fig-align: center
-#| #| fig-width: 10
+#| fig-width: 10
 #| fig-height: 8
 x %>%
   pivot_longer(cols = everything()) %>%

@@ -14,9 +14,9 @@ editor: visual
 source("utils.R")
 
 load("data/00.carbon_data.Rdata")
-load("data/01.env_data.Rdata")
+load("data/01.all_env.Rdata")
 load("data/03.uvp_profiles.Rdata")
-rm(env_m, coast)
+rm(coast)
 ```
 
 ## Round coordinates of env and UVP data to match carbon data
@@ -26,7 +26,7 @@ Carbon data is given on a 2°×2° grid, so we need to round env and UVP coordin
 ### Env data
 
 ```{r}
-env <- env_y %>%
+env <- env %>%
   arrange(lon, lat) %>%
   mutate(
     # floor longitude and add 1 because carbon longitudes are odd
@@ -53,10 +53,6 @@ profiles %>%
 ```
 
 Now let’s round the coordinates and replot the map. We also need to average UVP data on our new grid, but before that let’s also compute the number of UVP profiles per carbon pixel.
-
-[TODO: is it okay to average plankton diversity metrics on new grid? Or should we group the profiles before computing diversity metrics?]{style="color: red;"}
-
-[TODO: which depth to consider for UVP data?]{style="color: red;"}
 
 ```{r}
 profiles <- profiles %>%
@@ -97,12 +93,7 @@ We can notice a strong sampling in the California current and in the Peruvian up
 Let’s have a quick look at Shannon diversity on this new grid.
 
 ```{r}
-profiles %>% 
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = ta_shannon), size = 0.5) +
-  scale_colour_viridis_c() +
-  coord_quickmap()
+ggmap(profiles, "ta_shannon", type = "point")
 ```
 
 ## Assemble env, UVP and carbon data
@@ -120,23 +111,13 @@ Our dataset contains `r nrow(df)` points.
 Now, we can plot POC data at locations of UVP profiles.
 
 ```{r}
-df %>%
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = poc), size = 0.5) +
-  scale_colour_cmocean(name = "matter") +
-  coord_quickmap()
+ggmap(df, "poc", type = "point")
 ```
 
 Or temperature.
 
 ```{r}
-df %>%
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = temperature_mean), size = 0.5) +
-  scale_colour_cmocean(name = "thermal") +
-  coord_quickmap()
+ggmap(df, "temperature_mean", type = "point")
 ```
 
 In both cases, we notice that some POC and temperature data is not available at some UVP locations.
@@ -156,12 +137,7 @@ We still have `r nrow(df)` points in our dataset.
 Let’s redraw our POC map.
 
 ```{r}
-df %>%
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = poc), size = 0.5) +
-  scale_colour_cmocean(name = "matter") +
-  coord_quickmap()
+ggmap(df, "poc", type = "point")
 ```
 
 ## Subsample env variables
@@ -169,8 +145,7 @@ df %>%
 For now, just keep `mean` variables and ignore `sd` and `var` variables.
 
 ```{r}
-df <- df %>% 
-  select(poc, lon, lat, contains("ta_"), contains("mean"))
+#df <- df %>% select(poc, lon, lat, contains("ta_"), contains("mean"))
 ```
 
 ## Run a quick exploration with a PCA
@@ -178,19 +153,74 @@ df <- df %>%
 This allows us to have at correlations within our datasets as well as the main axes of variance.
 
 ```{r}
-# Need to remove lon and lat and to scale because units differ between variables
-pca_all <- rda(df %>% select(-c(lon, lat)), scale = TRUE)
-biplot(pca_all, display = c("sites", "species"), type = c("text", "points"))
+# Need to remove sample_ids, lon and lat and to scale because units differ between variables
+pca_all <- FactoMineR::PCA(df %>% select(-c(sample_ids, lon, lat)), scale.unit = TRUE, graph = FALSE)
+```
+
+Plot eigenvalues.
+
+```{r}
+eig <- pca_all$eig %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "comp") %>%
+  as_tibble() %>%
+  mutate(
+    comp = str_remove(comp, "comp "),
+    comp = as.numeric(comp),
+    comp = as.factor(comp)
+  ) %>%
+  rename(var = `percentage of variance`, cum_var = `cumulative percentage of variance`)
+
+eig %>%
+  ggplot() +
+  geom_col(aes(x = comp, y = eigenvalue)) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "PC", y = "Eigenvalue")
+```
+
+Plot first plane.
+
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+#| fig-width: 8
+#| fig-height: 8
+plot(pca_all, choix="var", axes = c(1, 2))
 ```
 
 The two first axes are:
 
--   PC1: nutrient-rich in positive values VS nutrient-poor in negative values
+-   PC1: oxygen-rich in positive values VS warm in negative values
 
--   PC2: oxygen-rich and big plankton in positive values VS taxonomic diversity in negative values
+-   PC2: deep mixed layer in positive values
+
+Extract coordinates in the PCA space.
+
+```{r}
+## Get coordinates of individuals
+inds <- pca_all$ind$coord %>% as_tibble()
+# Set nice names for columns
+colnames(inds) <- str_c("dim", paste(c(1:ncol(inds))))
+# And join with initial dataframe of objects
+inds <- df %>%
+  select(sample_ids:lat) %>%
+  bind_cols(inds)
+```
+
+Plot maps of profiles.
+
+```{r}
+ggmap(inds, "dim1", type = "point", palette = div_pal)
+```
+
+```{r}
+ggmap(inds, "dim2", type = "point", palette = div_pal)
+```
 
 ## Save the resulting dataset
 
 ```{r}
-# save(df, file = file.path(data_dir, "04.all_data.Rdata"))
+save(df, file = file.path(data_dir, "04.all_data.Rdata"))
 ```
