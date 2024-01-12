@@ -10,7 +10,7 @@ source("utils.R")
 
 ## Read data as matrix ----
 #--------------------------------------------------------------------------#
-d_mat <- readMat("data/raw/Cexp_CAFE_kl24h.mat")$EXP[,,1]$POCexp
+d_mat <- readMat("data/raw/Cexp_CAFE_kl24h.mat")$EXP[,,1]$POC1000
 
 # Generate colnames as longitudes and rownames as latitudes
 colnames(d_mat) <- (c(0.5:179.5) * 2)
@@ -40,4 +40,4 @@ df_c %>%
 
 ## Save ----
 #--------------------------------------------------------------------------#
-save(df_c, file = file.path(data_dir, "00.carbon_data.Rdata"))
+save(df_c, file = "data/00.carbon_data.Rdata")

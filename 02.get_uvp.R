@@ -19,7 +19,7 @@ o_dataset <- o
 rm(o)
 # Keep only objects_ids and taxa
 o_dataset <- o_dataset %>%
-  select(object_ids = objid) %>%
+  select(object_ids = objid, taxon) %>%
   # convert object_ids to character for future join
   mutate(object_ids = as.character(object_ids))
 
@@ -72,8 +72,9 @@ o$details <- o$details %>%
   as_tibble(.name_repair = "minimal") %>%
   # use our nice names
   setNames(col_names)%>%
-  # convert all column except first two (classif_qual and display name) to numeric
-  mutate(across(col_names[-c(1,2)], as.integer))
+  # convert all column except first two (display name) to numeric
+  mutate(across(col_names[-1], as.integer))
+
 
 # Bind all outputs in a tibble
 o <- as_tibble(o[1:4]) %>%
@@ -95,20 +96,15 @@ o <- o %>%
   select(object_ids:project_ids, taxon, depth, lon, lat, everything())
 
 # Drop object which were not found in the UVP5 dataset because they were omitted on purpose
-o <- o %>% filter(!is.na(taxon))
-
-## List profiles and taxa ----
-#--------------------------------------------------------------------------#
-taxa <- o %>% pull(taxon) %>% unique() %>% sort()
-
-profiles <- o %>%
-  select(sample_ids, lon, lat) %>%
-  unique()
+# Drop objects marked as detritus in the UVP5 dataset
+o <- o %>%
+  filter(!is.na(taxon)) %>%
+  filter(taxon != "detritus")
 
 
 ## Save data ----
 #--------------------------------------------------------------------------#
-save(o, profiles, taxa, file = "data/02.tara_uvp.Rdata")
+save(o, file = "data/02.tara_uvp.Rdata")
 
 
 # ## Load downloaded data ----

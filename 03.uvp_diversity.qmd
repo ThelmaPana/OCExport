@@ -17,20 +17,15 @@ source("utils.R")
 load("data/02.tara_uvp.Rdata")
 ```
 
-Let’s quickly plot a map of the profiles we have extracted.
+## Clean data
+
+### Depth
+
+Keep only organisms above the depth at which we want to predict poc export, i.e. 1000 m.
 
 ```{r}
-profiles %>%
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat), size = 0.5) +
-  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
-  coord_quickmap()
+o <- o %>% filter(depth < 1000)
 ```
-
-[TODO: which depth to consider for UVP data?]{style="color: red;"}
-
-## Clean data
 
 ### Taxa
 
@@ -38,8 +33,32 @@ There should be nothing to do here as we use the same taxonomy as the UVP5 datas
 
 ```{r}
 # List of taxa
+taxa <- o %>% pull(taxon) %>% unique() %>% sort()
 taxa
 ```
+
+### Profile
+
+Compute the number of objects per profile and keep only profiles that have more than `r n_min_uvp` objects.
+
+```{r}
+profiles %>%
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
+  geom_point(aes(x = lon, y = lat, colour = n_obj > n_min_uvp)) +
+  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
+  coord_quickmap()
+```
+
+```{r}
+# Keep only profiles with enough objects
+profiles <- profiles %>% filter(n_obj > n_min_uvp)
+
+# Drop objects that do not belong to these profiles
+o <- o %>% filter(sample_ids %in% profiles$sample_ids)
+```
+
+We have `r nrow(o)` objects belonging to `r nrow(profiles)` .
 
 ### Features
 
@@ -94,7 +113,7 @@ For a PCA, features should be normaly-distributed. Let’s apply some transforma
 ```{r}
 x_norm <- x %>%
   # remove the most extreme high values
-  mutate_all(mask_extreme, percent=c(0,0.5)) %>%
+  mutate_all(mask_extreme, percent = c(0, 0.5)) %>%
   # normalise using the Yeo-Johnson transformation
   mutate_all(yeo_johnson) %>%
   mutate_all(as.numeric)
@@ -144,7 +163,7 @@ ta_div_prof <- tibble(
   sample_ids = rownames(cont),
   ta_ric = specnumber(cont),
   ta_shannon = diversity(cont, index = "shannon"),
-  ta_pielou = ta_shannon/ta_ric
+  ta_pielou = ta_shannon/log(ta_ric)
 ) %>%
   left_join(profiles, by = join_by(sample_ids)) %>%
   select(sample_ids, lon, lat, everything())
@@ -160,27 +179,23 @@ Plot taxonomic diversity metrics.
 #| column: screen
 #| out-width: 60%
 #| fig-align: center
-profiles %>% 
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = ta_ric)) +
-  scale_colour_viridis_c() +
-  coord_quickmap()
+ggmap(
+  profiles, 
+  "ta_ric", 
+  type = "point"
+  )
 
-profiles %>%
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = ta_shannon)) +
-  scale_colour_viridis_c() +
-  coord_quickmap()
+ggmap(
+  profiles, 
+  "ta_shannon", 
+  type = "point"
+  )
 
-profiles %>%
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = ta_pielou)) +
-  scale_colour_viridis_c() +
-  coord_quickmap()
-
+ggmap(
+  profiles, 
+  "ta_pielou", 
+  type = "point"
+  )
 ```
 
 ## Trophic diversity
@@ -213,6 +228,7 @@ eig <- m_space$eig %>%
     comp = as.factor(comp)
     ) %>% 
   rename(var = `percentage of variance`, cum_var = `cumulative percentage of variance`)
+
 eig %>%
   ggplot() +
   geom_col(aes(x = comp, y = eigenvalue)) +
@@ -222,6 +238,8 @@ eig %>%
 ```
 
 Most of the variance is captured by the first two axes (`r format(eig$var[1]/100, digits = 2)` and `r format(eig$var[2]/100, digits = 2)` respectively).
+
+[TODO: PC selection.]{style="color: red;"}
 
 #### Features and axis definition
 
@@ -236,9 +254,20 @@ Let’s now plot the first two axes.
 plot(m_space, choix="var", axes = c(1, 2))
 ```
 
-First axis: big objects in positive values, small objects in negative values.
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+#| fig-width: 8
+#| fig-height: 8
+plot(m_space, choix="var", axes = c(2, 3))
+```
 
-Second axis: clear (i.e. transparent) objects in negative values, dark (i.e. opaque) objects in positive values.
+-   PC1: big objects in positive values, small objects in negative values.
+
+-   PC2: clear (i.e. transparent) objects in positive values, dark (i.e. opaque) objects in negative values.
+
+-   PC3: harder to tell, something with gray levels.
 
 #### Individuals
 
@@ -264,23 +293,6 @@ o %>%
   geom_point(aes(x = dim1, y = dim2, colour = sample_ids), show.legend = FALSE, size = 0.5, alpha = 0.5) 
 ```
 
-[TODO: check the profile with high dim1 values.]{style="color: red;"}
-
-```{r}
-o %>%
-  filter(dim1>10) %>% 
-  ggplot() +
-  geom_point(aes(x = dim1, y = dim2, colour = sample_ids), size = 1, alpha = 0.5) 
-```
-
-[The sample to inspect is 45148.]{style="color: red;"}
-
-```{r}
-o %>% filter(sample_ids == 45148) %>% count(taxon) %>% arrange(desc(n))
-```
-
-[Many Cnidaria tentacles, should we remove them? They can biase the construction of the morphospace.]{style="color: red;"}
-
 ### Diversity
 
 #### Morphospace features
@@ -304,26 +316,24 @@ And we can plot maps of mean `dim1` and `dim2` values for each profile.
 #| column: screen
 #| out-width: 60%
 #| fig-align: center
-profiles %>%   
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, color = dim1_mean)) +
-  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
-  scale_colour_gradient2(low = "#4575b4", mid = "#ffffbf", high = "#d73027") +
-  coord_quickmap()
+ggmap(
+  profiles, 
+  "dim1_mean", 
+  type = "point", 
+  palette = div_pal
+  )
 ```
 
 ```{r}
 #| column: screen
 #| out-width: 60%
 #| fig-align: center
-profiles %>%   
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, color = dim2_mean)) +
-  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
-  scale_colour_gradient2(low = "#4575b4", mid = "#ffffbf", high = "#d73027") +
-  coord_quickmap()
+ggmap(
+  profiles, 
+  "dim2_mean", 
+  type = "point", 
+  palette = div_pal
+  )
 ```
 
 We can also look at variance within profiles.
@@ -332,26 +342,22 @@ We can also look at variance within profiles.
 #| column: screen
 #| out-width: 60%
 #| fig-align: center
-profiles %>%   
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, color = dim1_var)) +
-  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
-  scale_colour_viridis_c() +
-  coord_quickmap()
+ggmap(
+  profiles, 
+  "dim1_var", 
+  type = "point"
+  )
 ```
 
 ```{r}
 #| column: screen
 #| out-width: 60%
 #| fig-align: center
-profiles %>%   
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, color = dim2_var)) +
-  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
-  scale_colour_viridis_c() +
-  coord_quickmap()
+ggmap(
+  profiles, 
+  "dim2_var", 
+  type = "point"
+  )
 ```
 
 #### Metrics
