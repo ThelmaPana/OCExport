@@ -1,31 +1,32 @@
 ## Packages ----
 #--------------------------------------------------------------------------#
-library(tidyverse)
-library(parallel)
+suppressWarnings(library(tidyverse))
+suppressWarnings(library(parallel))
 
 # Reading & downloading
-library(ncdf4)
-library(R.matlab)
-library(ecotaxarapi)
+suppressWarnings(library(ncdf4))
+suppressWarnings(library(R.matlab))
+suppressWarnings(library(ecotaxarapi))
 
 # Processing
-library(glue)
-library(castr)
-library(fields)
-library(abind)
-library(oce)
-library(vegan)
-library(morphr)
+suppressWarnings(library(glue))
+suppressWarnings(library(castr))
+suppressWarnings(library(fields))
+suppressWarnings(library(abind))
+suppressWarnings(library(oce))
+suppressWarnings(library(vegan))
+suppressWarnings(library(morphr))
 
 # Plots
-library(cmocean)
-library(chroma)
+suppressWarnings(library(cmocean))
+suppressWarnings(library(chroma))
 
 # Modeling
-library(tidymodels)
-library(rpart.plot)
-library(vip)
-library(DALEXtra)
+suppressWarnings(library(tidymodels))
+suppressWarnings(library(rpart.plot))
+suppressWarnings(library(vip))
+suppressWarnings(library(DALEXtra))
+
 
 
 ## Default values ----
@@ -58,8 +59,17 @@ max_depth_woa <- 500
 # Data will be averaged from the surface to this layer
 layer_bottom <- 10
 
+## UVP
+# Depth above which to keep UVP objects
+max_depth_uvp <- 1000
+
 # Minimum number of objects in a UVP profile to consider it
 n_min_uvp <- 5
+
+
+
+## Colour palettes ----
+#--------------------------------------------------------------------------#
 
 ## Colour palettes for image.plot
 col_temp = cmocean("thermal")(100)
