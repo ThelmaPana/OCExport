@@ -14,7 +14,7 @@ source("utils.R")
 ## Read UVP data
 
 ```{r}
-load("data/02.tara_uvp.Rdata")
+load("data/02.all_uvp.Rdata")
 ```
 
 ## Clean data
@@ -24,22 +24,36 @@ load("data/02.tara_uvp.Rdata")
 Keep only organisms above the depth at which we want to predict poc export, i.e. 1000 m.
 
 ```{r}
-o <- o %>% filter(depth < 1000)
+o <- o %>% filter(depth < max_depth_uvp)
 ```
 
 ### Taxa
 
-There should be nothing to do here as we use the same taxonomy as the UVP5 dataset.
+List taxa, merge contextual observations with regular observations.
+
+-   [TODO: contextual observations?]{style="color: red;"} Keep
+
+-   [TODO: tentacles of Cnidaria?]{style="color: red;"}
 
 ```{r}
 # List of taxa
 taxa <- o %>% pull(taxon) %>% unique() %>% sort()
 taxa
+
+# Merge contextual
+o <- o %>% mutate(taxon = str_remove(taxon, " (contextual)"))
 ```
 
 ### Profile
 
 Compute the number of objects per profile and keep only profiles that have more than `r n_min_uvp` objects.
+
+```{r}
+profiles <- o %>% 
+  group_by(profile_id, lon, lat, datetime) %>% 
+  summarise(n_obj = n()) %>% 
+  ungroup()
+```
 
 ```{r}
 profiles %>%
@@ -55,10 +69,73 @@ profiles %>%
 profiles <- profiles %>% filter(n_obj > n_min_uvp) %>% select(-n_obj)
 
 # Drop objects that do not belong to these profiles
-o <- o %>% filter(sample_ids %in% profiles$sample_ids)
+o <- o %>% filter(profile_id %in% profiles$profile_id)
 ```
 
 We have `r nrow(o)` objects belonging to `r nrow(profiles)` .
+
+## Taxonomic diversity
+
+Compute taxonomic diversity indices:
+
+-   Taxonomic richness
+
+-   Shannon Diversity
+
+-   Pielou Evenness
+
+```{r}
+# Generate a contingency table as a matrix to feed to vegan
+cont <- o %>%
+  count(profile_id, taxon) %>%
+  pivot_wider(names_from = "taxon", values_from = "n", values_fill = 0) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "profile_id") %>%
+  as.matrix()
+
+# Compute diversity metrics
+ta_div_prof <- tibble(
+  profile_id = rownames(cont),
+  ta_ric = specnumber(cont),
+  ta_shannon = diversity(cont, index = "shannon"),
+  ta_pielou = ta_shannon/log(ta_ric)
+) %>%
+  left_join(profiles, by = join_by(profile_id)) %>%
+  select(profile_id, lon, lat, everything())
+
+
+# Store results with table of profiles
+profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat, datetime))
+```
+
+Plot taxonomic diversity metrics.
+
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+ggmap(
+  profiles, 
+  "ta_ric", 
+  type = "point"
+  )
+
+ggmap(
+  profiles, 
+  "ta_shannon", 
+  type = "point"
+  )
+
+ggmap(
+  profiles, 
+  "ta_pielou", 
+  type = "point"
+  )
+```
+
+## Trophic diversity
+
+## Morphological diversity
 
 ### Features
 
@@ -68,7 +145,7 @@ Some features have a unique value for all individuals and other are missing for 
 
 ```{r}
 # Select features
-x <- o %>% select(area:areai)
+x <- o %>% select(area:skeleton_area)
 
 # Remove variables with zero variance
 feats <- x %>%
@@ -77,12 +154,12 @@ feats <- x %>%
   filter(value > 0) %>%
   pull(name)
 
-# Exclude some features with many missing values
-feats <- feats[!str_detect(feats, "exc")]
-
-# Exclude circ. as it is binary
-# TODO check why
-feats <- feats[feats != "circ."]
+## Exclude some features with many missing values
+#feats <- feats[!str_detect(feats, "exc")]
+#
+## Exclude circ. as it is binary
+## TODO check why
+#feats <- feats[feats != "circ."]
 
 x <- x %>% select(all_of(feats))
 ```
@@ -102,7 +179,7 @@ x %>%
   facet_wrap(~name, scales = "free")
 ```
 
-For a PCA, features should be normaly-distributed. Let’s apply some transformation to get closer to normal distribution:
+For a PCA, features should be normally-distributed. Let’s apply some transformation to get closer to normal distribution:
 
 -   mask extreme values
 
@@ -139,69 +216,6 @@ x_norm %>%
   facet_wrap(~name, scales = "free")
 ```
 
-## Taxonomic diversity
-
-Compute taxonomic diversity indices:
-
--   Taxonomic richness
-
--   Shannon Diversity
-
--   Pielou Evenness
-
-```{r}
-# Generate a contingency table as a matrix to feed to vegan
-cont <- o %>%
-  count(sample_ids, taxon) %>%
-  pivot_wider(names_from = "taxon", values_from = "n", values_fill = 0) %>%
-  as.data.frame() %>%
-  column_to_rownames(var = "sample_ids") %>%
-  as.matrix()
-
-# Compute diversity metrics
-ta_div_prof <- tibble(
-  sample_ids = rownames(cont),
-  ta_ric = specnumber(cont),
-  ta_shannon = diversity(cont, index = "shannon"),
-  ta_pielou = ta_shannon/log(ta_ric)
-) %>%
-  left_join(profiles, by = join_by(sample_ids)) %>%
-  select(sample_ids, lon, lat, everything())
-
-
-# Store results with table of profiles
-profiles <- profiles %>% left_join(ta_div_prof, by = join_by(sample_ids, lon, lat))
-```
-
-Plot taxonomic diversity metrics.
-
-```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
-ggmap(
-  profiles, 
-  "ta_ric", 
-  type = "point"
-  )
-
-ggmap(
-  profiles, 
-  "ta_shannon", 
-  type = "point"
-  )
-
-ggmap(
-  profiles, 
-  "ta_pielou", 
-  type = "point"
-  )
-```
-
-## Trophic diversity
-
-## Morphological diversity
-
 ### Morphospace
 
 #### Build
@@ -237,9 +251,9 @@ eig %>%
   labs(x = "PC", y = "Eigenvalue")
 ```
 
-Most of the variance is captured by the first two axes (`r format(eig$var[1]/100, digits = 2)` and `r format(eig$var[2]/100, digits = 2)` respectively).
+Most of the variance is captured by the first three axes (`r format(eig$var[1]/100, digits = 2)`, `r format(eig$var[2]/100, digits = 2)` and `r format(eig$var[3]/100, digits = 2)`respectively).
 
-[TODO: PC selection.]{style="color: red;"}
+[TODO: PC selection.]{style="color: red;"} See Numerical Ecology, p409
 
 #### Features and axis definition
 
@@ -265,9 +279,9 @@ plot(m_space, choix="var", axes = c(2, 3))
 
 -   PC1: big objects in positive values, small objects in negative values.
 
--   PC2: clear (i.e. transparent) objects in positive values, dark (i.e. opaque) objects in negative values.
+-   PC2: elongated & symetrical objects in positive values, round objects in negative values.
 
--   PC3: harder to tell, something with gray levels.
+-   PC3: harder to tell, something with gray levels, tbd with images.
 
 #### Individuals
 
@@ -277,10 +291,10 @@ Let’s extract the coordinates of individuals in the morphospace.
 ## Get coordinates of individuals
 inds <- m_space$ind$coord %>% as_tibble()
 # Set nice names for columns
-colnames(inds) <- str_c("dim", paste(c(1:ncol(inds))))
+colnames(inds) <- str_c("m_dim", paste(c(1:ncol(inds))))
 # And join with initial dataframe of objects
 o <- o %>%
-  select(sample_ids:lat) %>%
+  select(profile_id:lat) %>%
   bind_cols(inds)
 ```
 
@@ -289,8 +303,8 @@ We can not plot the position of objects in the morphospace, coloured per profile
 ```{r}
 ## Plot invidivuals with profile as colour
 o %>%
-  ggplot() +
-  geom_point(aes(x = dim1, y = dim2, colour = sample_ids), show.legend = FALSE, size = 0.5, alpha = 0.5) 
+  ggplot(aes(x = m_dim1, y = m_dim2, colour = profile_id)) +
+  geom_point(show.legend = FALSE, size = 0.5, alpha = 0.008)
 ```
 
 ### Diversity
@@ -300,14 +314,14 @@ o %>%
 We can collect the position of objects in the morphospace to summarise the morphological diversity of each profile.
 
 ```{r}
-# Compute mean and variance of dim1 and dim2 per profile
+# Compute mean and variance of dim1, dim2 and dim3 per profile
 m_div_prof <- o %>% 
-  group_by(sample_ids, lon, lat) %>% 
-  summarise(across(dim1:dim2, list(mean = mean, var = var))) %>% 
+  group_by(profile_id, lon, lat) %>% 
+  summarise(across(m_dim1:m_dim3, list(mean = mean, var = var))) %>% 
   ungroup()
 
 # And store this with profiles data
-profiles <- profiles %>% left_join(m_div_prof, by = join_by(sample_ids, lon, lat))
+profiles <- profiles %>% left_join(m_div_prof, by = join_by(profile_id, lon, lat))
 ```
 
 And we can plot maps of mean `dim1` and `dim2` values for each profile.
@@ -318,7 +332,7 @@ And we can plot maps of mean `dim1` and `dim2` values for each profile.
 #| fig-align: center
 ggmap(
   profiles, 
-  "dim1_mean", 
+  "m_dim1_mean", 
   type = "point", 
   palette = div_pal
   )
@@ -330,7 +344,19 @@ ggmap(
 #| fig-align: center
 ggmap(
   profiles, 
-  "dim2_mean", 
+  "m_dim2_mean", 
+  type = "point", 
+  palette = div_pal
+  )
+```
+
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+ggmap(
+  profiles, 
+  "m_dim3_mean", 
   type = "point", 
   palette = div_pal
   )
@@ -344,7 +370,7 @@ We can also look at variance within profiles.
 #| fig-align: center
 ggmap(
   profiles, 
-  "dim1_var", 
+  "m_dim1_var", 
   type = "point"
   )
 ```
@@ -355,7 +381,18 @@ ggmap(
 #| fig-align: center
 ggmap(
   profiles, 
-  "dim2_var", 
+  "m_dim2_var", 
+  type = "point"
+  )
+```
+
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+ggmap(
+  profiles, 
+  "m_dim3_var", 
   type = "point"
   )
 ```
