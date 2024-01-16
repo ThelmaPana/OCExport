@@ -1,0 +1,102 @@
+---
+title: "Predicting POC export from plankton diversity"
+subtitle: "Calipsocean meeting"
+author: "Thelma Panaïotis"
+date: "05/03/2024"
+date-format: "DD/MM/YYYY"
+format: 
+  revealjs:
+    theme: simple
+    #footer: ""
+    slide-number: c
+editor: visual
+---
+
+```{r}
+#| output: false
+#| echo: false
+source("utils.R")
+
+load("data/00.carbon_data.Rdata")
+load("data/01.all_env.Rdata")
+load("data/03.uvp_profiles.Rdata")
+load("data/04.all_data.Rdata")
+rm(coast)
+```
+
+# Data
+
+## POC
+
+POC export at 1000 m, from [Wang et al. 2023](https://www.nature.com/articles/s41586-023-06772-4).
+
+```{r}
+ggmap(df = df_c, var = "poc", type = "raster")
+```
+
+## Environment
+
+When you click the **Render** button a document will be generated that includes:
+
+-   Content authored with markdown
+-   Output from executable code
+
+## Plankton
+
+UVP5 dataset
+
+```{r}
+ggplot(profiles, aes(x = lon, y = lat)) +
+  geom_polygon(data = world, aes(group = group), fill = "gray") +
+  geom_point(size = 0.5) +
+  coord_quickmap(expand = FALSE)
+```
+
+## Plankton - Taxonomic Diversity
+
+::: columns
+::: {.column width="30%"}
+-   species richness
+
+-   Shannon index
+
+-   Pielou’s evenness
+:::
+
+::: {.column width="70%"}
+
+```{r}
+ggmap(profiles, var = "ta_shannon", type = "point") + labs(colour = "Shannon")
+```
+:::
+:::
+
+## Plankton - Trophic Diversity
+
+::: columns
+::: {.column width="40%"}
+Left column
+:::
+
+::: {.column width="60%"}
+Right column
+:::
+:::
+
+## Dataset
+
+`r nrow(df)` data points
+
+```{r}
+ggmap(df, var = "poc", type = "point")
+```
+
+# Model
+
+## Code
+
+When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
