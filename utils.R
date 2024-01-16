@@ -2,6 +2,7 @@
 #--------------------------------------------------------------------------#
 suppressWarnings(library(tidyverse))
 suppressWarnings(library(parallel))
+suppressWarnings(library(here))
 
 # Reading & downloading
 suppressWarnings(library(ncdf4))
@@ -43,7 +44,7 @@ data_dir <- "data"
 
 ## WOA
 # Path to local WOA links
-woa_loc <- dir <- file.path(data_dir, "raw/woa")
+woa_loc <- here(file.path(data_dir, "raw/woa"))
 dir.create(woa_loc, showWarnings=FALSE, recursive=TRUE)
 
 # Path to WOA dataset
@@ -95,7 +96,7 @@ div_pal <- scale_colour_gradient2(low = "#4575b4", mid = "#ffffbf", high = "#d73
 world <- fortify(map_data('world', wrap = c(-180, 180))) %>% rename(lon = long)
 
 # To compute inland points
-coast <- read_csv("data/raw/gshhg_world_c.csv", col_types = cols())
+coast <- read_csv(here("data/raw/gshhg_world_c.csv"), col_types = cols())
 
 
 ## Compute percentage of NA in a vector ----
@@ -191,8 +192,7 @@ ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = N
   ## Plot
   # Base plot
   p <- ggplot(df) +
-    scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
-    coord_quickmap()
+    coord_quickmap(expand = FALSE)
 
   # add raster or point layer
   if (type == "raster"){

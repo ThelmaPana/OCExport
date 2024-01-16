@@ -15,12 +15,12 @@ editor: visual
 ```{r}
 #| output: false
 #| echo: false
-source("utils.R")
+source(here::here("utils.R"))
 
-load("data/00.carbon_data.Rdata")
-load("data/01.all_env.Rdata")
-load("data/03.uvp_profiles.Rdata")
-load("data/04.all_data.Rdata")
+load(here("data/00.carbon_data.Rdata"))
+load(here("data/01.all_env.Rdata"))
+load(here("data/03.uvp_profiles.Rdata"))
+load(here("data/04.all_data.Rdata"))
 rm(coast)
 ```
 
@@ -64,7 +64,6 @@ ggplot(profiles, aes(x = lon, y = lat)) +
 :::
 
 ::: {.column width="70%"}
-
 ```{r}
 ggmap(profiles, var = "ta_shannon", type = "point") + labs(colour = "Shannon")
 ```
