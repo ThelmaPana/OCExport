@@ -137,13 +137,14 @@ o <- read_tsv("data/raw/uvp/objects.tsv.gz")
 
 # Select and rename columns
 o <- o %>% select(
-    object,
+    # both object_id and profile_id are necessary to retrieve images
+    object_id,
     profile_id,
     depth,
     taxon = group,
     area:skeleton_area
   ) %>%
-  mutate(profile_id = as.character(profile_id))
+  mutate(profile_id = as.character(profile_id), object_id = as.character(object_id))
 
 
 ## Taxonomy ----
@@ -169,7 +170,7 @@ s <- read_tsv("data/raw/uvp/samples.tsv.gz") %>%
 # Join with profiles info
 o <- o %>%
   left_join(s, by = join_by(profile_id)) %>%
-  select(object, profile_id, lon, lat, datetime, depth, taxon, everything())
+  select(object_id, profile_id, lon, lat, datetime, depth, taxon, everything())
 
 
 ## Save ----

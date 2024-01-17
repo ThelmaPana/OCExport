@@ -212,6 +212,29 @@ ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = N
 }
 
 
+## Preprocess images for morphr ----
+#--------------------------------------------------------------------------#
+# Function to pre-process images
+preprocess <- function(x) {
+  x |>
+    # remove 31 pixels from the bottom (=the scale bar)
+    img_chop(bottom=31) |>
+    # change the gamma to see the light objects better
+    img_adjust_gamma(gamma=0.7)
+}
+
+## Draw a circle ----
+#--------------------------------------------------------------------------#
+# To draw a circle
+circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+  r = diameter / 2
+  tt <- seq(0,2*pi,length.out = npoints)
+  xx <- center[1] + r * cos(tt)
+  yy <- center[2] + r * sin(tt)
+  return(data.frame(x = xx, y = yy))
+}
+
+
 ## Plot variable importance ----
 #--------------------------------------------------------------------------#
 ggplot_imp <- function(...) {

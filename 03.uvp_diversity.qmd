@@ -8,6 +8,7 @@ editor: visual
 
 ```{r}
 #| output: false
+#| warning: false
 source("utils.R")
 ```
 
@@ -33,7 +34,7 @@ List taxa, merge contextual observations with regular observations.
 
 -   [TODO: contextual observations?]{style="color: red;"} Keep
 
--   [TODO: tentacles of Cnidaria?]{style="color: red;"}
+-   [TODO: tentacles of Cnidaria?]{style="color: red;"} removed
 
 ```{r}
 # List of taxa
@@ -42,6 +43,9 @@ taxa
 
 # Merge contextual
 o <- o %>% mutate(taxon = str_remove(taxon, " (contextual)"))
+
+# Remove tentacle of Cnidaria
+o <- o %>% filter(taxon != "tentacle of Cnidaria")
 ```
 
 ### Profile
@@ -137,11 +141,15 @@ ggmap(
 
 ## Morphological diversity
 
+Based on:
+
+-   <https://github.com/jiho/ptb_morphodiv/tree/master>
+
+-   [Beck et al. 2023](https://royalsocietypublishing.org/doi/full/10.1098/rspb.2023.2109)
+
 ### Features
 
 Some features have a unique value for all individuals and other are missing for many individuals. Let’s remove them.
-
-[TODO: check why `circ.` is binary.]{style="color: red;"}
 
 ```{r}
 # Select features
@@ -154,12 +162,8 @@ feats <- x %>%
   filter(value > 0) %>%
   pull(name)
 
-## Exclude some features with many missing values
-#feats <- feats[!str_detect(feats, "exc")]
-#
-## Exclude circ. as it is binary
-## TODO check why
-#feats <- feats[feats != "circ."]
+# Remove additional features that are relative to position within image
+feats <- feats[!feats %in% c("tag", "centroids", "xmg5", "ymg5")]
 
 x <- x %>% select(all_of(feats))
 ```
@@ -201,7 +205,7 @@ for (col in names(x_norm)) {
 }
 ```
 
-Plot normalized features.
+Plot "normalized" features.
 
 ```{r}
 #| column: screen
@@ -246,6 +250,7 @@ eig <- m_space$eig %>%
 eig %>%
   ggplot() +
   geom_col(aes(x = comp, y = eigenvalue)) +
+  geom_hline(yintercept = 1, col = "red", linewidth = 0.5) +
   theme_classic() +
   scale_y_continuous(expand = c(0, 0)) +
   labs(x = "PC", y = "Eigenvalue")
@@ -260,21 +265,21 @@ Most of the variance is captured by the first three axes (`r format(eig$var[1]/1
 Let’s now plot the first two axes.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
-#| fig-width: 8
-#| fig-height: 8
+##| column: screen
+##| out-width: 60%
+##| fig-align: center
+##| fig-width: 8
+##| fig-height: 8
 plot(m_space, choix="var", axes = c(1, 2))
 ```
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
-#| fig-width: 8
-#| fig-height: 8
-plot(m_space, choix="var", axes = c(2, 3))
+##| column: screen
+##| out-width: 60%
+##| fig-align: center
+##| fig-width: 8
+##| fig-height: 8
+plot(m_space, choix="var", axes = c(3, 4))
 ```
 
 -   PC1: big objects in positive values, small objects in negative values.
@@ -294,7 +299,6 @@ inds <- m_space$ind$coord %>% as_tibble()
 colnames(inds) <- str_c("m_dim", paste(c(1:ncol(inds))))
 # And join with initial dataframe of objects
 o <- o %>%
-  select(profile_id:lat) %>%
   bind_cols(inds)
 ```
 
@@ -307,6 +311,87 @@ o %>%
   geom_point(show.legend = FALSE, size = 0.5, alpha = 0.008)
 ```
 
+#### Tiling
+
+Let’s now tile morphs within the morphological space.
+
+```{r}
+# Folder containing images
+img_dir <- "~/Documents/Data/UVP5/images_V1/"
+
+# Number of features to select
+n_feat <- 12
+
+# Generate path to image
+o <- o %>% mutate(path_to_img = str_c(img_dir, profile_id, "/", object_id, ".jpg"), .before = object_id) 
+
+# Prepare a circle for the plot
+circ <- circleFun(c(0, 0), 2, npoints = 500)
+
+# Get variables with higher contribution to plane 1:2
+var_contrib_12 <- contribs %>% 
+  arrange(desc(dim_12)) %>% 
+  slice(1:n_feat) %>% 
+  pull(feature)
+
+# and for plane 3:4
+var_contrib_34 <- contribs %>% 
+  arrange(desc(dim_34)) %>% 
+  slice(1:n_feat) %>% 
+  pull(feature)
+
+# Get types of features
+feat_types <- read_csv("data/raw/features_qual.csv", show_col_types = FALSE)
+  
+#homogenize scaling between individuals & variables for correct biplot
+# Change scaling of variables/columns from scaling 1 to 2
+var_scores <- as.data.frame(t(t(m_space$var$coord) / sqrt(m_space$eig[,1]))) # de-scale
+var_scores_2 <- as.data.frame(t(t(var_scores) * sqrt(nrow(var_scores) * m_space$eig[,1]))) # re-scale
+# Rename columns
+colnames(var_scores_2) <- str_c("m_dim", paste(c(1:ncol(var_scores_2))))
+# Add feature names 
+var_scores_2 <- var_scores_2 %>% 
+  rownames_to_column(var = "feature") %>% 
+  as_tibble() %>% 
+  # and types
+  left_join(feat_types, by = join_by(feature))
+
+# Compute length of projection to scale circle
+var_scores_2 <- var_scores_2 %>% 
+  mutate(
+    len_12 = sqrt(m_dim1^2 + m_dim2^2),
+    len_34 = sqrt(m_dim3^2 + m_dim4^2),
+  )
+```
+
+Objects in morphospace for axes 1:2
+
+```{r}
+k <- max(var_scores_2$len_12) # adapt scaling of circle to fit the arrows
+p12 <- ggmorph_tile(m_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(1,2), scale = 0.02) 
+p12 + 
+  geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
+  geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
+  geom_vline(xintercept = 0, color="grey", alpha = 0.9) +
+  geom_segment(data = var_scores_2 %>% filter(feature %in% var_contrib_12), aes(x = 0, xend = m_dim1, y = 0, yend = m_dim2, colour = type), arrow = arrow(length = unit(0.025, "npc"), type = "open")) +
+  geom_text_repel(data = var_scores_2 %>% filter(feature %in% var_contrib_12), aes(x = m_dim1, y = m_dim2, label = feature, colour = type), show.legend = FALSE) +
+  labs(colour = "Feature\ntype")
+```
+
+Objects in morphospace for axes 2:3
+
+```{r}
+k <- max(var_scores_2$len_34) # adapt scaling of circle to fit the arrows
+p34 <- ggmorph_tile(m_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(3,4), scale = 0.02) 
+p34 + 
+  geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
+  geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
+  geom_vline(xintercept = 0, color="grey", alpha = 0.9) +
+  geom_segment(data = var_scores_2 %>% filter(feature %in% var_contrib_34), aes(x = 0, xend = m_dim3, y = 0, yend = m_dim4, colour = type), arrow = arrow(length = unit(0.025, "npc"), type = "open")) +
+  geom_text_repel(data = var_scores_2 %>% filter(feature %in% var_contrib_34), aes(x = m_dim3, y = m_dim4, label = feature, colour = type), show.legend = FALSE) +
+  labs(colour = "Feature\ntype")
+```
+
 ### Diversity
 
 #### Morphospace features
@@ -314,10 +399,10 @@ o %>%
 We can collect the position of objects in the morphospace to summarise the morphological diversity of each profile.
 
 ```{r}
-# Compute mean and variance of dim1, dim2 and dim3 per profile
+# Compute mean and variance of dim1, dim2, dim3 and dim4 per profile
 m_div_prof <- o %>% 
   group_by(profile_id, lon, lat) %>% 
-  summarise(across(m_dim1:m_dim3, list(mean = mean, var = var))) %>% 
+  summarise(across(m_dim1:m_dim4, list(mean = mean, var = var))) %>% 
   ungroup()
 
 # And store this with profiles data
@@ -350,6 +435,18 @@ ggmap(
   )
 ```
 
+Profiles with high elongation/symmetry:
+
+-   Jerico in the Baltic Sea, many Diatoms
+
+-   Tonga in the South Pacific, many Trichodesmium
+
+-   Sargasso, many Trichodesmium
+
+-   CCE, to check!
+
+[TODO: consider removing these taxa, they are not even zoo! ]{style="color: red;"}
+
 ```{r}
 #| column: screen
 #| out-width: 60%
@@ -357,6 +454,18 @@ ggmap(
 ggmap(
   profiles, 
   "m_dim3_mean", 
+  type = "point", 
+  palette = div_pal
+  )
+```
+
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+ggmap(
+  profiles, 
+  "m_dim4_mean", 
   type = "point", 
   palette = div_pal
   )
@@ -393,6 +502,17 @@ ggmap(
 ggmap(
   profiles, 
   "m_dim3_var", 
+  type = "point"
+  )
+```
+
+```{r}
+#| column: screen
+#| out-width: 60%
+#| fig-align: center
+ggmap(
+  profiles, 
+  "m_dim4_var", 
   type = "point"
   )
 ```
