@@ -32,9 +32,9 @@ o <- o %>% filter(depth < max_depth_uvp)
 
 List taxa, merge contextual observations with regular observations.
 
--   [TODO: contextual observations?]{style="color: red;"} Keep
-
 -   [TODO: tentacles of Cnidaria?]{style="color: red;"} removed
+
+-   [TODO: Trichodesmium, Nostocales and Bacillariophyta?]{style="color: red;"} removed
 
 ```{r}
 # List of taxa
@@ -42,10 +42,15 @@ taxa <- o %>% pull(taxon) %>% unique() %>% sort()
 taxa
 
 # Merge contextual
-o <- o %>% mutate(taxon = str_remove(taxon, " (contextual)"))
+o <- o %>% mutate(taxon = str_remove_all(taxon, " \\(contextual\\)")) # NB need to use \\
 
-# Remove tentacle of Cnidaria
-o <- o %>% filter(taxon != "tentacle of Cnidaria")
+# List unwanted taxa
+unwanted <- c("Bacillariophyta", "Nostocales", "tentacle of Cnidaria", "Trichodesmium")
+o <- o %>% filter(!taxon %in% unwanted)
+
+# New list of taxa
+taxa <- o %>% pull(taxon) %>% unique() %>% sort()
+taxa
 ```
 
 ### Profile
@@ -60,6 +65,8 @@ profiles <- o %>%
 ```
 
 ```{r}
+#| fig-column: body-outset
+#| out-width: 100%
 profiles %>%
   ggplot() +
   geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
@@ -115,9 +122,8 @@ profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, la
 Plot taxonomic diversity metrics.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "ta_ric", 
@@ -171,10 +177,9 @@ x <- x %>% select(all_of(feats))
 Plot features distributions.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
-#| fig-width: 10
+#| fig-column: screen-inset
+#| out-width: 100%
+#| #| fig-width: 10
 #| fig-height: 8
 x %>%
   pivot_longer(cols = everything()) %>%
@@ -208,9 +213,8 @@ for (col in names(x_norm)) {
 Plot "normalized" features.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: screen-inset
+#| out-width: 100%
 #| fig-width: 10
 #| fig-height: 8
 x_norm %>%
@@ -228,7 +232,7 @@ Let’s feed the features to a PCA to build a morphospace.
 
 ```{r}
 # We need to use "scale.unit = TRUE" to center-scale all feature
-m_space <- FactoMineR::PCA(x_norm, scale.unit = TRUE, graph=FALSE)
+m_space <- FactoMineR::PCA(x_norm, scale.unit = TRUE, graph = FALSE)
 ```
 
 #### Eigenvalues
@@ -253,7 +257,8 @@ eig %>%
   geom_hline(yintercept = 1, col = "red", linewidth = 0.5) +
   theme_classic() +
   scale_y_continuous(expand = c(0, 0)) +
-  labs(x = "PC", y = "Eigenvalue")
+  labs(x = "PC", y = "Eigenvalue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
 Most of the variance is captured by the first three axes (`r format(eig$var[1]/100, digits = 2)`, `r format(eig$var[2]/100, digits = 2)` and `r format(eig$var[3]/100, digits = 2)`respectively).
@@ -265,28 +270,24 @@ Most of the variance is captured by the first three axes (`r format(eig$var[1]/1
 Let’s now plot the first two axes.
 
 ```{r}
-##| column: screen
-##| out-width: 60%
-##| fig-align: center
-##| fig-width: 8
-##| fig-height: 8
+#| fig-column: body-outset
+#| out-width: 100%
 plot(m_space, choix="var", axes = c(1, 2))
-```
-
-```{r}
-##| column: screen
-##| out-width: 60%
-##| fig-align: center
-##| fig-width: 8
-##| fig-height: 8
-plot(m_space, choix="var", axes = c(3, 4))
 ```
 
 -   PC1: big objects in positive values, small objects in negative values.
 
--   PC2: elongated & symetrical objects in positive values, round objects in negative values.
+-   PC2: clear (i.e. transparent) objects in positive values, dark (i.e. opaque) objects in negative values
 
--   PC3: harder to tell, something with gray levels, tbd with images.
+As well as axes 3 and 4.
+
+```{r}
+#| fig-column: body-outset
+#| out-width: 100%
+plot(m_space, choix="var", axes = c(3, 4))
+```
+
+-   PC3: elongated objects in positive values, round objects in negative values
 
 #### Individuals
 
@@ -308,7 +309,7 @@ We can not plot the position of objects in the morphospace, coloured per profile
 ## Plot invidivuals with profile as colour
 o %>%
   ggplot(aes(x = m_dim1, y = m_dim2, colour = profile_id)) +
-  geom_point(show.legend = FALSE, size = 0.5, alpha = 0.008)
+  geom_point(show.legend = FALSE, size = 0.5, alpha = 0.05)
 ```
 
 #### Tiling
@@ -328,21 +329,39 @@ o <- o %>% mutate(path_to_img = str_c(img_dir, profile_id, "/", object_id, ".jpg
 # Prepare a circle for the plot
 circ <- circleFun(c(0, 0), 2, npoints = 500)
 
-# Get variables with higher contribution to plane 1:2
+
+# Get variables contributions
+#to select vars based on contribution to each plane
+contribs <- as.data.frame(m_space$var$contrib)
+colnames(contribs) <- str_c("m_dim", paste(c(1:ncol(contribs))))
+contribs <- contribs %>% 
+  rownames_to_column(var = "feature") %>% 
+  as_tibble() %>% 
+  mutate(
+    m_dim_12 = abs(m_dim1) + abs(m_dim2),
+    m_dim_23 = abs(m_dim2) + abs(m_dim3),
+    m_dim_34 = abs(m_dim3) + abs(m_dim4)
+  )
+
+
+# List variables with higher contribution for plane 1:2
 var_contrib_12 <- contribs %>% 
-  arrange(desc(dim_12)) %>% 
+  arrange(desc(m_dim_12)) %>% 
   slice(1:n_feat) %>% 
   pull(feature)
 
 # and for plane 3:4
 var_contrib_34 <- contribs %>% 
-  arrange(desc(dim_34)) %>% 
+  arrange(desc(m_dim_34)) %>% 
   slice(1:n_feat) %>% 
   pull(feature)
 
 # Get types of features
 feat_types <- read_csv("data/raw/features_qual.csv", show_col_types = FALSE)
-  
+# Set colour per type of feature, using a named vector
+feat_colours <- brewer_colors(length(unique(feat_types$type)), "Set2") # pick the appropriate number of colours
+names(feat_colours) <- sort(unique(feat_types$type)) # add names to colours
+
 #homogenize scaling between individuals & variables for correct biplot
 # Change scaling of variables/columns from scaling 1 to 2
 var_scores <- as.data.frame(t(t(m_space$var$coord) / sqrt(m_space$eig[,1]))) # de-scale
@@ -367,30 +386,44 @@ var_scores_2 <- var_scores_2 %>%
 Objects in morphospace for axes 1:2
 
 ```{r}
+#| fig-column: body-outset
+#| out-width: 100%
 k <- max(var_scores_2$len_12) # adapt scaling of circle to fit the arrows
-p12 <- ggmorph_tile(m_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(1,2), scale = 0.02) 
+p12 <- ggmorph_tile(m_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(1,2), scale = 0.01) 
 p12 + 
   geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
   geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
   geom_vline(xintercept = 0, color="grey", alpha = 0.9) +
   geom_segment(data = var_scores_2 %>% filter(feature %in% var_contrib_12), aes(x = 0, xend = m_dim1, y = 0, yend = m_dim2, colour = type), arrow = arrow(length = unit(0.025, "npc"), type = "open")) +
   geom_text_repel(data = var_scores_2 %>% filter(feature %in% var_contrib_12), aes(x = m_dim1, y = m_dim2, label = feature, colour = type), show.legend = FALSE) +
+  scale_colour_manual(values = feat_colours) +
   labs(colour = "Feature\ntype")
 ```
+
+-   PC1 = size
+
+-   PC2 = transparency
 
 Objects in morphospace for axes 2:3
 
 ```{r}
+#| fig-column: body-outset
+#| out-width: 100%
 k <- max(var_scores_2$len_34) # adapt scaling of circle to fit the arrows
-p34 <- ggmorph_tile(m_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(3,4), scale = 0.02) 
+p34 <- ggmorph_tile(m_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(3,4), scale = 0.01) 
 p34 + 
   geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
   geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
   geom_vline(xintercept = 0, color="grey", alpha = 0.9) +
   geom_segment(data = var_scores_2 %>% filter(feature %in% var_contrib_34), aes(x = 0, xend = m_dim3, y = 0, yend = m_dim4, colour = type), arrow = arrow(length = unit(0.025, "npc"), type = "open")) +
   geom_text_repel(data = var_scores_2 %>% filter(feature %in% var_contrib_34), aes(x = m_dim3, y = m_dim4, label = feature, colour = type), show.legend = FALSE) +
+  scale_colour_manual(values = feat_colours) +
   labs(colour = "Feature\ntype")
 ```
+
+-   PC3 = elongation
+
+-   PC4 = heterogeneity of grey levels
 
 ### Diversity
 
@@ -412,109 +445,97 @@ profiles <- profiles %>% left_join(m_div_prof, by = join_by(profile_id, lon, lat
 And we can plot maps of mean `dim1` and `dim2` values for each profile.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim1_mean", 
   type = "point", 
   palette = div_pal
-  )
+  ) +
+  labs(colour = "PC1\nSize")
 ```
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim2_mean", 
   type = "point", 
   palette = div_pal
-  )
+  ) +
+  labs(colour = "PC2\nTransparency")
 ```
 
-Profiles with high elongation/symmetry:
-
--   Jerico in the Baltic Sea, many Diatoms
-
--   Tonga in the South Pacific, many Trichodesmium
-
--   Sargasso, many Trichodesmium
-
--   CCE, to check!
-
-[TODO: consider removing these taxa, they are not even zoo! ]{style="color: red;"}
-
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim3_mean", 
   type = "point", 
   palette = div_pal
-  )
+  ) +
+  labs(colour = "PC3\nElongation")
 ```
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim4_mean", 
   type = "point", 
   palette = div_pal
-  )
+  ) +
+  labs(colour = "PC4\nGrey hetero.")
 ```
 
 We can also look at variance within profiles.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim1_var", 
   type = "point"
-  )
+  ) +
+  labs(colour = "PC1 var\nSize")
 ```
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim2_var", 
   type = "point"
-  )
+  ) +
+  labs(colour = "PC2 var\nTransparency")
 ```
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim3_var", 
   type = "point"
-  )
+  ) +
+  labs(colour = "PC3 var\nElongation")
 ```
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(
   profiles, 
   "m_dim4_var", 
   type = "point"
-  )
+  ) +
+  labs(colour = "PC4 var\nGrey hetero.")
 ```
 
 #### Metrics

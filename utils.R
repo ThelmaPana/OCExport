@@ -21,6 +21,7 @@ suppressWarnings(library(morphr))
 # Plots
 suppressWarnings(library(cmocean))
 suppressWarnings(library(chroma))
+suppressWarnings(library(ggrepel))
 
 # Modeling
 suppressWarnings(library(tidymodels))

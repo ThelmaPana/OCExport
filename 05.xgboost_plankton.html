@@ -57,16 +57,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="05.xgboost_files/libs/clipboard/clipboard.min.js"></script>
-<script src="05.xgboost_files/libs/quarto-html/quarto.js"></script>
-<script src="05.xgboost_files/libs/quarto-html/popper.min.js"></script>
-<script src="05.xgboost_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="05.xgboost_files/libs/quarto-html/anchor.min.js"></script>
-<link href="05.xgboost_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="05.xgboost_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="05.xgboost_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="05.xgboost_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="05.xgboost_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="05.xgboost_plankton_files/libs/clipboard/clipboard.min.js"></script>
+<script src="05.xgboost_plankton_files/libs/quarto-html/quarto.js"></script>
+<script src="05.xgboost_plankton_files/libs/quarto-html/popper.min.js"></script>
+<script src="05.xgboost_plankton_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="05.xgboost_plankton_files/libs/quarto-html/anchor.min.js"></script>
+<link href="05.xgboost_plankton_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="05.xgboost_plankton_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="05.xgboost_plankton_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="05.xgboost_plankton_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="05.xgboost_plankton_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 
 
 </head>
@@ -80,6 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#set-up-and-load-data" id="toc-set-up-and-load-data" class="nav-link active" data-scroll-target="#set-up-and-load-data">Set-up and load data</a></li>
+  <li><a href="#select-only-plankton-variables" id="toc-select-only-plankton-variables" class="nav-link" data-scroll-target="#select-only-plankton-variables">Select only plankton variables</a></li>
   <li><a href="#data-inspection" id="toc-data-inspection" class="nav-link" data-scroll-target="#data-inspection">Data inspection</a>
   <ul class="collapse">
   <li><a href="#response-variable" id="toc-response-variable" class="nav-link" data-scroll-target="#response-variable">Response variable</a></li>
@@ -111,7 +112,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Fit a XGBoost model</h1>
-<p class="subtitle lead">Predict poc values from environmental data and plankton diversity.</p>
+<p class="subtitle lead">Predict poc values from plankton diversity data.</p>
 </div>
 
 
@@ -135,29 +136,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">"data/04.all_data.Rdata"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
+<section id="select-only-plankton-variables" class="level2">
+<h2 class="anchored" data-anchor-id="select-only-plankton-variables">Select only plankton variables</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(lon, lat, datetime, ta_ric<span class="sc">:</span>m_dim3_var, poc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
 <section id="data-inspection" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="data-inspection">Data inspection</h2>
 <section id="response-variable" class="level3">
 <h3 class="anchored" data-anchor-id="response-variable">Response variable</h3>
 <p>Let’s have a look at our response variable: POC value. We do not need to inspect response variables as the model we are going to use are robust to non-normal distributions.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>df <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> poc), <span class="at">bins =</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> poc), <span class="at">bins =</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>The distribution is not normal, this is problematic. Let’s try a log-transformation.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">poc_log =</span> <span class="fu">log</span>(poc))</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>df <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> poc_log), <span class="at">bins =</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">poc_log =</span> <span class="fu">log</span>(poc))</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>df <span class="sc">%&gt;%</span> <span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> poc_log), <span class="at">bins =</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -168,56 +175,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="explanatory-variables">Explanatory variables</h3>
 <p>Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Need to remove lon and lat and to scale because units differ between variables</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> FactoMineR<span class="sc">::</span><span class="fu">PCA</span>(df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat, datetime)), <span class="at">scale.unit =</span> <span class="cn">TRUE</span>, <span class="at">graph =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Need to remove lon and lat and to scale because units differ between variables</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> FactoMineR<span class="sc">::</span><span class="fu">PCA</span>(df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat, datetime)), <span class="at">scale.unit =</span> <span class="cn">TRUE</span>, <span class="at">graph =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Plot eigenvalues.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>eig <span class="ot">&lt;-</span> pca_all<span class="sc">$</span>eig <span class="sc">%&gt;%</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames_to_column</span>(<span class="at">var =</span> <span class="st">"comp"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">comp =</span> <span class="fu">str_remove</span>(comp, <span class="st">"comp "</span>),</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">comp =</span> <span class="fu">as.numeric</span>(comp),</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">comp =</span> <span class="fu">as.factor</span>(comp)</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">var =</span> <span class="st">`</span><span class="at">percentage of variance</span><span class="st">`</span>, <span class="at">cum_var =</span> <span class="st">`</span><span class="at">cumulative percentage of variance</span><span class="st">`</span>)</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>eig <span class="sc">%&gt;%</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="fu">aes</span>(<span class="at">x =</span> comp, <span class="at">y =</span> var)) <span class="sc">+</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>() <span class="sc">+</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)) <span class="sc">+</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PC"</span>, <span class="at">y =</span> <span class="st">"Explained variance"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>eig <span class="ot">&lt;-</span> pca_all<span class="sc">$</span>eig <span class="sc">%&gt;%</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames_to_column</span>(<span class="at">var =</span> <span class="st">"comp"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">comp =</span> <span class="fu">str_remove</span>(comp, <span class="st">"comp "</span>),</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">comp =</span> <span class="fu">as.numeric</span>(comp),</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">comp =</span> <span class="fu">as.factor</span>(comp)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">var =</span> <span class="st">`</span><span class="at">percentage of variance</span><span class="st">`</span>, <span class="at">cum_var =</span> <span class="st">`</span><span class="at">cumulative percentage of variance</span><span class="st">`</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>eig <span class="sc">%&gt;%</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="fu">aes</span>(<span class="at">x =</span> comp, <span class="at">y =</span> var)) <span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>() <span class="sc">+</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PC"</span>, <span class="at">y =</span> <span class="st">"Explained variance"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Plot first plane.</p>
 <div class="cell page-columns page-full">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(pca_all, <span class="at">choix=</span><span class="st">"var"</span>, <span class="at">axes =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: ggrepel: 5 unlabeled data points (too many overlaps). Consider
-increasing max.overlaps</code></pre>
-</div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(pca_all, <span class="at">choix=</span><span class="st">"var"</span>, <span class="at">axes =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="05.xgboost_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>The two first axes are:</p>
-<ul>
-<li><p>PC1: oxygen rich in positive values VS warm in negative values</p></li>
-<li><p>PC2: mixed waters in positive values VS stratified waters in negative values</p></li>
-</ul>
 <p>Extract coordinates in the PCA space.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Get coordinates of individuals</span></span>
@@ -234,7 +232,7 @@ increasing max.overlaps</code></pre>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="05.xgboost_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -244,7 +242,7 @@ increasing max.overlaps</code></pre>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="05.xgboost_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -310,20 +308,23 @@ increasing max.overlaps</code></pre>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(poc, <span class="at">new_role =</span> <span class="st">"untransformed outcome"</span>)</span>
 <span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(xgb_rec)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 44 × 4
-   variable    type      role      source  
-   &lt;chr&gt;       &lt;list&gt;    &lt;chr&gt;     &lt;chr&gt;   
- 1 lon         &lt;chr [2]&gt; coords    original
- 2 lat         &lt;chr [2]&gt; coords    original
- 3 datetime    &lt;chr [1]&gt; coords    original
- 4 ta_ric      &lt;chr [2]&gt; predictor original
- 5 ta_shannon  &lt;chr [2]&gt; predictor original
- 6 ta_pielou   &lt;chr [2]&gt; predictor original
- 7 m_dim1_mean &lt;chr [2]&gt; predictor original
- 8 m_dim1_var  &lt;chr [2]&gt; predictor original
- 9 m_dim2_mean &lt;chr [2]&gt; predictor original
-10 m_dim2_var  &lt;chr [2]&gt; predictor original
-# ℹ 34 more rows</code></pre>
+<pre><code># A tibble: 14 × 4
+   variable    type      role                  source  
+   &lt;chr&gt;       &lt;list&gt;    &lt;chr&gt;                 &lt;chr&gt;   
+ 1 lon         &lt;chr [2]&gt; coords                original
+ 2 lat         &lt;chr [2]&gt; coords                original
+ 3 datetime    &lt;chr [1]&gt; coords                original
+ 4 ta_ric      &lt;chr [2]&gt; predictor             original
+ 5 ta_shannon  &lt;chr [2]&gt; predictor             original
+ 6 ta_pielou   &lt;chr [2]&gt; predictor             original
+ 7 m_dim1_mean &lt;chr [2]&gt; predictor             original
+ 8 m_dim1_var  &lt;chr [2]&gt; predictor             original
+ 9 m_dim2_mean &lt;chr [2]&gt; predictor             original
+10 m_dim2_var  &lt;chr [2]&gt; predictor             original
+11 m_dim3_mean &lt;chr [2]&gt; predictor             original
+12 m_dim3_var  &lt;chr [2]&gt; predictor             original
+13 poc         &lt;chr [2]&gt; untransformed outcome original
+14 poc_log     &lt;chr [2]&gt; outcome               original</code></pre>
 </div>
 </div>
 </section>
@@ -355,16 +356,16 @@ increasing max.overlaps</code></pre>
 <pre><code># A tibble: 30 × 4
    trees learn_rate tree_depth min_n
    &lt;int&gt;      &lt;dbl&gt;      &lt;int&gt; &lt;int&gt;
- 1  1076   4.82e- 3         13    16
- 2  1028   9.10e- 9          8     6
- 3  1318   7.66e- 8         12    26
- 4   811   4.94e-10          7    36
- 5   321   9.32e- 2          2    16
- 6  1244   1.20e- 4         12    36
- 7   255   4.18e- 8          9    38
- 8  1820   6.35e- 7         13     6
- 9   899   2.00e- 4          4     9
-10   465   1.66e- 6          5    33
+ 1   727   2.60e- 9         12     8
+ 2    65   8.25e- 5          9    22
+ 3   444   1.46e- 2          4    18
+ 4   245   3.15e- 4          6    28
+ 5   143   1.01e- 8          9     5
+ 6  1839   3.65e- 3         15    29
+ 7  1285   2.07e- 6         11    39
+ 8  1549   2.98e- 3          1     2
+ 9  1042   3.98e- 7         13    26
+10  1668   1.80e-10          5    33
 # ℹ 20 more rows</code></pre>
 </div>
 </div>
@@ -381,7 +382,7 @@ increasing max.overlaps</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -393,11 +394,11 @@ increasing max.overlaps</code></pre>
 <pre><code># A tibble: 5 × 10
   trees min_n tree_depth learn_rate .metric .estimator  mean     n std_err
   &lt;int&gt; &lt;int&gt;      &lt;int&gt;      &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
-1   992    24          9    0.0463  rmse    standard   0.299    10  0.0192
-2  1076    16         13    0.00482 rmse    standard   0.318    10  0.0207
-3   321    16          2    0.0932  rmse    standard   0.324    10  0.0215
-4  1491    29          2    0.00743 rmse    standard   0.356    10  0.0231
-5  1347     4          5    0.00255 rmse    standard   0.375    10  0.0192
+1  1839    29         15    0.00365 rmse    standard   0.718    10  0.0316
+2   444    18          4    0.0146  rmse    standard   0.727    10  0.0301
+3  1607    36         14    0.0366  rmse    standard   0.753    10  0.0302
+4  1485    16         11    0.0873  rmse    standard   0.765    10  0.0322
+5  1754    35          1    0.0105  rmse    standard   0.769    10  0.0273
 # ℹ 1 more variable: .config &lt;chr&gt;</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>best_xgb <span class="ot">&lt;-</span> <span class="fu">select_best</span>(xgb_res, <span class="at">metric =</span> <span class="st">"rmse"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -416,7 +417,7 @@ increasing max.overlaps</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>final_res <span class="ot">&lt;-</span> <span class="fu">fit</span>(final_xgb, df_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[12:16:41] WARNING: src/learner.cc:767: 
+<pre><code>[12:19:57] WARNING: src/learner.cc:767: 
 Parameters: { "num_threads" } are not used.</code></pre>
 </div>
 </div>
@@ -438,14 +439,14 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rmse    standard       0.275</code></pre>
+1 rmse    standard       0.736</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsq</span>(preds, <span class="at">truth =</span> poc_log, <span class="at">estimate =</span> .pred_logged)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rsq     standard       0.921</code></pre>
+1 rsq     standard       0.435</code></pre>
 </div>
 </div>
 </section>
@@ -461,7 +462,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -473,7 +474,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-22-2.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-23-2.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -491,7 +492,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -516,15 +517,15 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Preparation of a new explainer is initiated
   -&gt; model label       :  model_fit  (  default  )
-  -&gt; data              :  404  rows  39  cols 
+  -&gt; data              :  404  rows  9  cols 
   -&gt; data              :  tibble converted into a data.frame 
   -&gt; target variable   :  404  values 
   -&gt; predict function  :  yhat.model_fit  will be used (  default  )
   -&gt; predicted values  :  No value for predict function target column. (  default  )
   -&gt; model_info        :  package parsnip , ver. 1.1.1 , task regression (  default  ) 
-  -&gt; predicted values  :  numerical, min =  1.681435 , mean =  4.324153 , max =  6.663924  
+  -&gt; predicted values  :  numerical, min =  2.592913 , mean =  4.303186 , max =  6.026334  
   -&gt; residual function :  difference between y and yhat (  default  )
-  -&gt; residuals         :  numerical, min =  -0.342444 , mean =  -1.137946e-06 , max =  0.07222294  
+  -&gt; residuals         :  numerical, min =  -1.393682 , mean =  0.005383631 , max =  1.750991  
   A new explainer has been created!  </code></pre>
 </div>
 </div>
@@ -536,7 +537,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-26-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -545,33 +546,43 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <section id="partial-dependence-plots" class="level3">
 <h3 class="anchored" data-anchor-id="partial-dependence-plots">Partial dependence plots</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_temp <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"temperature_mean"</span>))</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_temp, temperature_mean) <span class="sc">+</span></span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Temperature_mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_pielou <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"ta_pielou"</span>))</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_pielou, ta_pielou) <span class="sc">+</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Pielou"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-26-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-27-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_nit <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"nitrate_mean"</span>))</span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_nit, nitrate_mean) <span class="sc">+</span></span>
-<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Nitrate_mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_m_dim1_mean <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"m_dim1_mean"</span>))</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_m_dim1_mean, m_dim1_mean) <span class="sc">+</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"M dim1 mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-26-2.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-27-2.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_zeu <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"z_eu_mean"</span>))</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_zeu, z_eu_mean) <span class="sc">+</span></span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"z_eu_mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_shannon <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"ta_shannon"</span>))</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_shannon, ta_shannon) <span class="sc">+</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Shannon"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.xgboost_files/figure-html/unnamed-chunk-26-3.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-27-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_m_dim2_var <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"m_dim2_var"</span>))</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_m_dim2_var, m_dim2_var) <span class="sc">+</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"M dim2 var"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="05.xgboost_plankton_files/figure-html/unnamed-chunk-27-4.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -580,7 +591,6 @@ Parameters: { "num_threads" } are not used.</code></pre>
 </section>
 <section id="conclusion" class="level2">
 <h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
-<p>Plankton diversity seems to have low effect on <code>poc</code> values compared to environment, but still not negligible.</p>
 </section>
 
 </main>

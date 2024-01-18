@@ -68,11 +68,8 @@ eig %>%
 Plot first plane.
 
 ```{r}
-#| column: screen
-#| out-width: 60%
-#| fig-align: center
-#| fig-width: 8
-#| fig-height: 8
+#| fig-column: body-outset
+#| out-width: 100%
 plot(pca_all, choix="var", axes = c(1, 2))
 ```
 
@@ -97,10 +94,14 @@ inds <- df %>%
 Plot maps of profiles.
 
 ```{r}
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(inds, "dim1", type = "point", palette = div_pal)
 ```
 
 ```{r}
+#| fig-column: body-outset
+#| out-width: 100%
 ggmap(inds, "dim2", type = "point", palette = div_pal)
 ```
 
