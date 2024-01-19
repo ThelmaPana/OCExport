@@ -396,7 +396,7 @@ Let’s try data from Argo Mixed Layers: <http://mixedlayer.ucsd.edu/>.
 
 This data uses the same grid as WOA, we can combine them together.
 
-[TODO: which algorithm to use: density or threshold? ]{style="color: red;"}
+[TODO: which algorithm to use: density or threshold?]{style="color: red;"}
 
 ```{r}
 # Open one file to get all coordinates (lon, lat, depth)
@@ -441,7 +441,7 @@ This is better, we will clean inland data below.
 
 Easy one: read the `.mat` file, reshape `lon` vs `lat` and reverse `lat`. The grid is already 1°×1°×12 months.
 
-[TODO: check grid definition. ]{style="color: red;"}
+[TODO: check grid definition.]{style="color: red;"}
 
 ```{r}
 ## Euphotic zone
@@ -492,7 +492,7 @@ for(m in 1:12){
 }
 ```
 
-PAR values are stored in a `r dim(par)[1]`by `r dim(par)[2]`by `r dim(par)[3]`array. To downgrade the grid, we first need to convert this data to a dataframe. Let’s process in parallel by month. For each month, floor `lon` and `lat` to 1° and add 0.5 to get the center of every pixel of the 1°×1° grid, then average PAR value per grid cell.
+PAR values are stored in a `r dim(par)[1]` by `r dim(par)[2]` by `r dim(par)[3]`array. To downgrade the grid, we first need to convert this data to a dataframe. Let’s process in parallel by month. For each month, floor `lon` and `lat` to 1° and add 0.5 to get the center of every pixel of the 1°×1° grid, then average PAR value per grid cell.
 
 ```{r}
 # In parallel over months

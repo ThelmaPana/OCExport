@@ -199,7 +199,7 @@ ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = N
   if (type == "raster"){
     p <- p + geom_raster(aes(x = lon, y = lat, fill = .data[[var]]), na.rm = TRUE)
   } else {
-    p <- p + geom_point(aes(x = lon, y = lat, colour = .data[[var]]), na.rm = TRUE)
+    p <- p + geom_point(aes(x = lon, y = lat, colour = .data[[var]]), na.rm = TRUE, size = 0.5)
   }
 
   # add land if required

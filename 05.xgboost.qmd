@@ -40,7 +40,8 @@ Let’s run a quick PCA. This allows us to have at correlations within our datas
 
 ```{r}
 # Need to remove lon and lat and to scale because units differ between variables
-pca_all <- FactoMineR::PCA(df %>% select(-c(lon, lat, datetime)), scale.unit = TRUE, graph = FALSE)
+df_pca <- df %>% select(-c(lon, lat, datetime)) %>% select(poc, poc_log, everything())
+pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, scale.unit = TRUE, graph = FALSE)
 ```
 
 Plot eigenvalues.

@@ -176,7 +176,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Need to remove lon and lat and to scale because units differ between variables</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> FactoMineR<span class="sc">::</span><span class="fu">PCA</span>(df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat, datetime)), <span class="at">scale.unit =</span> <span class="cn">TRUE</span>, <span class="at">graph =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>df_pca <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat, datetime)) <span class="sc">%&gt;%</span> <span class="fu">select</span>(poc, poc_log, <span class="fu">everything</span>())</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> FactoMineR<span class="sc">::</span><span class="fu">PCA</span>(df_pca, <span class="at">quanti.sup =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="at">scale.unit =</span> <span class="cn">TRUE</span>, <span class="at">graph =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Plot eigenvalues.</p>
 <div class="cell">
@@ -356,16 +357,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code># A tibble: 30 × 4
    trees learn_rate tree_depth min_n
    &lt;int&gt;      &lt;dbl&gt;      &lt;int&gt; &lt;int&gt;
- 1   727   2.60e- 9         12     8
- 2    65   8.25e- 5          9    22
- 3   444   1.46e- 2          4    18
- 4   245   3.15e- 4          6    28
- 5   143   1.01e- 8          9     5
- 6  1839   3.65e- 3         15    29
- 7  1285   2.07e- 6         11    39
- 8  1549   2.98e- 3          1     2
- 9  1042   3.98e- 7         13    26
-10  1668   1.80e-10          5    33
+ 1   135   5.06e- 9          5    22
+ 2  1242   8.44e- 7          9    28
+ 3    30   7.65e- 3         13    33
+ 4   480   4.68e- 7         13    18
+ 5  1973   4.92e- 8          6    37
+ 6  1336   1.52e- 5         13    14
+ 7   127   8.14e-10         12    40
+ 8   290   1.58e- 3          5    39
+ 9  1788   1.51e- 2          4    17
+10   974   7.32e- 4          6    23
 # ℹ 20 more rows</code></pre>
 </div>
 </div>
@@ -394,11 +395,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code># A tibble: 5 × 10
   trees min_n tree_depth learn_rate .metric .estimator  mean     n std_err
   &lt;int&gt; &lt;int&gt;      &lt;int&gt;      &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
-1  1839    29         15    0.00365 rmse    standard   0.718    10  0.0316
-2   444    18          4    0.0146  rmse    standard   0.727    10  0.0301
-3  1607    36         14    0.0366  rmse    standard   0.753    10  0.0302
-4  1485    16         11    0.0873  rmse    standard   0.765    10  0.0322
-5  1754    35          1    0.0105  rmse    standard   0.769    10  0.0273
+1  1788    17          4    0.0151  rmse    standard   0.754    10  0.0182
+2   460    12         11    0.0322  rmse    standard   0.760    10  0.0206
+3   397    19          4    0.0858  rmse    standard   0.766    10  0.0180
+4  1574    13          1    0.00288 rmse    standard   0.787    10  0.0185
+5   546    29          2    0.00378 rmse    standard   0.926    10  0.0229
 # ℹ 1 more variable: .config &lt;chr&gt;</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>best_xgb <span class="ot">&lt;-</span> <span class="fu">select_best</span>(xgb_res, <span class="at">metric =</span> <span class="st">"rmse"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -417,7 +418,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>final_res <span class="ot">&lt;-</span> <span class="fu">fit</span>(final_xgb, df_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[12:19:57] WARNING: src/learner.cc:767: 
+<pre><code>[13:34:51] WARNING: src/learner.cc:767: 
 Parameters: { "num_threads" } are not used.</code></pre>
 </div>
 </div>
@@ -439,14 +440,14 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rmse    standard       0.736</code></pre>
+1 rmse    standard       0.739</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsq</span>(preds, <span class="at">truth =</span> poc_log, <span class="at">estimate =</span> .pred_logged)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rsq     standard       0.435</code></pre>
+1 rsq     standard       0.515</code></pre>
 </div>
 </div>
 </section>
@@ -523,9 +524,9 @@ Parameters: { "num_threads" } are not used.</code></pre>
   -&gt; predict function  :  yhat.model_fit  will be used (  default  )
   -&gt; predicted values  :  No value for predict function target column. (  default  )
   -&gt; model_info        :  package parsnip , ver. 1.1.1 , task regression (  default  ) 
-  -&gt; predicted values  :  numerical, min =  2.592913 , mean =  4.303186 , max =  6.026334  
+  -&gt; predicted values  :  numerical, min =  2.418827 , mean =  4.319359 , max =  6.183573  
   -&gt; residual function :  difference between y and yhat (  default  )
-  -&gt; residuals         :  numerical, min =  -1.393682 , mean =  0.005383631 , max =  1.750991  
+  -&gt; residuals         :  numerical, min =  -0.6534821 , mean =  3.00147e-06 , max =  0.8256663  
   A new explainer has been created!  </code></pre>
 </div>
 </div>

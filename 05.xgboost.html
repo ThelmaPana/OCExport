@@ -169,7 +169,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Need to remove lon and lat and to scale because units differ between variables</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> FactoMineR<span class="sc">::</span><span class="fu">PCA</span>(df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat, datetime)), <span class="at">scale.unit =</span> <span class="cn">TRUE</span>, <span class="at">graph =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>df_pca <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(lon, lat, datetime)) <span class="sc">%&gt;%</span> <span class="fu">select</span>(poc, poc_log, <span class="fu">everything</span>())</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>pca_all <span class="ot">&lt;-</span> FactoMineR<span class="sc">::</span><span class="fu">PCA</span>(df_pca, <span class="at">quanti.sup =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="at">scale.unit =</span> <span class="cn">TRUE</span>, <span class="at">graph =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Plot eigenvalues.</p>
 <div class="cell">
@@ -202,7 +203,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell page-columns page-full">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(pca_all, <span class="at">choix=</span><span class="st">"var"</span>, <span class="at">axes =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Warning: ggrepel: 5 unlabeled data points (too many overlaps). Consider
+<pre><code>Warning: ggrepel: 2 unlabeled data points (too many overlaps). Consider
 increasing max.overlaps</code></pre>
 </div>
 <div class="cell-output-display page-columns page-full">
@@ -353,18 +354,18 @@ increasing max.overlaps</code></pre>
 <span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>xgb_grid</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 30 × 4
-   trees learn_rate tree_depth min_n
-   &lt;int&gt;      &lt;dbl&gt;      &lt;int&gt; &lt;int&gt;
- 1  1076   4.82e- 3         13    16
- 2  1028   9.10e- 9          8     6
- 3  1318   7.66e- 8         12    26
- 4   811   4.94e-10          7    36
- 5   321   9.32e- 2          2    16
- 6  1244   1.20e- 4         12    36
- 7   255   4.18e- 8          9    38
- 8  1820   6.35e- 7         13     6
- 9   899   2.00e- 4          4     9
-10   465   1.66e- 6          5    33
+   trees    learn_rate tree_depth min_n
+   &lt;int&gt;         &lt;dbl&gt;      &lt;int&gt; &lt;int&gt;
+ 1  1904 0.0363                 7    34
+ 2  1982 0.00000000203         12    14
+ 3   560 0.000000686            4    18
+ 4   521 0.000579              11    22
+ 5  1005 0.0000000159           5    35
+ 6    59 0.0000312             11    38
+ 7   264 0.00000000739         14    33
+ 8   977 0.0000196              8     2
+ 9  1686 0.00000580             6    39
+10  1576 0.0828                12    23
 # ℹ 20 more rows</code></pre>
 </div>
 </div>
@@ -393,11 +394,11 @@ increasing max.overlaps</code></pre>
 <pre><code># A tibble: 5 × 10
   trees min_n tree_depth learn_rate .metric .estimator  mean     n std_err
   &lt;int&gt; &lt;int&gt;      &lt;int&gt;      &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
-1   992    24          9    0.0463  rmse    standard   0.299    10  0.0192
-2  1076    16         13    0.00482 rmse    standard   0.318    10  0.0207
-3   321    16          2    0.0932  rmse    standard   0.324    10  0.0215
-4  1491    29          2    0.00743 rmse    standard   0.356    10  0.0231
-5  1347     4          5    0.00255 rmse    standard   0.375    10  0.0192
+1  1263     8          6    0.00579 rmse    standard   0.297    10  0.0205
+2  1904    34          7    0.0363  rmse    standard   0.305    10  0.0205
+3   626     4         13    0.0165  rmse    standard   0.307    10  0.0223
+4  1576    23         12    0.0828  rmse    standard   0.308    10  0.0182
+5  1616    10          2    0.00797 rmse    standard   0.339    10  0.0209
 # ℹ 1 more variable: .config &lt;chr&gt;</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>best_xgb <span class="ot">&lt;-</span> <span class="fu">select_best</span>(xgb_res, <span class="at">metric =</span> <span class="st">"rmse"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -416,7 +417,7 @@ increasing max.overlaps</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>final_res <span class="ot">&lt;-</span> <span class="fu">fit</span>(final_xgb, df_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[12:16:41] WARNING: src/learner.cc:767: 
+<pre><code>[13:33:03] WARNING: src/learner.cc:767: 
 Parameters: { "num_threads" } are not used.</code></pre>
 </div>
 </div>
@@ -438,14 +439,14 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rmse    standard       0.275</code></pre>
+1 rmse    standard       0.327</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsq</span>(preds, <span class="at">truth =</span> poc_log, <span class="at">estimate =</span> .pred_logged)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rsq     standard       0.921</code></pre>
+1 rsq     standard       0.911</code></pre>
 </div>
 </div>
 </section>
@@ -522,9 +523,9 @@ Parameters: { "num_threads" } are not used.</code></pre>
   -&gt; predict function  :  yhat.model_fit  will be used (  default  )
   -&gt; predicted values  :  No value for predict function target column. (  default  )
   -&gt; model_info        :  package parsnip , ver. 1.1.1 , task regression (  default  ) 
-  -&gt; predicted values  :  numerical, min =  1.681435 , mean =  4.324153 , max =  6.663924  
+  -&gt; predicted values  :  numerical, min =  1.796747 , mean =  4.311467 , max =  6.348777  
   -&gt; residual function :  difference between y and yhat (  default  )
-  -&gt; residuals         :  numerical, min =  -0.342444 , mean =  -1.137946e-06 , max =  0.07222294  
+  -&gt; residuals         :  numerical, min =  -0.4577561 , mean =  0.003293644 , max =  0.2486008  
   A new explainer has been created!  </code></pre>
 </div>
 </div>
