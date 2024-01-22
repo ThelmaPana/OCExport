@@ -1,0 +1,389 @@
+---
+title: "Toto"
+format: html
+editor: visual
+---
+
+## 
+
+## Set-up
+
+### Python
+
+```{python}
+import os
+import pandas as pd
+import numpy as np
+import multiprocess as mp
+import pyreadr
+
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+
+from mbtr.mbtr import MBT
+from sklearn import metrics
+from sklearn.model_selection import train_test_split, KFold, ParameterGrid
+
+random_state = 12
+```
+
+### R
+
+```{r}
+#|echo: false
+#|include: false
+source("utils.R")
+```
+
+## Read data
+
+Use 10% of the data for now.
+
+```{python}
+df = pyreadr.read_r('data/04.all_data.Rdata')['df']
+
+# Subsample
+#df = df.sample(frac = 0.2, replace = False, random_state = random_state)
+```
+
+```{python}
+#| warning: false
+plt.clf()
+# Optional: make plots larger in JupyterLab
+plt.rcParams['figure.figsize'] = [10, 5]
+
+# define "axes" with a given geographical projection
+ax = plt.axes(projection=ccrs.PlateCarree())
+# add coastlines
+ax.coastlines()
+# add points at given locations
+ax.scatter(df.lon,df.lat)
+# display the plot
+plt.show()
+```
+
+```{python}
+plt.clf()
+# define "axes" with a given geographical projection
+ax = plt.axes(projection=ccrs.PlateCarree())
+# add coastlines
+ax.coastlines()
+# add points at given locations
+ax.scatter(df.lon,df.lat)
+# display the plot
+plt.show()
+```
+
+Split data into training and testing
+
+```{python}
+df_train, df_test = train_test_split(df, test_size = 0.2, random_state = random_state)
+print(df_train.shape)
+print(df_test.shape)
+```
+
+## MBTR
+
+### Data split
+
+Split response and explanatory data into separate dataframes
+
+```{python}
+Y_train = df_train.loc[:,'ta_ric':'m_dim4_var'].to_numpy()
+X_train = df_train.loc[:,'temperature_mean':'par_sd'].to_numpy()
+
+Y_test = df_test.loc[:,'ta_ric':'m_dim4_var'].to_numpy()
+X_test = df_test.loc[:,'temperature_mean':'par_sd'].to_numpy()
+```
+
+### Cross validation
+
+Without
+
+```{python}
+
+
+# define hyperparameters
+params = {
+    'n_boosts' : 50,              # = number of trees
+    'learning_rate' : 0.05,
+    'min_leaf' : 1,
+    # do not use regularisation (set to ~0)
+    'lambda_weights' : 0.001,     
+    'lambda_leaves' : 0.001,
+    # Use early stopping: stop training when loss on the training
+    # set did not improve for 10 trees.
+    # Set to a value >= to `n_boosts` to disable
+    'early_stopping_rounds' : 10
+}
+
+# initialise and fit model
+MBT_model = MBT(**params)
+MBT_model.fit(X_train, Y_train)
+
+# compute loss curve (on the test set)
+# NB: remember that setting hyperparameters based on the test set is BAD!
+test_loss = np.zeros(params['n_boosts'])
+for i in range(params['n_boosts']):
+    Y_test_pred = MBT_model.predict(X_test, n = i+1)
+    test_loss[i] = metrics.mean_squared_error(Y_test, Y_test_pred)
+    
+# plot it
+n_trees = np.arange(1, params['n_boosts'] + 1)
+fig,ax = plt.subplots()
+ax.plot(n_trees, test_loss)
+ax.set_xlabel('Nb of trees')
+ax.set_ylabel('Loss on test set')
+plt.show()
+
+
+```
+
+With
+
+```{python}
+
+
+params = {
+    'n_boosts' : 50, 
+    'learning_rate' : 0.05,
+    'min_leaf' : 1,
+    'lambda_weights' : 0.001,
+    'lambda_leaves' : 0.001,
+    'early_stopping_rounds' : 10
+}
+
+# initialise a data splitter into 5 folds
+n_splits = 5
+cv = KFold(n_splits = n_splits, shuffle = True, random_state = random_state)
+
+# prepare storage for the validation curves for each split
+val_loss = np.zeros((params['n_boosts']))
+
+
+def fit_cv(split):
+    # Retrieve training and validation data
+    train = split[0]
+    val = split[1]
+    
+    # fit MBT model for given split
+    MBT_model = MBT(**params)
+    MBT_model.fit(X_train[train], Y_train[train])
+    
+    # compute the validation curve for this split
+    for i in range(params['n_boosts']):
+        Y_pred = MBT_model.predict(X_train[val], n = i+1)
+        val_loss[i] = metrics.mean_squared_error(Y_train[val], Y_pred)
+    
+    return(val_loss)
+
+# Run this in parallel
+with mp.Pool(10) as pool:
+    res = pool.map(fit_cv, cv.split(X_train, Y_train))
+
+val_loss = np.stack(res, axis=-1)
+
+
+n_trees = np.arange(1, params['n_boosts'] + 1)
+
+fig,ax = plt.subplots()
+# plot all validation curves
+ax.plot(n_trees, val_loss)
+# add the average curve
+ax.plot(n_trees, np.mean(val_loss, axis = 1), color = 'k', linestyle = 'dashed')
+ax.set_xlabel('Nb of trees')
+ax.set_ylabel('Loss on validation split')
+plt.show()
+```
+
+### Gridsearch
+
+```{python}
+
+
+# define the grid of parameters to search over
+grid = {
+    'n_boosts' : [50], 
+    'lambda_weights' : [0.001],
+    'lambda_leaves' : [0.001],
+    'early_stopping_rounds' : [10],
+    'learning_rate' : [0.1, 0.05, 0.025],
+    'min_leaf' : [1, 4, 8]
+}
+
+
+# initialise a data splitter into 5 folds
+n_splits = 3
+cv = KFold(n_splits = n_splits, shuffle = True, random_state = random_state)
+
+res = []
+
+def fit_cv(params):
+  
+    # initialise
+    val_loss = np.zeros((params['n_boosts'],n_splits))
+    k = 0
+
+    for train,val in cv.split(X_train, Y_train):
+        # fit model
+        MBT_model = MBT(**params)
+        MBT_model.fit(X_train[train], Y_train[train])
+        # compute validation curve
+        for i in range(params['n_boosts']):
+            Y_pred = MBT_model.predict(X_train[val], n=i+1)
+            val_loss[i,k] = metrics.mean_squared_error(
+                Y_train[val],
+                Y_pred
+            )
+        k += 1
+
+    # store result
+    res.append({**params, 'val_loss': val_loss})
+    
+    return(res)
+  
+## Run this in parallel
+# number of cores is minimum between:
+# - nb of available cores - 2
+# - nb of grids to test
+n_cores = min(mp.cpu_count() - 2, len(list(ParameterGrid(grid)))) 
+with mp.Pool(n_cores) as pool:
+    res = pool.map(fit_cv, ParameterGrid(grid))
+
+# Unlist top level
+res = [l for li in res for l in li]
+save_res = res
+
+```
+
+Plot results
+
+```{python}
+#| warning: false
+#| output: false
+n_trees = np.arange(1, grid['n_boosts'][0]+1)
+
+fig,axs = plt.subplots(1, len(grid['min_leaf']))
+s = 0
+for min_leaf in grid['min_leaf']:
+    res_subset = [r for r in res if (r['min_leaf'] == min_leaf)]
+    
+    for i in range(len(res_subset)):
+        axs[s].plot(n_trees, np.mean(res_subset[i]['val_loss'], axis=1),
+            label=f"lr: {res_subset[i]['learning_rate']:.3f}")
+        axs[s].legend()
+        axs[s].set_title(f"min_leaf: {min_leaf}")
+        #axs[s].set_ylim([0.001, 0.0035])
+    s += 1
+
+plt.show()
+```
+
+### Fit with best params
+
+```{python}
+#
+##res_save = res
+##res = res_save
+#
+## For each set of params, compute mean val_loss across CV folds
+#mean_val_loss = [np.mean(r['val_loss'], axis = 1) for r in res]
+## drop initial val_loss
+#[r.pop('val_loss', None) for r in res]
+## and replace by mean of val_loss 
+#for i, el in enumerate(res):
+#    el.update( {"mean_val_loss":mean_val_loss[i]})
+#    
+## Convert result to dataframe
+#df_res = pd.DataFrame(res)
+## Unnest the 'mean_val_loss' column
+#df_res = df_res.explode('mean_val_loss').reset_index(drop = True)
+#
+## Add number of trees for each value of 'mean_val_loss'
+#df_res['n_boosts'] = np.tile(n_trees, 9)
+#
+## Find minimal loss value
+#df_res = df_res.sort_values('mean_val_loss').reset_index(drop = True)
+#df_res = df_res.drop('mean_val_loss', axis = 1)
+#best_params = df_res.iloc[0].to_dict()
+#best_params
+```
+
+### Get best params with R
+
+```{r}
+res <- py$res
+# Convert results to dataframe
+df_res <- tibble()
+for (i in 1:length(res)){
+  df_res <- rbind(df_res, data.frame(res[i]))
+}
+
+# Compute mean of val_loss across CV folds
+df_res <- df_res %>% 
+  mutate(val_loss = select(., val_loss.1:val_loss.3) %>% rowMeans()) %>% 
+  select(-c(val_loss.1:val_loss.3))
+
+# Get lower val_loss
+best_params <- df_res %>% 
+  arrange(val_loss) %>% 
+  select(-val_loss) %>% 
+  slice(1) %>% 
+  pivot_longer(cols = everything())
+best_params
+```
+
+And pass them to python
+
+```{python}
+# convert dataframe to dict
+best_params = r.best_params
+best_params = best_params.set_index('name')
+best_params = best_params['value'].to_dict()
+
+# Set n_boosts as an integer
+best_params['n_boosts'] = int(best_params['n_boosts'])
+# Disable early stopping
+best_params['early_stopping_rounds'] = 100
+
+# Refit model
+MBT_model = MBT(**best_params)
+MBT_model.fit(X_train, Y_train)
+
+# Predict test set to get metrics
+Y_test_pred = MBT_model.predict(X_test, n=best_params['n_boosts'])
+print(f"Multiple R2 on test set : {metrics.r2_score(Y_test, Y_test_pred):.2f}")
+```
+
+Predict all data to get all residuals.
+
+```{python}
+X_all = np.concatenate((X_train, X_test))
+Y_all = np.concatenate((Y_train, Y_test))
+Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
+```
+
+### Compute residuals and save them
+
+```{r}
+# Get col names
+var_names = py$df %>% select(ta_ric:m_dim4_var) %>% colnames()
+# Generate a df of residuals
+resid <- py$Y_all - py$Y_all_pred %>% 
+  as.data.frame()
+# Add column names
+colnames(resid) <- var_names
+# Add metadata
+resid <- py$df %>% 
+  select(lon, lat, datetime) %>% 
+  as_tibble() %>% 
+  bind_cols(resid)
+
+save(resid, file = "08.plankton_residuals_mbtr.Rdata")
+
+resid %>% 
+  pivot_longer(all_of(var_names), names_to = "var", values_to = "value") %>% 
+  ggplot() +
+  geom_histogram(aes(x = value)) + 
+  facet_wrap(~var, scales = "free")
+```
