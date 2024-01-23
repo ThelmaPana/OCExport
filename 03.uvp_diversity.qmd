@@ -69,8 +69,6 @@ profiles %>%
   #scale_y_log10()
 ```
 
-Not obvious, but the minimum number of objects per profile cannot be under 3.
-
 ```{r}
 #| fig-column: body-outset
 #| out-width: 100%
@@ -115,8 +113,8 @@ cont <- o %>%
 ta_div_prof <- tibble(
   profile_id = rownames(cont),
   ta_ric = specnumber(cont),
-  ta_shannon = diversity(cont, index = "shannon"),
-  ta_pielou = ta_shannon/log(ta_ric)
+  ta_div = diversity(cont, index = "shannon"),
+  ta_eve = ta_div/log(ta_ric)
 ) %>%
   left_join(profiles, by = join_by(profile_id)) %>%
   select(profile_id, lon, lat, everything())
@@ -139,13 +137,13 @@ ggmap(
 
 ggmap(
   profiles, 
-  "ta_shannon", 
+  "ta_div", 
   type = "point"
   )
 
 ggmap(
   profiles, 
-  "ta_pielou", 
+  "ta_eve", 
   type = "point"
   )
 ```
@@ -187,7 +185,7 @@ Plot features distributions.
 ```{r}
 #| fig-column: screen-inset
 #| out-width: 100%
-#| #| fig-width: 10
+#| fig-width: 10
 #| fig-height: 8
 x %>%
   pivot_longer(cols = everything()) %>%
@@ -278,6 +276,7 @@ eig %>%
   ggplot() +
   geom_path(aes(x = as.numeric(comp), y = eigenvalue)) +
   geom_point(aes(x = as.numeric(comp), y = eigenvalue)) +
+  geom_vline(xintercept = 5, colour = "red") +
   theme_classic() +
   scale_x_log10() +
   scale_y_log10() +
@@ -285,7 +284,7 @@ eig %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
-[TODO: PC selection.]{style="color: red;"} See Numerical Ecology, p409
+It’s linear until \~5, let’s keep the first 5 PCs.
 
 #### Features and axis definition
 
@@ -355,7 +354,7 @@ circ <- circleFun(c(0, 0), 2, npoints = 500)
 
 # Get variables contributions
 #to select vars based on contribution to each plane
-contribs <- as.data.frame(m_space$var$contrib)
+contribs <- as.data.frame(m_space$var$contrib) %>% as_tibble()
 colnames(contribs) <- str_c("m_dim", paste(c(1:ncol(contribs))))
 contribs <- contribs %>% 
   rownames_to_column(var = "feature") %>% 
@@ -447,6 +446,8 @@ p34 +
 -   PC3 = elongation
 
 -   PC4 = heterogeneity of grey levels
+
+[TODO: Look for missing files.]{style="color: red;"}
 
 ### Diversity
 
@@ -571,7 +572,194 @@ Multivariate morphological diversity metrics have been defined in [Beck et al. 2
 
 -   morphological divergence
 
+**Actually there is now a R package to compute these metrics. See [Magneville et al. 2021](https://nsojournals.onlinelibrary.wiley.com/doi/full/10.1111/ecog.05904) as well as [mFD package](https://cmlmagneville.github.io/mFD/). Yay!**
+
 Computing these metrics require defining "morphs" (i.e. morphologically similar organisms) in the morphospace, i.e. using kmeans. These morphs are then used instead of species to compute morphological diversity metrics.
+
+##### Define morphs
+
+Define morphs using kmeans, in parallel.
+
+[TODO: Number of clusters.]{style="color: red;"} This depends on:
+
+-   number of objects to cluster
+
+-   number of profiles
+
+-   number of retained morphospace axes
+
+If we retain `n` morphospace axes, then we need at least `n+1` morphs to be present in each profile (to compute a convex hull in `n` dimensions, we need `n+1` points).
+
+```{r}
+# Number of clusters
+n_clust <- 200
+
+# Perform clustering
+morphs <- wkmeans::wkmeans(
+  x = o %>% select(contains("dim")), # use PCA outputs
+  k = n_clust, # number of clusters
+  nstart = 50, # number of random initialisations, higher is better
+  cores = n_cores
+  )
+
+# Add cluster to table of objects
+o <- o %>% mutate(
+  morph = morphs$cluster,
+  morph = str_pad(morph, width = nchar(n_clust), pad = "0"), # add leading zeros
+  morph = paste0("morph_", morph), # Add "morph_" in front
+  morph = as.factor(morph) # convert to factor
+)
+```
+
+Look at size of generated morphs (the red vertical line shows the expected mean).
+
+```{r}
+morphs_size <- morphs$size %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  rename(morph = Var1, n = Freq)
+
+summary(morphs_size)
+
+morphs_size %>% 
+  ggplot() +
+  geom_histogram(aes(x = n), bins = n_clust/2) +
+  geom_vline(xintercept = nrow(o)/n_clust, colour = "red")
+```
+
+##### Relation between morph, taxa and profiles.
+
+Number of individuals of each taxon per morph.
+
+```{r}
+# Counts per morph and per taxa
+counts_m_t <- o %>% select(morph, taxon) %>% count(morph, taxon)
+
+counts_m_t %>% 
+  ggplot() +
+  geom_boxplot(aes(x = taxon, y = n)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(y = "Number per morph") +
+  scale_y_continuous(trans = "log1p")
+```
+
+Look at number of taxa per morph.
+
+```{r}
+# Counts per morph
+counts_m <- counts_m_t %>% count(morph)
+ggplot(counts_m) +
+  geom_histogram(aes(x = n, fill = morph), binwidth = 1, show.legend = FALSE) +
+  labs(x = "Number of taxa per morph") +
+  theme_classic()
+# Each colour bloc represents a morph
+
+counts_m %>% summary()
+```
+
+The median of number of taxa per morph is `r counts_m %>% pull(n) %>% median()`: morphs are not representative of taxa.
+
+In how many morphs is a taxa present?
+
+```{r}
+# Counts per taxa
+counts_t <- counts_m_t %>% count(taxon)
+ggplot(counts_t) +
+  geom_col(aes(x = taxon, y = n)) +
+  labs(y = "Number of morphs in which taxon is present") +
+  coord_flip()
+
+counts_t %>% summary()
+```
+
+Gymnosomata and Cephalopoda are present in less than 50 morphs, while Copepoda are present in all of them.
+
+Number of morphs per profile. This limits the number of dimensions we can use to compute metrics. We need at least `n+1` morphs per profile with `n` the number of dimensions.
+
+```{r}
+count_p_m <- o %>% count(profile_id, morph)
+count_p <- count_p_m %>% count(profile_id) %>% arrange(n)
+
+count_p %>% 
+  ggplot() +
+  geom_histogram(aes(x = n, fill = n >= 6 ), bins = 50) +
+  geom_vline(xintercept = 6, colour = "red")
+```
+
+The red line shows the minimum number of morphs that must be present in each profile in order to compute morphological diversity metrics using 5 morphospace axes.
+
+Plot clusters
+
+```{r}
+o %>%
+  ggplot(aes(x = m_dim1, y = m_dim2, colour = morph)) +
+  geom_point(show.legend = FALSE, size = 0.5, alpha = 0.05)
+```
+
+##### Compute metrics
+
+We need the following matrices:
+
+-   traits values for each morph centre (morphs × traits)
+
+-   morphs assemblages (profiles × morphs)
+
+```{r}
+# Matrix of trait values for each morph, i.e. centers of morphs in mspace
+# - rows = morphs
+# - columns = traits
+
+m_coord <- as_tibble(morphs$centers) %>%
+  mutate(
+    morph = row_number(),
+    morph = str_pad(morph, width = nchar(n_clust), pad = "0"),
+    morph = paste0("morph_", morph)
+    ) %>%
+  column_to_rownames("morph") %>%
+  as.matrix()
+
+# Matrix summarising morphs assemblages
+# - rows = profiles (as row names)
+# - columns = morphs
+
+weights <- o %>%
+  # concentration per date per morph
+  group_by(profile_id, morph) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  arrange(morph) %>%
+  # convert to wide format and fill with 0s
+  pivot_wider(names_from = morph, values_from = n, values_fill = 0) %>%
+  column_to_rownames("profile_id") %>% # set profile_id as rowname
+  as.matrix()
+
+# Compute diversity metrics, which takes a looooooooong time
+morpho_div <- alpha.fd.multidim(
+  sp_faxes_coord = m_coord,
+  asb_sp_w = weights,
+  ind_vect = c("feve", "fric", "fdiv"),
+  details_returned = FALSE,
+  verbose = FALSE
+)
+
+# Clean result
+morpho_div <- morpho_div$functional_diversity_indices %>% 
+  rownames_to_column(var = "profile_id") %>% 
+  as_tibble() %>% 
+  select(profile_id, m_ric = fric, m_div = fdiv, m_eve = feve)
+
+# And add to table of profiles
+profiles <- profiles %>% 
+  left_join(morpho_div, by = join_by(profile_id))
+```
+
+Plot maps of resulting morphological diversity metrics
+
+```{r}
+ggmap(profiles, var = "m_ric", type = "point")
+ggmap(profiles, var = "m_div", type = "point")
+ggmap(profiles, var = "m_eve", type = "point")
+```
 
 ## Save
 
