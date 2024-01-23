@@ -18,7 +18,7 @@ load("data/04.all_data.Rdata")
 ## Select only plankton variables
 
 ```{r}
-df <- df %>% select(lon, lat, datetime, ta_ric:m_dim3_var, poc)
+df <- df %>% select(lon, lat, datetime, ta_ric:m_eve, poc)
 ```
 
 ## Data inspection
@@ -42,11 +42,20 @@ This is much better. We’ll then try to predict `log(poc)`.
 
 ### Explanatory variables
 
+Select explanatory variables.
+
+```{r}
+# Explanatory variables
+exp_vars <- df %>% select(ta_ric:m_eve) %>% colnames()
+# Metadata variables
+meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
+```
+
 Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.
 
 ```{r}
 # Need to remove lon and lat and to scale because units differ between variables
-df_pca <- df %>% select(-c(lon, lat, datetime)) %>% select(poc, poc_log, everything())
+df_pca <- df %>% select(poc, poc_log, all_of(exp_vars))
 pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, scale.unit = TRUE, graph = FALSE)
 ```
 
@@ -307,16 +316,16 @@ ggplot_imp(xgb_var_imp)
 ### Partial dependence plots
 
 ```{r}
-xgb_pdp_pielou <- model_profile(explainer = xgb_explain, variables = c("ta_pielou"))
-ggplot_pdp(xgb_pdp_pielou, ta_pielou) +
+xgb_pdp_pielou <- model_profile(explainer = xgb_explain, variables = c("ta_eve"))
+ggplot_pdp(xgb_pdp_pielou, ta_eve) +
   labs(x = "Pielou", y = "Logged predicted POC")
 
 xgb_pdp_m_dim1_mean <- model_profile(explainer = xgb_explain, variables = c("m_dim1_mean"))
 ggplot_pdp(xgb_pdp_m_dim1_mean, m_dim1_mean) +
   labs(x = "M dim1 mean", y = "Logged predicted POC")
 
-xgb_pdp_shannon <- model_profile(explainer = xgb_explain, variables = c("ta_shannon"))
-ggplot_pdp(xgb_pdp_shannon, ta_shannon) +
+xgb_pdp_shannon <- model_profile(explainer = xgb_explain, variables = c("ta_div"))
+ggplot_pdp(xgb_pdp_shannon, ta_div) +
   labs(x = "Shannon", y = "Logged predicted POC")
 
 xgb_pdp_m_dim2_var <- model_profile(explainer = xgb_explain, variables = c("m_dim2_var"))

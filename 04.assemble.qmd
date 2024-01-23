@@ -103,7 +103,7 @@ Let’s have a quick look at Shannon diversity on this new grid.
 ```{r}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(profiles, "ta_shannon", type = "point")
+ggmap(profiles, "ta_ric", type = "point")
 ```
 
 ## Assemble env, UVP and carbon data
