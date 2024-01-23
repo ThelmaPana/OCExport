@@ -15,11 +15,11 @@ editor: visual
 source("utils.R")
 #load("data/04.all_data.Rdata")
 load("data/07.poc_res.Rdata")
-load("data/08.plankton_res.Rdata")
+load("data/08.plankton_res_mbtr.Rdata")
 
 df <- poc_res %>% 
   rename(poc_res = residuals) %>% 
-  left_join(plankton_res %>% rename(plankton_res = residuals), by = join_by(lon, lat, datetime))
+  left_join(plankton_res %>% select(-datetime), by = join_by(lon, lat)) # remove datetime from residuals computed in python because the datetime is messed up
 ```
 
 ## Data inspection
@@ -40,7 +40,7 @@ Select explanatory variables.
 
 ```{r}
 # Explanatory variables
-exp_vars <- df %>% select(plankton_res) %>% colnames()
+exp_vars <- df %>% select(ta_ric:m_dim4_var) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -48,16 +48,14 @@ meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.
 
 ```{r}
-#| eval: false
 # Need to remove lon and lat and to scale because units differ between variables
-df_pca <- df %>% select(ta_pielou, ta_pielou_exp, all_of(exp_vars))
-pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, scale.unit = TRUE, graph = FALSE)
+df_pca <- df %>% select(poc_res, all_of(exp_vars))
+pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1, scale.unit = TRUE, graph = FALSE)
 ```
 
 Plot eigenvalues.
 
 ```{r}
-#| eval: false
 eig <- pca_all$eig %>%
   as.data.frame() %>%
   rownames_to_column(var = "comp") %>%
@@ -80,7 +78,6 @@ eig %>%
 Plot first plane.
 
 ```{r}
-#| eval: false
 #| fig-column: body-outset
 #| out-width: 100%
 plot(pca_all, choix="var", axes = c(1, 2))
@@ -279,13 +276,8 @@ preds %>%
 Finally, let’s extract residuals, have a look at them and save them.
 
 ```{r}
-plankton_res <- preds %>%
-  mutate(residuals = .pred_exp - ta_pielou_exp) %>% 
-  select(lon, lat, datetime, residuals)
-
-save(plankton_res, file = "data/08.plankton_res.Rdata")
-
-plankton_res %>%
+preds %>%
+  mutate(residuals = .pred - poc_res) %>%
   ggplot() +
   geom_density(aes(x = residuals)) +
   labs(x = "Residuals")
@@ -305,7 +297,7 @@ xgb_explain <-
   explain_tidymodels(
     model = extract_fit_parsnip(final_res),
     data = vip_train,
-    y = df_train %>%  pull(ta_pielou_exp)
+    y = df_train %>%  pull(poc_res)
   )
 ```
 

@@ -374,14 +374,14 @@ resid <- py$Y_all - py$Y_all_pred %>%
 # Add column names
 colnames(resid) <- var_names
 # Add metadata
-resid <- py$df %>% 
+plankton_res <- py$df %>% 
   select(lon, lat, datetime) %>% 
   as_tibble() %>% 
   bind_cols(resid)
 
-save(resid, file = "08.plankton_residuals_mbtr.Rdata")
+save(plankton_res, file = "08.plankton_res_mbtr.Rdata")
 
-resid %>% 
+plankton_res %>% 
   pivot_longer(all_of(var_names), names_to = "var", values_to = "value") %>% 
   ggplot() +
   geom_histogram(aes(x = value)) + 
