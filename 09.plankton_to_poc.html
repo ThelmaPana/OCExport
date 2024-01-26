@@ -161,7 +161,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Select explanatory variables.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Explanatory variables</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>exp_vars <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(ta_ric<span class="sc">:</span>m_dim4_var) <span class="sc">%&gt;%</span> <span class="fu">colnames</span>()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>exp_vars <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(ta_ric<span class="sc">:</span>m_eve) <span class="sc">%&gt;%</span> <span class="fu">colnames</span>()</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Metadata variables</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>meta_vars <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(lon, lat, datetime) <span class="sc">%&gt;%</span> <span class="fu">colnames</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -309,15 +309,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(<span class="fu">all_of</span>(meta_vars), <span class="at">new_role =</span> <span class="st">"coords"</span>) <span class="co"># These variables can be retained in the data but not included in the model</span></span>
 <span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(xgb_rec)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 15 × 4
+<pre><code># A tibble: 18 × 4
    variable    type      role      source  
    &lt;chr&gt;       &lt;list&gt;    &lt;chr&gt;     &lt;chr&gt;   
  1 lon         &lt;chr [2]&gt; coords    original
  2 lat         &lt;chr [2]&gt; coords    original
  3 datetime    &lt;chr [1]&gt; coords    original
  4 ta_ric      &lt;chr [2]&gt; predictor original
- 5 ta_shannon  &lt;chr [2]&gt; predictor original
- 6 ta_pielou   &lt;chr [2]&gt; predictor original
+ 5 ta_div      &lt;chr [2]&gt; predictor original
+ 6 ta_eve      &lt;chr [2]&gt; predictor original
  7 m_dim1_mean &lt;chr [2]&gt; predictor original
  8 m_dim1_var  &lt;chr [2]&gt; predictor original
  9 m_dim2_mean &lt;chr [2]&gt; predictor original
@@ -326,7 +326,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 12 m_dim3_var  &lt;chr [2]&gt; predictor original
 13 m_dim4_mean &lt;chr [2]&gt; predictor original
 14 m_dim4_var  &lt;chr [2]&gt; predictor original
-15 poc_res     &lt;chr [2]&gt; outcome   original</code></pre>
+15 m_ric       &lt;chr [2]&gt; predictor original
+16 m_div       &lt;chr [2]&gt; predictor original
+17 m_eve       &lt;chr [2]&gt; predictor original
+18 poc_res     &lt;chr [2]&gt; outcome   original</code></pre>
 </div>
 </div>
 </section>
@@ -356,18 +359,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>xgb_grid</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 30 × 4
-   trees    learn_rate tree_depth min_n
-   &lt;int&gt;         &lt;dbl&gt;      &lt;int&gt; &lt;int&gt;
- 1   536 0.0103                13    29
- 2  1837 0.00000467            12    10
- 3  1366 0.0000000430           8    30
- 4  1319 0.0706                 9    28
- 5  1724 0.00504                2    40
- 6   642 0.0360                 2    19
- 7  1902 0.000105              10     6
- 8   372 0.000221              15    22
- 9   668 0.00244               11    24
-10   758 0.00000000153          4    26
+   trees learn_rate tree_depth min_n
+   &lt;int&gt;      &lt;dbl&gt;      &lt;int&gt; &lt;int&gt;
+ 1   293   2.06e- 8          7    14
+ 2   182   7.24e- 5         12    30
+ 3   567   1.87e- 2         14     5
+ 4  1243   1.22e- 4         12    12
+ 5   607   8.74e-10         11    39
+ 6  1462   3.88e- 2          5    15
+ 7  1172   2.46e- 9         10    18
+ 8  1845   1.06e- 3          9     3
+ 9  1882   9.57e- 6         13     3
+10  1671   3.76e- 3          6    23
 # ℹ 20 more rows</code></pre>
 </div>
 </div>
@@ -396,11 +399,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code># A tibble: 5 × 10
   trees min_n tree_depth learn_rate .metric .estimator  mean     n std_err
   &lt;int&gt; &lt;int&gt;      &lt;int&gt;      &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
-1   195    34         14    0.0175  rmse    standard   0.198    10 0.0106 
-2  1724    40          2    0.00504 rmse    standard   0.200    10 0.00982
-3   536    29         13    0.0103  rmse    standard   0.203    10 0.0110 
-4   642    19          2    0.0360  rmse    standard   0.216    10 0.0104 
-5   668    24         11    0.00244 rmse    standard   0.222    10 0.0101 
+1   922    27          5    0.00660 rmse    standard   0.177    10  0.0298
+2  1671    23          6    0.00376 rmse    standard   0.179    10  0.0298
+3  1845     3          9    0.00106 rmse    standard   0.204    10  0.0239
+4   567     5         14    0.0187  rmse    standard   0.206    10  0.0275
+5  1462    15          5    0.0388  rmse    standard   0.207    10  0.0279
 # ℹ 1 more variable: .config &lt;chr&gt;</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>best_xgb <span class="ot">&lt;-</span> <span class="fu">select_best</span>(xgb_res, <span class="at">metric =</span> <span class="st">"rmse"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -419,7 +422,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>final_res <span class="ot">&lt;-</span> <span class="fu">fit</span>(final_xgb, df_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[09:41:09] WARNING: src/learner.cc:767: 
+<pre><code>[12:30:58] WARNING: src/learner.cc:767: 
 Parameters: { "num_threads" } are not used.</code></pre>
 </div>
 </div>
@@ -439,14 +442,14 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rmse    standard       0.236</code></pre>
+1 rmse    standard       0.199</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsq</span>(preds, <span class="at">truth =</span> poc_res, <span class="at">estimate =</span> .pred)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rsq     standard     0.00612</code></pre>
+1 rsq     standard      0.0326</code></pre>
 </div>
 </div>
 </section>
@@ -505,15 +508,15 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Preparation of a new explainer is initiated
   -&gt; model label       :  model_fit  (  default  )
-  -&gt; data              :  404  rows  11  cols 
+  -&gt; data              :  372  rows  14  cols 
   -&gt; data              :  tibble converted into a data.frame 
-  -&gt; target variable   :  404  values 
+  -&gt; target variable   :  372  values 
   -&gt; predict function  :  yhat.model_fit  will be used (  default  )
   -&gt; predicted values  :  No value for predict function target column. (  default  )
   -&gt; model_info        :  package parsnip , ver. 1.1.1 , task regression (  default  ) 
-  -&gt; predicted values  :  numerical, min =  -0.216528 , mean =  0.003707774 , max =  0.2155356  
+  -&gt; predicted values  :  numerical, min =  -0.2721395 , mean =  0.007483999 , max =  0.3995655  
   -&gt; residual function :  difference between y and yhat (  default  )
-  -&gt; residuals         :  numerical, min =  -0.6709788 , mean =  -0.01772746 , max =  0.630782  
+  -&gt; residuals         :  numerical, min =  -0.5345228 , mean =  -0.001254284 , max =  1.636088  
   A new explainer has been created!  </code></pre>
 </div>
 </div>

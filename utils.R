@@ -196,7 +196,8 @@ ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = N
   ## Plot
   # Base plot
   p <- ggplot(df) +
-    coord_quickmap(expand = FALSE)
+    coord_quickmap(expand = FALSE) +
+    theme_minimal()
 
   # add raster or point layer
   if (type == "raster"){

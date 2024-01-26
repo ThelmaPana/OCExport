@@ -1,10 +1,11 @@
 ---
-title: "Toto"
-format: html
+title: "Compute plankton anomalies"
+subtitle: "Predicting multivariate plankton data from multivariate env data using Multivariate Boosted Trees."
+format:
+  html:
+    toc: true
 editor: visual
 ---
-
-## 
 
 ## Set-up
 
@@ -30,78 +31,74 @@ random_state = 12
 ### R
 
 ```{r}
-#|echo: false
 #|include: false
+#|warning: false
 source("utils.R")
 ```
 
+-   [TODO: consider transforming responses for better results]{style="color: red;"}
+-   [TODO: consider reducing the number of response variables (14 responses for 28 predictors). Maybe a PCA?]{style="color: red;"}
+
 ## Read data
 
-Use 10% of the data for now.
+```{r}
+load("data/04.all_data.Rdata")
 
-```{python}
-df = pyreadr.read_r('data/04.all_data.Rdata')['df']
+# types of variables
+meta_var <- df %>% select(lon:datetime) %>% colnames()
+resp_var <- df %>% select(ta_ric:m_eve) %>% colnames()
+exp_var <- df %>% select(temperature_mean:par_sd) %>% colnames()
 
-# Subsample
-#df = df.sample(frac = 0.2, replace = False, random_state = random_state)
+# subsample
+#df <- df %>% slice_sample(prop = 0.2)
 ```
 
-```{python}
-#| warning: false
-plt.clf()
-# Optional: make plots larger in JupyterLab
-plt.rcParams['figure.figsize'] = [10, 5]
+Inspect response data.
 
-# define "axes" with a given geographical projection
-ax = plt.axes(projection=ccrs.PlateCarree())
-# add coastlines
-ax.coastlines()
-# add points at given locations
-ax.scatter(df.lon,df.lat)
-# display the plot
-plt.show()
+```{r}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 8
+df %>% 
+  select(all_of(resp_var)) %>% 
+  pivot_longer(everything()) %>% 
+  ggplot() +
+  geom_histogram(aes(x = value)) +
+  facet_wrap(~name, scales = "free")
 ```
 
-```{python}
-plt.clf()
-# define "axes" with a given geographical projection
-ax = plt.axes(projection=ccrs.PlateCarree())
-# add coastlines
-ax.coastlines()
-# add points at given locations
-ax.scatter(df.lon,df.lat)
-# display the plot
-plt.show()
+## Split data
+
+Split data into training VS testing
+
+```{r}
+# Train VS test
+df_split <- initial_split(df, prop = 0.8)
+df_train <- training(df_split)
+df_test <- testing(df_split)
 ```
 
-Split data into training and testing
+Split data into response VS predictor
 
 ```{python}
-df_train, df_test = train_test_split(df, test_size = 0.2, random_state = random_state)
-print(df_train.shape)
-print(df_test.shape)
+# Explanatory variables
+X_train = r.df_train[r.exp_var].to_numpy()
+X_test = r.df_test[r.exp_var].to_numpy()
+
+# Response variables
+Y_train = r.df_train[r.resp_var].to_numpy()
+Y_test = r.df_test[r.resp_var].to_numpy()
+
 ```
 
 ## MBTR
-
-### Data split
-
-Split response and explanatory data into separate dataframes
-
-```{python}
-Y_train = df_train.loc[:,'ta_ric':'m_dim4_var'].to_numpy()
-X_train = df_train.loc[:,'temperature_mean':'par_sd'].to_numpy()
-
-Y_test = df_test.loc[:,'ta_ric':'m_dim4_var'].to_numpy()
-X_test = df_test.loc[:,'temperature_mean':'par_sd'].to_numpy()
-```
 
 ### Cross validation
 
 Without
 
 ```{python}
-
 
 # define hyperparameters
 params = {
@@ -260,7 +257,6 @@ Plot results
 
 ```{python}
 #| warning: false
-#| output: false
 n_trees = np.arange(1, grid['n_boosts'][0]+1)
 
 fig,axs = plt.subplots(1, len(grid['min_leaf']))
@@ -277,36 +273,6 @@ for min_leaf in grid['min_leaf']:
     s += 1
 
 plt.show()
-```
-
-### Fit with best params
-
-```{python}
-#
-##res_save = res
-##res = res_save
-#
-## For each set of params, compute mean val_loss across CV folds
-#mean_val_loss = [np.mean(r['val_loss'], axis = 1) for r in res]
-## drop initial val_loss
-#[r.pop('val_loss', None) for r in res]
-## and replace by mean of val_loss 
-#for i, el in enumerate(res):
-#    el.update( {"mean_val_loss":mean_val_loss[i]})
-#    
-## Convert result to dataframe
-#df_res = pd.DataFrame(res)
-## Unnest the 'mean_val_loss' column
-#df_res = df_res.explode('mean_val_loss').reset_index(drop = True)
-#
-## Add number of trees for each value of 'mean_val_loss'
-#df_res['n_boosts'] = np.tile(n_trees, 9)
-#
-## Find minimal loss value
-#df_res = df_res.sort_values('mean_val_loss').reset_index(drop = True)
-#df_res = df_res.drop('mean_val_loss', axis = 1)
-#best_params = df_res.iloc[0].to_dict()
-#best_params
 ```
 
 ### Get best params with R
@@ -328,12 +294,12 @@ df_res <- df_res %>%
 best_params <- df_res %>% 
   arrange(val_loss) %>% 
   select(-val_loss) %>% 
-  slice(1) %>% 
+  dplyr::slice(1) %>% 
   pivot_longer(cols = everything())
 best_params
 ```
 
-And pass them to python
+### Refit the model
 
 ```{python}
 # convert dataframe to dict
@@ -355,6 +321,34 @@ Y_test_pred = MBT_model.predict(X_test, n=best_params['n_boosts'])
 print(f"Multiple R2 on test set : {metrics.r2_score(Y_test, Y_test_pred):.2f}")
 ```
 
+```{r}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 8
+# Get predictions and true values, as vertical DF to bind together
+Y_test_pred <- py$Y_test_pred %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(resp_var) %>% 
+  pivot_longer(ta_ric:m_dim4_var, names_to = "variable", values_to = "pred")
+
+Y_test <- py$Y_test %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(resp_var) %>% 
+  pivot_longer(ta_ric:m_dim4_var, names_to = "variable", values_to = "truth")
+
+Y_test %>% 
+  bind_cols(Y_test_pred %>% select(-variable)) %>% 
+  ggplot() +
+  geom_point(aes(x = truth, y = pred)) +
+  geom_abline(slope = 1, intercept = 0, colour = "red") +
+  facet_wrap(~variable, scales = "free") 
+
+
+```
+
+### Predict all data
+
 Predict all data to get all residuals.
 
 ```{python}
@@ -366,23 +360,25 @@ Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
 ### Compute residuals and save them
 
 ```{r}
-# Get col names
-var_names = py$df %>% select(ta_ric:m_dim4_var) %>% colnames()
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 8
 # Generate a df of residuals
 resid <- py$Y_all - py$Y_all_pred %>% 
-  as.data.frame()
-# Add column names
-colnames(resid) <- var_names
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(resp_var)
+
 # Add metadata
-plankton_res <- py$df %>% 
-  select(lon, lat, datetime) %>% 
-  as_tibble() %>% 
+plankton_res <- df %>% 
+  select(all_of(meta_var)) %>% 
   bind_cols(resid)
 
-save(plankton_res, file = "08.plankton_res_mbtr.Rdata")
+
+save(plankton_res, file = "data/08.plankton_res_mbtr.Rdata")
 
 plankton_res %>% 
-  pivot_longer(all_of(var_names), names_to = "var", values_to = "value") %>% 
+  pivot_longer(all_of(resp_var), names_to = "var", values_to = "value") %>% 
   ggplot() +
   geom_histogram(aes(x = value)) + 
   facet_wrap(~var, scales = "free")

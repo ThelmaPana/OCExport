@@ -10,6 +10,8 @@ format:
     #footer: ""
     slide-number: c
 editor: visual
+execute: 
+  cache: true
 ---
 
 ```{r}
@@ -65,10 +67,35 @@ ggplot(profiles, aes(x = lon, y = lat)) +
 
 ::: {.column width="70%"}
 ```{r}
-ggmap(profiles, var = "ta_shannon", type = "point") + labs(colour = "Shannon")
+ggmap(profiles, var = "ta_div", type = "point") + labs(colour = "Shannon")
 ```
 :::
 :::
+
+## Plankton - Taxonomic Diversity
+
+::: {style="position:absolute;top:15%;left:0%;"}
+<span style="font-size: 30px">Species richness</span><br><br>
+<span style="font-size: 30px; color: white;background-color: #001852;border-radius: 10px;">Entire water column</span><span style="font-size: 30px;"> vs. fixed sequestration depth</span><br><br>
+<span style="font-size: 30px;">Gravitational + Migrant + Mixing pumps transport <span style="color: #528133;"><strong>F<sub>org</sub></strong></span><br><br></span> 
+<span style="font-size: 30px;"><span style="color: #528133;"><strong>F<sub>org</sub></strong></span> respired to CO<sub>2</sub> (<strong><span style="color: #D01556FF;"><strong>F<sub>remin</sub></strong></span></strong>) or sedimented <br><br></span>
+<span style="font-size: 30px;">Respiratory CO<sub>2</sub> = biogenic DIC (<strong><span style="color: #793da5;"><strong>DIC<sub>bio</sub></strong></span></strong>)<br><br></span>
+:::
+
+
+## Plankton - Taxonomic Diversity
+
+-   species richness
+
+-   Shannon index
+
+-   Pielou’s evenness
+
+```{r}
+ggmap(profiles, var = "ta_div", type = "point") + labs(colour = "Shannon")
+```
+
+## Plankton - Morphological Diversity
 
 ## Plankton - Trophic Diversity
 

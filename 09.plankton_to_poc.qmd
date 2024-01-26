@@ -40,7 +40,7 @@ Select explanatory variables.
 
 ```{r}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:m_dim4_var) %>% colnames()
+exp_vars <- df %>% select(ta_ric:m_eve) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```

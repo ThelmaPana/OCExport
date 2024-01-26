@@ -222,7 +222,6 @@ override using the `.groups` argument.</code></pre>
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>  <span class="co">#scale_y_continuous(trans = "log1p")</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">#scale_y_log10()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Not obvious, but the minimum number of objects per profile cannot be under 3.</p>
 <div class="cell page-columns page-full">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>profiles <span class="sc">%&gt;%</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
@@ -556,7 +555,7 @@ increasing max.overlaps</code></pre>
 <span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Get variables contributions</span></span>
 <span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a><span class="co">#to select vars based on contribution to each plane</span></span>
-<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>contribs <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(m_space<span class="sc">$</span>var<span class="sc">$</span>contrib) <span class="sc">%&gt;%</span> <span class="fu">as_tibble</span>()</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>contribs <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(m_space<span class="sc">$</span>var<span class="sc">$</span>contrib) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
 <span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(contribs) <span class="ot">&lt;-</span> <span class="fu">str_c</span>(<span class="st">"m_dim"</span>, <span class="fu">paste</span>(<span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">ncol</span>(contribs))))</span>
 <span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>contribs <span class="ot">&lt;-</span> contribs <span class="sc">%&gt;%</span> </span>
 <span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames_to_column</span>(<span class="at">var =</span> <span class="st">"feature"</span>) <span class="sc">%&gt;%</span> </span>
@@ -810,6 +809,7 @@ the `.groups` argument.</code></pre>
 <li><p>morphological evenness</p></li>
 <li><p>morphological divergence</p></li>
 </ul>
+<p><strong>Actually there is now a R package to compute these metrics. See <a href="https://nsojournals.onlinelibrary.wiley.com/doi/full/10.1111/ecog.05904">Magneville et al.&nbsp;2021</a> as well as <a href="https://cmlmagneville.github.io/mFD/">mFD package</a>. Yay!</strong></p>
 <p>Computing these metrics require defining “morphs” (i.e.&nbsp;morphologically similar organisms) in the morphospace, i.e.&nbsp;using kmeans. These morphs are then used instead of species to compute morphological diversity metrics.</p>
 <section id="define-morphs" class="level5">
 <h5 class="anchored" data-anchor-id="define-morphs">Define morphs</h5>
@@ -851,12 +851,12 @@ the `.groups` argument.</code></pre>
 <span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(morphs_size)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>     morph           n       
- 1      :  1   Min.   : 716  
- 2      :  1   1st Qu.:1346  
- 3      :  1   Median :1536  
+ 1      :  1   Min.   : 773  
+ 2      :  1   1st Qu.:1243  
+ 3      :  1   Median :1530  
  4      :  1   Mean   :1605  
- 5      :  1   3rd Qu.:1842  
- 6      :  1   Max.   :2881  
+ 5      :  1   3rd Qu.:1934  
+ 6      :  1   Max.   :3419  
  (Other):194                 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>morphs_size <span class="sc">%&gt;%</span> </span>
@@ -912,14 +912,14 @@ the `.groups` argument.</code></pre>
 <span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>counts_m <span class="sc">%&gt;%</span> <span class="fu">summary</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>       morph           n        
- morph_001:  1   Min.   : 6.00  
- morph_002:  1   1st Qu.:14.00  
- morph_003:  1   Median :18.00  
- morph_004:  1   Mean   :17.57  
- morph_005:  1   3rd Qu.:21.00  
- morph_006:  1   Max.   :27.00  
- (Other)  :194                  </code></pre>
+<pre><code>       morph           n       
+ morph_001:  1   Min.   : 5.0  
+ morph_002:  1   1st Qu.:14.0  
+ morph_003:  1   Median :18.0  
+ morph_004:  1   Mean   :17.8  
+ morph_005:  1   3rd Qu.:21.0  
+ morph_006:  1   Max.   :26.0  
+ (Other)  :194                 </code></pre>
 </div>
 </div>
 <p>The median of number of taxa per morph is 18: morphs are not representative of taxa.</p>
@@ -940,13 +940,13 @@ the `.groups` argument.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>counts_t <span class="sc">%&gt;%</span> <span class="fu">summary</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>    taxon                 n         
- Length:28          Min.   : 37.00  
- Class :character   1st Qu.: 88.75  
- Mode  :character   Median :136.50  
-                    Mean   :125.50  
-                    3rd Qu.:167.25  
-                    Max.   :197.00  </code></pre>
+<pre><code>    taxon                 n        
+ Length:28          Min.   : 41.0  
+ Class :character   1st Qu.: 98.0  
+ Mode  :character   Median :133.0  
+                    Mean   :127.1  
+                    3rd Qu.:168.5  
+                    Max.   :197.0  </code></pre>
 </div>
 </div>
 <p>Gymnosomata and Cephalopoda are present in less than 50 morphs, while Copepoda are present in all of them.</p>

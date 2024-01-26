@@ -37,11 +37,18 @@ This is much better. We’ll then try to predict `log(poc)`.
 
 ### Explanatory variables
 
-Select explanatory variables.
+Select explanatory variables as in Wang et al. 2023.
 
 ```{r}
 # Explanatory variables
-exp_vars <- df %>% select(temperature_mean:par_sd) %>% colnames()
+#exp_vars <- df %>% select(temperature_mean:par_sd) %>% select(-nitrate_mean) %>% colnames()
+exp_vars <- df %>% select(
+  temperature_mean, temperature_sd,
+  silicate_mean, silicate_sd,
+  phosphate_mean, phosphate_sd,
+  z_eu_mean, z_eu_sd,
+  oxygen_mean, oxygen_sd
+  ) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -202,7 +209,7 @@ xgb_grid <- grid_latin_hypercube(
   #loss_reduction(),
   #sample_size = sample_prop(),
   #finalize(mtry(), df_train),
-  size = 5
+  size = 30
 )
 xgb_grid
 ```
@@ -333,19 +340,19 @@ ggplot_imp(xgb_var_imp)
 ### Partial dependence plots
 
 ```{r}
+xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
+ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
+  labs(x = "z_eu_mean", y = "Logged predicted POC")
+
 xgb_pdp_temp <- model_profile(explainer = xgb_explain, variables = c("temperature_mean"))
 ggplot_pdp(xgb_pdp_temp, temperature_mean) +
   labs(x = "Temperature_mean", y = "Logged predicted POC")
 
-xgb_pdp_nit <- model_profile(explainer = xgb_explain, variables = c("nitrate_mean"))
-ggplot_pdp(xgb_pdp_nit, nitrate_mean) +
-  labs(x = "Nitrate_mean", y = "Logged predicted POC")
+xgb_pdp_phos <- model_profile(explainer = xgb_explain, variables = c("phosphate_mean"))
+ggplot_pdp(xgb_pdp_phos, phosphate_sd) +
+  labs(x = "Phosphate_mean", y = "Logged predicted POC")
 
-xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
-ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
-  labs(x = "z_eu_mean", y = "Logged predicted POC")
+
 ```
 
 ## Conclusion
-
-Plankton diversity seems to have low effect on `poc` values compared to environment, but still not negligible.

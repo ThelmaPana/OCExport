@@ -354,7 +354,7 @@ circ <- circleFun(c(0, 0), 2, npoints = 500)
 
 # Get variables contributions
 #to select vars based on contribution to each plane
-contribs <- as.data.frame(m_space$var$contrib) %>% as_tibble()
+contribs <- as.data.frame(m_space$var$contrib) %>% as.data.frame()
 colnames(contribs) <- str_c("m_dim", paste(c(1:ncol(contribs))))
 contribs <- contribs %>% 
   rownames_to_column(var = "feature") %>% 
