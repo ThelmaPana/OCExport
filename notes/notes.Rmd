@@ -1,8 +1,25 @@
 ---
-title: "Notes on plankton trophic levels"
-output: html_document
+title: "Notes on Carbon export and zooplankton diversity"
 date: "2024-01-08"
+author: "Thelma Panaïotis"
+output:
+  html_document:
+    toc: true
+    toc_float: true
 ---
+
+# Importance of this work
+
+
+We can predict plankton diversity from environmental variables. 
+
+A few plankton diversity metrics can explain XX% of POC variance.
+
+
+
+# Morphological diversity metrics
+
+# Trophic levels
 
 Historically, the notion of assigning trophic levels in ecology passed through two stages.
 During the first phase, initiated by Charles Elton of the University of Oxford and Raymond Lindeman of Yale University,
