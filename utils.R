@@ -36,6 +36,9 @@ suppressWarnings(library(DALEXtra))
 
 ## Default values ----
 #--------------------------------------------------------------------------#
+# Seed for reproducibility
+seed <- 12
+
 
 # Number of cores for parallel computing
 n_cores <- 14
