@@ -11,7 +11,7 @@ format:
     slide-number: c
 editor: visual
 execute: 
-  cache: true
+  cache: false
 ---
 
 ```{r}
@@ -38,11 +38,6 @@ ggmap(df = df_c, var = "poc", type = "raster")
 
 ## Environment
 
-When you click the **Render** button a document will be generated that includes:
-
--   Content authored with markdown
--   Output from executable code
-
 ## Plankton
 
 UVP5 dataset
@@ -54,75 +49,87 @@ ggplot(profiles, aes(x = lon, y = lat)) +
   coord_quickmap(expand = FALSE)
 ```
 
-## Plankton - Taxonomic Diversity
+## Plankton - Taxonomy
 
-::: columns
-::: {.column width="30%"}
--   species richness
-
--   Shannon index
-
--   Pielou’s evenness
-:::
-
-::: {.column width="70%"}
-```{r}
-ggmap(profiles, var = "ta_div", type = "point") + labs(colour = "Shannon")
-```
-:::
-:::
-
-## Plankton - Taxonomic Diversity
-
-::: {style="position:absolute;top:15%;left:0%;"}
-<span style="font-size: 30px">Species richness</span><br><br>
-<span style="font-size: 30px; color: white;background-color: #001852;border-radius: 10px;">Entire water column</span><span style="font-size: 30px;"> vs. fixed sequestration depth</span><br><br>
-<span style="font-size: 30px;">Gravitational + Migrant + Mixing pumps transport <span style="color: #528133;"><strong>F<sub>org</sub></strong></span><br><br></span> 
-<span style="font-size: 30px;"><span style="color: #528133;"><strong>F<sub>org</sub></strong></span> respired to CO<sub>2</sub> (<strong><span style="color: #D01556FF;"><strong>F<sub>remin</sub></strong></span></strong>) or sedimented <br><br></span>
-<span style="font-size: 30px;">Respiratory CO<sub>2</sub> = biogenic DIC (<strong><span style="color: #793da5;"><strong>DIC<sub>bio</sub></strong></span></strong>)<br><br></span>
-:::
-
-
-## Plankton - Taxonomic Diversity
-
--   species richness
-
--   Shannon index
-
--   Pielou’s evenness
+::: panel-tabset
+## Richness
 
 ```{r}
-ggmap(profiles, var = "ta_div", type = "point") + labs(colour = "Shannon")
+ggmap(profiles, var = "ta_ric", type = "point") + labs(colour = "Species\nRichness")
 ```
 
-## Plankton - Morphological Diversity
+## Diversity
 
-## Plankton - Trophic Diversity
+```{r}
+ggmap(profiles, var = "ta_div", type = "point") + labs(colour = "Shannon’s\n Diversity")
+```
 
-::: columns
-::: {.column width="40%"}
-Left column
+## Evenness
+
+```{r}
+ggmap(profiles, var = "ta_eve", type = "point") + labs(colour = "Pielou’s\nEvenness")
+```
 :::
 
-::: {.column width="60%"}
-Right column
-:::
+## Plankton - Morphology
+
+## Plankton - Trophic Status
+
+Coming soon.
+
+## Final dataset
+
+::: r-stack
+::: {.fragment .fade-out fragment-index="1"}
+::: {style="color: white;"}
+Placeholder
 :::
 
-## Dataset
+```{r}
+ggmap(df = df_c, var = "poc", type = "raster") +
+  geom_point(data = profiles, aes(x = lon, y = lat), size = 0.5)
+```
+:::
 
+::: {.fragment .fade-in-then-out fragment-index="1"}
+::: {style="color: white;"}
+Placeholder
+:::
+
+```{r}
+ggmap(df = df_c, var = "poc", type = "raster") +
+  geom_point(data = df, aes(x = lon, y = lat), size = 0.5)
+```
+:::
+
+::: {.fragment .fade-in}
 `r nrow(df)` data points
 
 ```{r}
 ggmap(df, var = "poc", type = "point")
 ```
+:::
+:::
+
+## Final dataset -- Splits
+
+Learning VS test set, stratified by `POC`.
+
+```{r}
+set.seed(12)
+df <- df %>% mutate(poc_log = log(poc))
+df_split <- initial_split(df, prop = 0.8, strata = poc_log)
+training(df_split) %>% 
+  mutate(split = "learn") %>% 
+  bind_rows(testing(df_split) %>% mutate(split = "test")) %>% 
+  ggplot(aes(x = lon, y = lat)) +
+  geom_polygon(data = world, aes(group = group), fill = "grey") +
+  geom_point(aes(colour = split), size = 0.5) +
+  coord_quickmap(expand = FALSE)
+```
 
 # Model
 
-## Code
+## XGBoost
 
-When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
 
-```{r}
-1 + 1
-```
