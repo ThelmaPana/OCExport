@@ -8,12 +8,29 @@ output:
     toc_float: true
 ---
 
+
+# TODOs
+
+- spatial & temportal autocorrelation
+
+- set a seed for reproducibility
+
+- label chunks
+
+- save models / predictions
+
+- give better names to plankton morphological metrics
+
 # Importance of this work
 
 
 We can predict plankton diversity from environmental variables. 
 
 A few plankton diversity metrics can explain XX% of POC variance.
+
+Current biogeochemical models use PFTs = fixed boxes of plankton. These boxes should not be fixed neither in time nor in space.
+Other approach: identify plankton metrics that are relevant for the carbon cycle (e.g. based on POC export at 1000~m) using ML.
+These plankton metrics could then be implemented into bgc models, i.e. instead of XX boxes of plankton we could have only one type of plankton with varying properties in time and space. These properties can be learned from the environment using ML. 
 
 
 
