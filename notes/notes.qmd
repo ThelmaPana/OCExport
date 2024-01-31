@@ -6,6 +6,7 @@ output:
   html_document:
     toc: true
     toc_float: true
+cache: true
 ---
 
 
@@ -40,9 +41,15 @@ These plankton metrics could then be implemented into bgc models, i.e. instead o
 
 The morphological space occupied by centroid of morphs present at a given profile (i.e. sample).
 
+- volume of the morphological space occupied by the community
+
 ## Morphological evenness
 
 Evenness of abundance distribution within the morphological space. Uses minimum spanning tree. 
+
+- regularity of abundances within the volume
+
+- the regularity with which species abundances are distributed along the spanning tree
 
 - high value if apperance changes gradually
 
@@ -51,6 +58,10 @@ Evenness of abundance distribution within the morphological space. Uses minimum 
 ## Morphological divergence
 
 Morphological dissimilarity within the farction of diversity in a given profile (i.e. sample). How abundance is distributed within the volume of morphological space occupied by morphs.
+
+- divergence in the distribution of abundance in this volume
+
+- how species diverge in their distances (weighted by their abundance) from the center of gravity in the functional space
 
 # Trophic levels
 
