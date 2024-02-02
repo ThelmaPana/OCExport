@@ -6,7 +6,9 @@ format:
   html:
     toc: true
 editor: visual
-cache: true
+execute:
+  cache: true
+  warning: false
 ---
 
 ```{r set_up}
@@ -56,7 +58,9 @@ taxa
 
 Compute the number of objects per profile and keep only profiles that have more than `r n_min_uvp` objects.
 
--   [TODO: minimum number of objects to keep a profile?]{style="color: red;"} Plot it!
+::: callout-caution
+TODO: minimum number of objects to keep in a profiles.
+:::
 
 ```{r uvp_min_nb}
 profiles <- o %>% 
@@ -414,7 +418,7 @@ Objects in morphospace for axes 1:2
 #| fig-column: body-outset
 #| out-width: 100%
 k <- max(var_scores_2$len_12) # adapt scaling of circle to fit the arrows
-p12 <- ggmorph_tile(mo_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(1,2), scale = 0.02) 
+p12 <- ggmorph_tile(mo_space, o$path_to_img, steps = 10, n_imgs = 3, fun = preprocess, dimensions = c(1,2), scale = 0.02) 
 p12 + 
   geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
   geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
@@ -435,7 +439,7 @@ Objects in morphospace for axes 2:3
 #| fig-column: body-outset
 #| out-width: 100%
 k <- max(var_scores_2$len_34) # adapt scaling of circle to fit the arrows
-p34 <- ggmorph_tile(mo_space, o$path_to_img, steps = 18, n_imgs = 3, fun = preprocess, dimensions = c(3,4), scale = 0.02) 
+p34 <- ggmorph_tile(mo_space, o$path_to_img, steps = 10, n_imgs = 3, fun = preprocess, dimensions = c(3,4), scale = 0.02) 
 p34 + 
   geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
   geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
@@ -651,16 +655,16 @@ Look at number of taxa per morph.
 ```{r taxon_per_morph}
 # Counts per morph
 counts_mo <- counts_mo_t %>% count(morph)
-ggplot(counts_m) +
+ggplot(counts_mo) +
   geom_histogram(aes(x = n, fill = morph), binwidth = 1, show.legend = FALSE) +
   labs(x = "Number of taxa per morph") +
   theme_classic()
 # Each colour bloc represents a morph
 
-counts_m %>% summary()
+counts_mo %>% summary()
 ```
 
-The median of number of taxa per morph is `r counts_m %>% pull(n) %>% median()`: morphs are not representative of taxa.
+The median of number of taxa per morph is `r counts_mo %>% pull(n) %>% median()`: morphs are not representative of taxa.
 
 In how many morphs is a taxa present?
 
@@ -695,7 +699,7 @@ Plot clusters
 
 ```{r mspace_plot_morphs}
 o %>%
-  ggplot(aes(x = mo_size, y = mo_dim2, colour = morph)) +
+  ggplot(aes(x = mo_dim1, y = mo_dim2, colour = morph)) +
   geom_point(show.legend = FALSE, size = 0.5, alpha = 0.05)
 ```
 
@@ -771,14 +775,14 @@ Let’s rename morphospace axes according to what we found to make them more mea
 ```{r mspace_dim_names}
 profiles <- profiles %>% 
   rename(
-    mo_size_mean = mo_dim1_mean,
-    mo_grey_mean = mo_dim2_mean,
-    mo_elon_mean = mo_dim3_mean,
-    mo_siz_mean  = mo_dim4_mean,
+    mo_size_mean = mo_dim1_mean,  # size (positive values = bigger)
+    mo_grey_mean = mo_dim2_mean,  # grey (positive values = transparent, i.e. higher grey values)
+    mo_elon_mean = mo_dim3_mean,  # elongation (positive values = elongated)
+    mo_ghet_mean  = mo_dim4_mean, # grey heterogeneous (positive values = heterogeneous)
     mo_size_sd = mo_dim1_sd,
     mo_grey_sd = mo_dim2_sd,
     mo_elon_sd = mo_dim3_sd,
-    mo_siz_sd  = mo_dim4_sd,
+    mo_ghet_sd  = mo_dim4_sd,
   )
 ```
 
