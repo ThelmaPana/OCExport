@@ -6,6 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Thelma Panaïotis">
 
 <title>Assemble POC, environmental and UVP data</title>
 <style>
@@ -86,7 +87,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#uvp-data" id="toc-uvp-data" class="nav-link" data-scroll-target="#uvp-data">UVP data</a></li>
   </ul></li>
   <li><a href="#assemble-env-uvp-and-carbon-data" id="toc-assemble-env-uvp-and-carbon-data" class="nav-link" data-scroll-target="#assemble-env-uvp-and-carbon-data">Assemble env, UVP and carbon data</a></li>
-  <li><a href="#subsample-env-variables" id="toc-subsample-env-variables" class="nav-link" data-scroll-target="#subsample-env-variables">Subsample env variables</a></li>
   <li><a href="#save-the-resulting-dataset" id="toc-save-the-resulting-dataset" class="nav-link" data-scroll-target="#save-the-resulting-dataset">Save the resulting dataset</a></li>
   </ul>
 </nav>
@@ -102,6 +102,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div class="quarto-title-meta">
 
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Thelma Panaïotis </p>
+          </div>
+  </div>
     
   
     
@@ -155,7 +161,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/map_uvp-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -188,7 +194,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/round_uvp_coord-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -203,7 +209,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/map_uvp_gridded-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -211,11 +217,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>We can notice a strong sampling in the California current and in the Peruvian upwelling.</p>
 <p>Let’s have a quick look at Shannon diversity on this new grid.</p>
 <div class="cell page-columns page-full">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(profiles, <span class="st">"ta_shannon"</span>, <span class="at">type =</span> <span class="st">"point"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(profiles, <span class="st">"ta_ric"</span>, <span class="at">type =</span> <span class="st">"point"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/map_ta_ric-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -231,160 +237,152 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(df_c, <span class="at">by =</span> <span class="fu">join_by</span>(lon, lat)) <span class="sc">%&gt;%</span> </span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(lon, lat, <span class="fu">everything</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Our dataset contains 581 points.</p>
+<p>Our dataset contains 533 points.</p>
 <p>Now, we can plot POC data at locations of UVP profiles.</p>
 <div class="cell page-columns page-full">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(df, <span class="st">"poc"</span>, <span class="at">type =</span> <span class="st">"point"</span>) <span class="sc">+</span> <span class="fu">scale_colour_cmocean</span>(<span class="at">name =</span> <span class="st">"matter"</span>) <span class="co"># manually add scale to show NA values</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Scale for colour is already present.
-Adding another scale for colour, which will replace the existing scale.</code></pre>
-</div>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/map_poc_uvp-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Or temperature.</p>
 <div class="cell page-columns page-full">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(df, <span class="st">"temperature_mean"</span>, <span class="at">type =</span> <span class="st">"point"</span>) <span class="sc">+</span> <span class="fu">scale_colour_cmocean</span>(<span class="at">name =</span> <span class="st">"thermal"</span>) <span class="co"># manually add scale to show NA values</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Scale for colour is already present.
-Adding another scale for colour, which will replace the existing scale.</code></pre>
-</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(df, <span class="st">"temperature_mean"</span>, <span class="at">type =</span> <span class="st">"point"</span>) <span class="sc">+</span> <span class="fu">scale_colour_cmocean</span>(<span class="at">name =</span> <span class="st">"thermal"</span>) <span class="co"># manually add scale to show NA values</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/map_temp_uvp-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>In both cases, we notice that some POC and temperature data is not available at some UVP locations.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      lon               lat            datetime                     
- Min.   :-179.00   Min.   :-64.00   Min.   :2008-06-21 10:39:18.00  
- 1st Qu.: -99.00   1st Qu.:-16.00   1st Qu.:2012-01-14 15:35:48.00  
- Median : -47.00   Median : 14.00   Median :2014-04-22 06:36:49.00  
- Mean   : -46.59   Mean   : 16.02   Mean   :2013-12-16 20:58:53.99  
- 3rd Qu.:   1.00   3rd Qu.: 40.00   3rd Qu.:2015-06-15 22:13:35.00  
+ Min.   :-179.00   Min.   :-64.00   Min.   :2008-06-19 08:13:37.00  
+ 1st Qu.: -97.00   1st Qu.:-16.00   1st Qu.:2012-02-27 17:10:44.00  
+ Median : -45.00   Median : 16.00   Median :2014-07-28 15:00:04.50  
+ Mean   : -46.56   Mean   : 16.65   Mean   :2014-02-01 08:09:03.21  
+ 3rd Qu.:  -1.00   3rd Qu.: 40.00   3rd Qu.:2015-08-08 03:03:25.00  
  Max.   : 179.00   Max.   : 80.00   Max.   :2018-07-22 12:45:04.00  
                                                                     
-     ta_ric         ta_shannon      ta_pielou        m_dim1_mean     
- Min.   : 1.000   Min.   :0.000   Min.   :0.07554   Min.   :-5.3106  
- 1st Qu.: 5.000   1st Qu.:0.995   1st Qu.:0.59818   1st Qu.:-1.9043  
- Median : 7.500   Median :1.455   Median :0.71674   Median :-0.9396  
- Mean   : 7.954   Mean   :1.338   Mean   :0.68812   Mean   :-0.5989  
- 3rd Qu.:10.714   3rd Qu.:1.687   3rd Qu.:0.83307   3rd Qu.: 0.4105  
- Max.   :17.000   Max.   :2.384   Max.   :1.00000   Max.   : 5.3862  
-                                  NA's   :2                          
-   m_dim1_var      m_dim2_mean        m_dim2_var       m_dim3_mean     
- Min.   : 1.551   Min.   :-5.3897   Min.   : 0.7853   Min.   :-2.1010  
- 1st Qu.: 9.683   1st Qu.:-0.2106   1st Qu.: 3.7749   1st Qu.:-0.1114  
- Median :12.458   Median : 0.4002   Median : 4.9466   Median : 0.4011  
- Mean   :13.309   Mean   : 0.6010   Mean   : 5.7560   Mean   : 0.4505  
- 3rd Qu.:15.524   3rd Qu.: 1.7150   3rd Qu.: 6.2231   3rd Qu.: 0.9451  
- Max.   :60.778   Max.   : 5.2079   Max.   :25.4429   Max.   : 3.6427  
+     ta_ric           ta_div          ta_eve         mo_size_mean    
+ Min.   : 1.000   Min.   :0.000   Min.   :0.07554   Min.   :-5.8845  
+ 1st Qu.: 6.000   1st Qu.:1.011   1st Qu.:0.58255   1st Qu.:-1.7501  
+ Median : 8.000   Median :1.494   Median :0.69131   Median :-0.9575  
+ Mean   : 8.418   Mean   :1.366   Mean   :0.66814   Mean   :-0.5686  
+ 3rd Qu.:11.000   3rd Qu.:1.714   3rd Qu.:0.80729   3rd Qu.: 0.3715  
+ Max.   :17.000   Max.   :2.384   Max.   :1.00000   Max.   : 4.8248  
+                                  NA's   :1                          
+   mo_size_sd     mo_grey_mean       mo_grey_sd      mo_elon_mean    
+ Min.   :1.672   Min.   :-5.0092   Min.   :0.9606   Min.   :-1.6788  
+ 1st Qu.:2.806   1st Qu.:-0.3884   1st Qu.:1.7496   1st Qu.:-0.1508  
+ Median :3.200   Median : 0.1221   Median :1.9839   Median : 0.3260  
+ Mean   :3.200   Mean   : 0.4203   Mean   :2.0982   Mean   : 0.3494  
+ 3rd Qu.:3.551   3rd Qu.: 1.3460   3rd Qu.:2.2402   3rd Qu.: 0.8487  
+ Max.   :6.016   Max.   : 4.8983   Max.   :4.2915   Max.   : 2.7036  
+                                                                     
+   mo_elon_sd     mo_ghet_mean       mo_ghet_sd         mo_ric         
+ Min.   :1.016   Min.   :-2.3408   Min.   :0.6868   Min.   :0.0001154  
+ 1st Qu.:1.716   1st Qu.:-0.5681   1st Qu.:1.4227   1st Qu.:0.0389299  
+ Median :1.960   Median :-0.1882   Median :1.5965   Median :0.1084339  
+ Mean   :1.939   Mean   :-0.1436   Mean   :1.6582   Mean   :0.1350379  
+ 3rd Qu.:2.166   3rd Qu.: 0.3318   3rd Qu.:1.8249   3rd Qu.:0.2108573  
+ Max.   :3.441   Max.   : 1.7521   Max.   :3.2331   Max.   :0.5235358  
                                                                        
-   m_dim3_var       m_dim4_mean        m_dim4_var      temperature_mean
- Min.   : 0.6714   Min.   :-3.2938   Min.   : 0.5942   Min.   :-1.317  
- 1st Qu.: 3.8403   1st Qu.:-0.7851   1st Qu.: 3.6363   1st Qu.:15.449  
- Median : 5.3091   Median :-0.3051   Median : 4.6479   Median :21.177  
- Mean   : 5.3494   Mean   :-0.2462   Mean   : 5.0642   Mean   :18.513  
- 3rd Qu.: 6.5724   3rd Qu.: 0.3643   3rd Qu.: 5.9559   3rd Qu.:26.237  
- Max.   :12.9479   Max.   : 2.2434   Max.   :21.5038   Max.   :29.883  
-                                                       NA's   :24      
- salinity_mean   silicate_mean     phosphate_mean     nitrate_mean     
- Min.   :26.04   Min.   : 0.4805   Min.   :0.02884   Min.   : 0.01941  
- 1st Qu.:34.25   1st Qu.: 1.3269   1st Qu.:0.12524   1st Qu.: 0.16532  
- Median :35.31   Median : 2.1418   Median :0.26026   Median : 0.66237  
- Mean   :34.84   Mean   : 3.6139   Mean   :0.37123   Mean   : 2.14866  
- 3rd Qu.:35.96   3rd Qu.: 3.8117   3rd Qu.:0.54854   3rd Qu.: 2.55441  
- Max.   :39.82   Max.   :77.1928   Max.   :1.86037   Max.   :27.52491  
- NA's   :24      NA's   :24        NA's   :24        NA's   :24        
-  oxygen_mean       pyc_mean         mld_mean      mld_argo_mean    
- Min.   :178.9   Min.   : 18.93   Min.   : 15.00   Min.   :  9.993  
- 1st Qu.:207.9   1st Qu.: 53.13   1st Qu.: 16.47   1st Qu.: 29.652  
- Median :223.7   Median : 76.97   Median : 21.90   Median : 40.596  
- Mean   :247.1   Mean   : 79.11   Mean   : 27.92   Mean   : 43.124  
- 3rd Qu.:256.7   3rd Qu.: 97.52   3rd Qu.: 32.19   3rd Qu.: 52.598  
- Max.   :445.2   Max.   :213.90   Max.   :180.54   Max.   :171.655  
- NA's   :24      NA's   :9        NA's   :9        NA's   :43       
-  n_cline_mean     p_cline_mean     s_cline_mean      z_eu_mean     
- Min.   : 20.73   Min.   : 20.43   Min.   : 19.04   Min.   : 20.52  
- 1st Qu.: 86.57   1st Qu.: 83.57   1st Qu.:107.97   1st Qu.: 48.36  
- Median :137.94   Median :145.14   Median :178.38   Median : 64.58  
- Mean   :168.99   Mean   :172.52   Mean   :212.18   Mean   : 63.58  
- 3rd Qu.:233.13   3rd Qu.:249.09   3rd Qu.:315.18   3rd Qu.: 76.76  
- Max.   :440.06   Max.   :444.68   Max.   :458.63   Max.   :113.67  
- NA's   :9        NA's   :9        NA's   :9        NA's   :8       
-    par_mean      temperature_sd    salinity_sd       silicate_sd      
- Min.   : 9.851   Min.   :0.1785   Min.   :0.01431   Min.   : 0.05983  
- 1st Qu.:31.915   1st Qu.:1.1817   1st Qu.:0.05969   1st Qu.: 0.62750  
- Median :41.786   Median :1.8546   Median :0.09977   Median : 1.12645  
- Mean   :37.728   Mean   :1.8938   Mean   :0.27775   Mean   : 1.66675  
- 3rd Qu.:45.585   3rd Qu.:2.3786   3rd Qu.:0.23418   3rd Qu.: 1.81084  
- Max.   :53.212   Max.   :5.9270   Max.   :3.10761   Max.   :11.32146  
- NA's   :8        NA's   :24       NA's   :24        NA's   :24        
-  phosphate_sd       nitrate_sd        oxygen_sd          pyc_sd        
- Min.   :0.01762   Min.   :0.01328   Min.   : 1.621   Min.   :  0.8547  
- 1st Qu.:0.05314   1st Qu.:0.16952   1st Qu.: 5.784   1st Qu.: 12.5961  
- Median :0.08309   Median :0.69060   Median : 8.088   Median : 28.9944  
- Mean   :0.11613   Mean   :1.13833   Mean   :10.035   Mean   : 36.2932  
- 3rd Qu.:0.17553   3rd Qu.:1.88998   3rd Qu.:12.573   3rd Qu.: 46.0551  
- Max.   :0.38946   Max.   :5.36035   Max.   :52.614   Max.   :191.3394  
- NA's   :24        NA's   :24        NA's   :24       NA's   :9         
-     mld_sd         mld_argo_sd         n_cline_sd        p_cline_sd      
- Min.   :  0.000   Min.   :  0.9067   Min.   :  1.246   Min.   :  0.6943  
- 1st Qu.:  2.661   1st Qu.:  9.6106   1st Qu.: 20.859   1st Qu.: 20.6618  
- Median :  7.835   Median : 15.3336   Median : 44.855   Median : 49.2449  
- Mean   : 14.374   Mean   : 20.2456   Mean   : 48.821   Mean   : 54.1109  
- 3rd Qu.: 20.056   3rd Qu.: 25.7978   3rd Qu.: 68.704   3rd Qu.: 83.7688  
- Max.   :164.617   Max.   :207.0769   Max.   :168.907   Max.   :170.3915  
- NA's   :9         NA's   :47         NA's   :9         NA's   :9         
-   s_cline_sd         z_eu_sd            par_sd            poc          
- Min.   :  1.507   Min.   : 0.5984   Min.   : 1.528   Min.   :  0.0656  
- 1st Qu.: 30.119   1st Qu.: 3.7790   1st Qu.: 7.230   1st Qu.: 34.5265  
- Median : 54.695   Median : 5.8716   Median :12.195   Median : 67.0653  
- Mean   : 60.471   Mean   : 6.5006   Mean   :11.192   Mean   :131.9038  
- 3rd Qu.: 89.511   3rd Qu.: 8.9040   3rd Qu.:14.849   3rd Qu.:203.5440  
- Max.   :181.270   Max.   :17.0907   Max.   :21.488   Max.   :785.5005  
- NA's   :9         NA's   :8         NA's   :8        NA's   :49        </code></pre>
+     mo_div           mo_eve       temperature_mean salinity_mean  
+ Min.   :0.5178   Min.   :0.5830   Min.   :-1.317   Min.   :26.04  
+ 1st Qu.:0.7416   1st Qu.:0.7751   1st Qu.:14.795   1st Qu.:34.10  
+ Median :0.7728   Median :0.8144   Median :20.914   Median :35.25  
+ Mean   :0.7657   Mean   :0.8065   Mean   :18.231   Mean   :34.78  
+ 3rd Qu.:0.7953   3rd Qu.:0.8472   3rd Qu.:26.152   3rd Qu.:35.91  
+ Max.   :0.8932   Max.   :0.9230   Max.   :29.883   Max.   :39.31  
+                                   NA's   :18       NA's   :18     
+ silicate_mean     phosphate_mean     nitrate_mean       oxygen_mean   
+ Min.   : 0.5052   Min.   :0.03295   Min.   : 0.01941   Min.   :178.9  
+ 1st Qu.: 1.3638   1st Qu.:0.12588   1st Qu.: 0.18104   1st Qu.:208.1  
+ Median : 2.1701   Median :0.27415   Median : 0.74152   Median :225.6  
+ Mean   : 3.6125   Mean   :0.38125   Mean   : 2.25625   Mean   :248.5  
+ 3rd Qu.: 3.8278   3rd Qu.:0.56076   3rd Qu.: 2.63587   3rd Qu.:258.7  
+ Max.   :77.1928   Max.   :1.86037   Max.   :27.52491   Max.   :445.2  
+ NA's   :18        NA's   :18        NA's   :18         NA's   :18     
+    pyc_mean         mld_mean      mld_argo_mean      n_cline_mean   
+ Min.   : 18.93   Min.   : 15.00   Min.   :  9.993   Min.   : 20.73  
+ 1st Qu.: 52.31   1st Qu.: 16.47   1st Qu.: 28.907   1st Qu.: 85.62  
+ Median : 76.10   Median : 21.92   Median : 40.952   Median :134.81  
+ Mean   : 78.11   Mean   : 28.15   Mean   : 43.176   Mean   :164.11  
+ 3rd Qu.: 97.49   3rd Qu.: 32.29   3rd Qu.: 52.685   3rd Qu.:225.36  
+ Max.   :202.22   Max.   :180.54   Max.   :171.655   Max.   :440.06  
+ NA's   :5        NA's   :5        NA's   :37        NA's   :5       
+  p_cline_mean     s_cline_mean      z_eu_mean         par_mean     
+ Min.   : 20.43   Min.   : 21.13   Min.   : 20.52   Min.   : 9.851  
+ 1st Qu.: 82.61   1st Qu.:106.94   1st Qu.: 47.86   1st Qu.:31.110  
+ Median :140.83   Median :174.73   Median : 63.69   Median :41.310  
+ Mean   :167.93   Mean   :208.28   Mean   : 62.25   Mean   :37.485  
+ 3rd Qu.:236.04   3rd Qu.:301.09   3rd Qu.: 75.43   3rd Qu.:45.571  
+ Max.   :444.68   Max.   :458.63   Max.   :111.63   Max.   :53.212  
+ NA's   :5        NA's   :5        NA's   :4        NA's   :4       
+ temperature_sd    salinity_sd       silicate_sd       phosphate_sd    
+ Min.   :0.1785   Min.   :0.01431   Min.   : 0.1325   Min.   :0.01762  
+ 1st Qu.:1.1692   1st Qu.:0.05969   1st Qu.: 0.6639   1st Qu.:0.05430  
+ Median :1.8546   Median :0.09945   Median : 1.1457   Median :0.08948  
+ Mean   :1.8963   Mean   :0.28218   Mean   : 1.6686   Mean   :0.11832  
+ 3rd Qu.:2.3856   3rd Qu.:0.24744   3rd Qu.: 1.8120   3rd Qu.:0.18117  
+ Max.   :5.9270   Max.   :3.10761   Max.   :11.3215   Max.   :0.38767  
+ NA's   :18       NA's   :18        NA's   :18        NA's   :18       
+   nitrate_sd        oxygen_sd          pyc_sd             mld_sd       
+ Min.   :0.01328   Min.   : 1.621   Min.   :  0.8916   Min.   :  0.000  
+ 1st Qu.:0.17753   1st Qu.: 5.805   1st Qu.: 12.4937   1st Qu.:  2.628  
+ Median :0.75416   Median : 8.466   Median : 26.9571   Median :  7.835  
+ Mean   :1.17698   Mean   :10.229   Mean   : 35.5532   Mean   : 14.564  
+ 3rd Qu.:1.93487   3rd Qu.:12.637   3rd Qu.: 45.8398   3rd Qu.: 20.056  
+ Max.   :5.36035   Max.   :52.614   Max.   :191.3394   Max.   :164.617  
+ NA's   :18        NA's   :18       NA's   :5          NA's   :5        
+  mld_argo_sd         n_cline_sd        p_cline_sd         s_cline_sd     
+ Min.   :  0.9067   Min.   :  1.246   Min.   :  0.6943   Min.   :  1.507  
+ 1st Qu.:  9.5542   1st Qu.: 20.818   1st Qu.: 20.7528   1st Qu.: 30.233  
+ Median : 15.2714   Median : 45.681   Median : 50.2077   Median : 54.408  
+ Mean   : 20.2052   Mean   : 48.860   Mean   : 54.2493   Mean   : 60.284  
+ 3rd Qu.: 25.5976   3rd Qu.: 67.903   3rd Qu.: 83.1638   3rd Qu.: 88.320  
+ Max.   :207.0769   Max.   :168.907   Max.   :170.3915   Max.   :181.270  
+ NA's   :41         NA's   :5         NA's   :5          NA's   :5        
+    z_eu_sd            par_sd            poc         
+ Min.   : 0.5984   Min.   : 1.528   Min.   :  3.815  
+ 1st Qu.: 3.7790   1st Qu.: 7.129   1st Qu.: 36.899  
+ Median : 5.8700   Median :12.380   Median : 69.583  
+ Mean   : 6.5197   Mean   :11.192   Mean   :136.925  
+ 3rd Qu.: 8.9682   3rd Qu.:14.849   3rd Qu.:207.491  
+ Max.   :17.0907   Max.   :21.488   Max.   :785.500  
+ NA's   :4         NA's   :4        NA's   :42       </code></pre>
 </div>
 </div>
 <p>Let’s get rid of these points.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">drop_na</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">drop_na</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>We still have 508 points in our dataset.</p>
+<p>We still have 468 points in our dataset.</p>
 <p>Let’s redraw our POC map.</p>
 <div class="cell page-columns page-full">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(df, <span class="st">"poc"</span>, <span class="at">type =</span> <span class="st">"point"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggmap</span>(df, <span class="st">"poc"</span>, <span class="at">type =</span> <span class="st">"point"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="04.assemble_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="04.assemble_files/figure-html/map_poc_uvp_no_na-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 </section>
-<section id="subsample-env-variables" class="level2">
-<h2 class="anchored" data-anchor-id="subsample-env-variables">Subsample env variables</h2>
-<p>For now, just keep <code>mean</code> variables and ignore <code>sd</code> and <code>var</code> variables.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">#df &lt;- df %&gt;% select(-c(profile_id, lon, lat, datetime))</span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co">#df &lt;- df %&gt;% select(lon, lat, poc, contains("ta_"), contains("mean"))</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</section>
 <section id="save-the-resulting-dataset" class="level2">
 <h2 class="anchored" data-anchor-id="save-the-resulting-dataset">Save the resulting dataset</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(df, <span class="at">file =</span> <span class="fu">file.path</span>(data_dir, <span class="st">"04.all_data.Rdata"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(df, <span class="at">file =</span> <span class="fu">file.path</span>(data_dir, <span class="st">"04.all_data.Rdata"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 

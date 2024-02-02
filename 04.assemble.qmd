@@ -1,14 +1,18 @@
 ---
 title: "Assemble POC, environmental and UVP data"
+author: "Thelma Panaïotis"
 format:
   html:
     toc: true
 editor: visual
+execute:
+  cache: true
+  warning: false
 ---
 
 ## Load data
 
-```{r}
+```{r load_data}
 #| label: load data
 #| output: false
 source("utils.R")
@@ -25,7 +29,7 @@ Carbon data is given on a 2°×2° grid, so we need to round env and UVP coordin
 
 ### Env data
 
-```{r}
+```{r round_env_coord}
 env <- env %>%
   arrange(lon, lat) %>%
   mutate(
@@ -44,7 +48,7 @@ env <- env %>%
 
 We can start by plotting a map of UVP profiles.
 
-```{r}
+```{r map_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
 profiles %>% 
@@ -56,7 +60,7 @@ profiles %>%
 
 Now let’s round the coordinates and replot the map. We also need to average UVP data on our new grid, but before that let’s also compute the number of UVP profiles per carbon pixel.
 
-```{r}
+```{r round_uvp_coord}
 #| fig-column: body-outset
 #| out-width: 100%
 profiles <- profiles %>%
@@ -86,7 +90,7 @@ profiles %>%
 
 UVP profiles are now aligned on the 2°×2° grid. We can also plot the number of UVP profiles per pixel.
 
-```{r}
+```{r map_uvp_gridded}
 #| fig-column: body-outset
 #| out-width: 100%
 n_profiles %>% 
@@ -100,7 +104,7 @@ We can notice a strong sampling in the California current and in the Peruvian up
 
 Let’s have a quick look at Shannon diversity on this new grid.
 
-```{r}
+```{r map_ta_ric}
 #| fig-column: body-outset
 #| out-width: 100%
 ggmap(profiles, "ta_ric", type = "point")
@@ -110,7 +114,7 @@ ggmap(profiles, "ta_ric", type = "point")
 
 Since all three datasets use the same round coordinates, we can join them together. As a result, we will only get env and carbon data where UVP data is available.
 
-```{r}
+```{r assemple}
 df <- profiles %>%
   left_join(env,  by = join_by(lon, lat)) %>%
   left_join(df_c, by = join_by(lon, lat)) %>% 
@@ -121,7 +125,7 @@ Our dataset contains `r nrow(df)` points.
 
 Now, we can plot POC data at locations of UVP profiles.
 
-```{r}
+```{r map_poc_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
 ggmap(df, "poc", type = "point") + scale_colour_cmocean(name = "matter") # manually add scale to show NA values
@@ -129,7 +133,7 @@ ggmap(df, "poc", type = "point") + scale_colour_cmocean(name = "matter") # manua
 
 Or temperature.
 
-```{r}
+```{r map_temp_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
 ggmap(df, "temperature_mean", type = "point") + scale_colour_cmocean(name = "thermal") # manually add scale to show NA values
@@ -137,13 +141,13 @@ ggmap(df, "temperature_mean", type = "point") + scale_colour_cmocean(name = "the
 
 In both cases, we notice that some POC and temperature data is not available at some UVP locations.
 
-```{r}
+```{r summary}
 summary(df)
 ```
 
 Let’s get rid of these points.
 
-```{r}
+```{r drop_na}
 df <- df %>% drop_na()
 ```
 
@@ -151,23 +155,14 @@ We still have `r nrow(df)` points in our dataset.
 
 Let’s redraw our POC map.
 
-```{r}
+```{r map_poc_uvp_no_na}
 #| fig-column: body-outset
 #| out-width: 100%
 ggmap(df, "poc", type = "point")
 ```
 
-## Subsample env variables
-
-For now, just keep `mean` variables and ignore `sd` and `var` variables.
-
-```{r}
-#df <- df %>% select(-c(profile_id, lon, lat, datetime))
-#df <- df %>% select(lon, lat, poc, contains("ta_"), contains("mean"))
-```
-
 ## Save the resulting dataset
 
-```{r}
+```{r save}
 save(df, file = file.path(data_dir, "04.all_data.Rdata"))
 ```
