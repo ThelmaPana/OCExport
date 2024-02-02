@@ -1,12 +1,14 @@
 ---
-title: "Fit a XGBoost model"
-subtitle: "Predict poc values from environmental data and plankton diversity."
+title: "Predict POC values from both env and plankton"
+subtitle: "Train a XGBoost model to predict POC values from environmental data and plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
     toc: true
 editor: visual
-cache: true
+execute:
+  cache: true
+  warning: false
 ---
 
 ## Set-up and load data
@@ -38,11 +40,20 @@ This is much better. We’ll then try to predict `log(poc)`.
 
 ### Explanatory variables
 
+Select explanatory variables.
+
+```{r sel_var}
+# Explanatory variables
+exp_vars <- df %>% select(ta_ric:par_sd) %>% colnames()
+# Metadata variables
+meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
+```
+
 Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.
 
 ```{r pca_exp}
 # Need to remove lon and lat and to scale because units differ between variables
-df_pca <- df %>% select(-c(lon, lat, datetime)) %>% select(poc, poc_log, everything())
+df_pca <- df %>% select(poc, poc_log, all_of(exp_vars))
 pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, scale.unit = TRUE, graph = FALSE)
 ```
 
@@ -114,7 +125,6 @@ Let’s take 80% of the data to fit the model, and keep 20% to test the model at
 
 ```{r data_split}
 # Train VS test, stratified
-set.seed(seed)
 df_split <- initial_split(df, prop = 0.8, strata = poc_log)
 df_train <- training(df_split)
 df_test <- testing(df_split)
@@ -124,7 +134,6 @@ To evaluate model performance during training, we’ll use cross-validation on t
 
 ```{r data_cv}
 # Cross-validation, 10 folds, stratified
-set.seed(seed)
 df_folds <- vfold_cv(df_train, v = 10, strata = poc_log)
 ```
 
@@ -184,7 +193,6 @@ xgb_wflow <- workflow() %>%
 It is now time to perform the gridsearch to find the best hyperparameters for our model. We first need to define a grid with the hyperparameters we want to try. We use `grid_latin_hypercube` to generate a space-filling grid of size `30`.
 
 ```{r def_grid}
-set.seed(seed)
 xgb_grid <- grid_latin_hypercube(
   trees(),
   learn_rate(),
@@ -202,7 +210,6 @@ Tune the grid to find the best hyperparameters, in parallel. This is done on our
 
 ```{r gridsearch}
 doParallel::registerDoParallel()
-set.seed(seed)
 xgb_res <- tune_grid(
   xgb_wflow,
   resamples = df_folds,
@@ -317,13 +324,17 @@ xgb_pdp_temp <- model_profile(explainer = xgb_explain, variables = c("temperatur
 ggplot_pdp(xgb_pdp_temp, temperature_mean) +
   labs(x = "Temperature_mean", y = "Logged predicted POC")
 
+xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
+ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
+  labs(x = "Z_eu_mean", y = "Logged predicted POC")
+
+xgb_pdp_phos <- model_profile(explainer = xgb_explain, variables = c("phosphate_sd"))
+ggplot_pdp(xgb_pdp_phos, phosphate_sd) +
+  labs(x = "Phospate_sd", y = "Logged predicted POC")
+
 xgb_pdp_nit <- model_profile(explainer = xgb_explain, variables = c("nitrate_mean"))
 ggplot_pdp(xgb_pdp_nit, nitrate_mean) +
   labs(x = "Nitrate_mean", y = "Logged predicted POC")
-
-xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
-ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
-  labs(x = "z_eu_mean", y = "Logged predicted POC")
 ```
 
 ## Conclusion
