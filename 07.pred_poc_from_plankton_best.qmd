@@ -1,6 +1,6 @@
 ---
-title: "Predict POC values from both env and plankton"
-subtitle: "Train a XGBoost model to predict POC values from environmental data and plankton diversity data."
+title: "Predict POC values from plankton"
+subtitle: "Train a XGBoost model to predict POC values from few variables of plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -17,7 +17,7 @@ execute:
 #| output: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-output_filename <- "data/05.all_preds_poc_from_all.Rdata"
+output_filename <- "data/07.all_preds_poc_from_plankton_best.Rdata"
 ```
 
 ## Data inspection
@@ -45,7 +45,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:par_sd) %>% colnames()
+exp_vars <- df %>% select(ta_div, mo_div, ta_eve, mo_eve) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -87,12 +87,6 @@ Plot first plane.
 #| out-width: 100%
 plot(pca_all, choix="var", axes = c(1, 2))
 ```
-
-The two first axes are:
-
--   PC1: oxygen rich in positive values VS warm in negative values
-
--   PC2: mixed waters in positive values VS stratified waters in negative values
 
 Extract coordinates in the PCA space.
 
@@ -150,7 +144,7 @@ Let’s define a XGBoost regression model, with tunable hyperparameters:
 
 -   `learn_rate`
 
-```{r def_model}
+```{r def_mod}
 # Define a xgboost model with hyperparameters to tune
 xgb_spec <- boost_tree(
   trees = tune(),
@@ -173,7 +167,11 @@ The model will be run on `r n_cores` cores in parallel.
 Let’s use a recipe to define the model formula and assign roles to variables. We want to predict `poc_log` from all other variables expect `lon`, `lat` and original `poc` values, yet it is convenient to keep these in the dataset.
 
 ```{r def_recipe}
-xgb_rec <- recipe(poc_log ~ ., data = df_train) %>%
+# Generate formula from list of explanatory variables
+# NB: we also add metadata variables and untransformed "poc" for technical reasons but these will not be used to fit the model
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", meta_vars, exp_vars), collapse = " + "), sep = ""))
+
+xgb_rec <- recipe(xgb_form, data = df_train) %>%
   update_role(lon, lat, datetime, new_role = "coords") %>% # These variables can be retained in the data but not included in the model
   update_role(poc, new_role = "untransformed outcome")
 summary(xgb_rec)
@@ -222,7 +220,7 @@ autoplot(xgb_res)
 
 Select the best set of hyperparameters based on `rmse` value.
 
-```{r find_best}
+```{r sel_best}
 show_best(xgb_res, metric = "rmse")
 best_xgb <- select_best(xgb_res, metric = "rmse")
 ```
@@ -338,23 +336,23 @@ ggplot_imp(xgb_var_imp)
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_temp <- model_profile(explainer = xgb_explain, variables = c("temperature_mean"))
-ggplot_pdp(xgb_pdp_temp, temperature_mean) +
-  labs(x = "Temperature_mean", y = "Logged predicted POC")
+xgb_pdp_ta_eve <- model_profile(explainer = xgb_explain, variables = c("ta_eve"))
+ggplot_pdp(xgb_pdp_ta_eve, ta_eve) +
+  labs(x = "Taxonomic Eveness", y = "Logged predicted POC")
 
-xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
-ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
-  labs(x = "Z_eu_mean", y = "Logged predicted POC")
+xgb_pdp_ta_div <- model_profile(explainer = xgb_explain, variables = c("ta_div"))
+ggplot_pdp(xgb_pdp_ta_div, ta_div) +
+  labs(x = "Taxonomic Diversity", y = "Logged predicted POC")
 
-xgb_pdp_phos <- model_profile(explainer = xgb_explain, variables = c("phosphate_sd"))
-ggplot_pdp(xgb_pdp_phos, phosphate_sd) +
-  labs(x = "Phospate_sd", y = "Logged predicted POC")
+xgb_pdp_mo_eve <- model_profile(explainer = xgb_explain, variables = c("mo_eve"))
+ggplot_pdp(xgb_pdp_mo_eve, mo_eve) +
+  labs(x = "Morphological Eveness", y = "Logged predicted POC")
 
-xgb_pdp_nit <- model_profile(explainer = xgb_explain, variables = c("nitrate_mean"))
-ggplot_pdp(xgb_pdp_nit, nitrate_mean) +
-  labs(x = "Nitrate_mean", y = "Logged predicted POC")
+xgb_pdp_mo_div <- model_profile(explainer = xgb_explain, variables = c("mo_div"))
+ggplot_pdp(xgb_pdp_mo_div, mo_div) +
+  labs(x = "Morphological Divergence", y = "Logged predicted POC")
 ```
 
 ## Conclusion
 
-Plankton diversity seems to have low effect on `poc` values compared to environment, but still not negligible.
+Using only `r length(exp_vars)` variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.

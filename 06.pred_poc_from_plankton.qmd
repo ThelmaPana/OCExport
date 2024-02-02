@@ -1,12 +1,14 @@
 ---
-title: "Fit a XGBoost model"
-subtitle: "Predict poc values from plankton diversity data."
+title: "Predict POC values from plankton"
+subtitle: "Train a XGBoost model to predict POC values from plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
     toc: true
 editor: visual
-cache: true
+execute:
+  cache: true
+  warning: false
 ---
 
 ## Set-up and load data
@@ -15,6 +17,7 @@ cache: true
 #| output: false
 source("utils.R")
 load("data/04.all_data.Rdata")
+output_filename <- "data/06.all_preds_poc_from_plankton.Rdata"
 ```
 
 ## Data inspection
@@ -117,7 +120,6 @@ Let’s take 80% of the data to fit the model, and keep 20% to test the model at
 
 ```{r data_split}
 # Train VS test, stratified
-set.seed(seed)
 df_split <- initial_split(df, prop = 0.8, strata = poc_log)
 df_train <- training(df_split)
 df_test <- testing(df_split)
@@ -127,7 +129,6 @@ To evaluate model performance during training, we’ll use cross-validation on t
 
 ```{r data_cv}
 # Cross-validation, 10 folds, stratified
-set.seed(12)
 df_folds <- vfold_cv(df_train, v = 10, strata = poc_log)
 ```
 
@@ -191,7 +192,6 @@ xgb_wflow <- workflow() %>%
 It is now time to perform the gridsearch to find the best hyperparameters for our model. We first need to define a grid with the hyperparameters we want to try. We use `grid_latin_hypercube` to generate a space-filling grid of size `30`.
 
 ```{r def_grid}
-set.seed(seed)
 xgb_grid <- grid_latin_hypercube(
   trees(),
   learn_rate(),
@@ -209,7 +209,6 @@ Tune the grid to find the best hyperparameters, in parallel. This is done on our
 
 ```{r gridsearch}
 doParallel::registerDoParallel()
-set.seed(seed)
 xgb_res <- tune_grid(
   xgb_wflow,
   resamples = df_folds,
@@ -246,9 +245,11 @@ final_res <- fit(final_xgb, df_train)
 Predict test data, and apply `exp` transformation as we predict the `log` of `poc` values. Still, we will evaluate model performances with predictions of `poc_log` as it is closer to a normal distribution.
 
 ```{r pred_test}
-preds <- augment(final_res, new_data = df_test) %>%
-  rename(.pred_logged = .pred) %>%
-  mutate(.pred = exp(.pred_logged))
+test_preds <- augment(final_res, new_data = df_test) %>%
+  mutate(split = "test", .before = lon) %>% # tag split
+  rename(.pred_logged = .pred) %>% # prediction is actually log of prediction
+  mutate(.pred = exp(.pred_logged)) %>% # apply exp to prediction
+  mutate(residuals = .pred_logged - poc_log) # compute residuals
 ```
 
 ## Model evaluation
@@ -258,8 +259,8 @@ preds <- augment(final_res, new_data = df_test) %>%
 Let’s have a look at prediction metrics on the test set.
 
 ```{r eval_test}
-rmse(preds, truth = poc_log, estimate = .pred_logged)
-rsq(preds, truth = poc_log, estimate = .pred_logged)
+rmse(test_preds, truth = poc_log, estimate = .pred_logged)
+rsq(test_preds, truth = poc_log, estimate = .pred_logged)
 ```
 
 ### Prediction VS truth
@@ -267,13 +268,13 @@ rsq(preds, truth = poc_log, estimate = .pred_logged)
 Plot predictions VS truth, both in the log-transformed space and in the non log-transformed space.
 
 ```{r pred_vs_truth}
-preds %>%
+test_preds %>%
   ggplot() +
   geom_point(aes(x = poc_log, y = .pred_logged)) +
   geom_abline(slope = 1, color = "red") +
   labs(title = "Pred VS truth in log-transformed space")
 
-preds %>%
+test_preds %>%
   ggplot() +
   geom_point(aes(x = poc, y = .pred)) +
   geom_abline(slope = 1, color = "red") +
@@ -285,11 +286,26 @@ preds %>%
 Finally, let’s have a look at residuals.
 
 ```{r residuals}
-preds %>%
-  mutate(residuals = .pred_logged - poc_log) %>%
-  ggplot() +
+ggplot(test_preds) +
   geom_density(aes(x = residuals)) +
   labs(x = "Residuals")
+```
+
+## All predictions
+
+```{r pred_all}
+# Predict training set
+train_preds <- augment(final_res, new_data = df_train) %>% 
+  mutate(split = "train", .before = lon) %>% # tag split
+  rename(.pred_logged = .pred) %>% # prediction is actually log of prediction
+  mutate(.pred = exp(.pred_logged)) %>% # apply exp to prediction
+  mutate(residuals = .pred_logged - poc_log) # compute residuals
+
+# Join predictions for test and training sets
+all_preds <- bind_rows(test_preds, train_preds)
+
+# Save all predictions
+save(all_preds, file = output_filename)
 ```
 
 ## Model interpretation
@@ -320,21 +336,37 @@ ggplot_imp(xgb_var_imp)
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_pielou <- model_profile(explainer = xgb_explain, variables = c("ta_eve"))
-ggplot_pdp(xgb_pdp_pielou, ta_eve) +
-  labs(x = "Pielou", y = "Logged predicted POC")
+xgb_pdp_ta_div <- model_profile(explainer = xgb_explain, variables = c("ta_div"))
+ggplot_pdp(xgb_pdp_ta_div, ta_div) +
+  labs(x = "Taxonomic Diversity", y = "Logged predicted POC")
 
-xgb_pdp_m_dim1_mean <- model_profile(explainer = xgb_explain, variables = c("m_dim1_mean"))
-ggplot_pdp(xgb_pdp_m_dim1_mean, m_dim1_mean) +
-  labs(x = "M dim1 mean", y = "Logged predicted POC")
+xgb_pdp_ta_eve <- model_profile(explainer = xgb_explain, variables = c("ta_eve"))
+ggplot_pdp(xgb_pdp_ta_eve, ta_eve) +
+  labs(x = "Taxonomic Eveness", y = "Logged predicted POC")
 
-xgb_pdp_shannon <- model_profile(explainer = xgb_explain, variables = c("ta_div"))
-ggplot_pdp(xgb_pdp_shannon, ta_div) +
-  labs(x = "Shannon", y = "Logged predicted POC")
+xgb_pdp_mo_eve <- model_profile(explainer = xgb_explain, variables = c("mo_eve"))
+ggplot_pdp(xgb_pdp_mo_eve, mo_eve) +
+  labs(x = "Morphological Eveness", y = "Logged predicted POC")
 
-xgb_pdp_m_dim2_var <- model_profile(explainer = xgb_explain, variables = c("m_dim2_var"))
-ggplot_pdp(xgb_pdp_m_dim2_var, m_dim2_var) +
-  labs(x = "M dim2 var", y = "Logged predicted POC")
+xgb_pdp_mo_div <- model_profile(explainer = xgb_explain, variables = c("mo_div"))
+ggplot_pdp(xgb_pdp_mo_div, mo_div) +
+  labs(x = "Morphological Divergence", y = "Logged predicted POC")
 ```
 
 ## Conclusion
+
+Four plankton variables dominate to explain POC values:
+
+-   taxonomic diversity
+
+-   taxonomic evenness
+
+-   morphological evenness
+
+-   morphological divergence
+
+Future works:
+
+-   predict POC values using only these variables
+
+-   reduce dimensionality of plankton data using a PCA

@@ -8,7 +8,7 @@
 
 <meta name="author" content="Thelma Panaïotis">
 
-<title>Predict POC values from both env and plankton</title>
+<title>Predict POC values from plankton</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -58,16 +58,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="05.pred_poc_from_all_files/libs/clipboard/clipboard.min.js"></script>
-<script src="05.pred_poc_from_all_files/libs/quarto-html/quarto.js"></script>
-<script src="05.pred_poc_from_all_files/libs/quarto-html/popper.min.js"></script>
-<script src="05.pred_poc_from_all_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="05.pred_poc_from_all_files/libs/quarto-html/anchor.min.js"></script>
-<link href="05.pred_poc_from_all_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="05.pred_poc_from_all_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="05.pred_poc_from_all_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="05.pred_poc_from_all_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="05.pred_poc_from_all_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="07.pred_poc_from_plankton_best_files/libs/clipboard/clipboard.min.js"></script>
+<script src="07.pred_poc_from_plankton_best_files/libs/quarto-html/quarto.js"></script>
+<script src="07.pred_poc_from_plankton_best_files/libs/quarto-html/popper.min.js"></script>
+<script src="07.pred_poc_from_plankton_best_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="07.pred_poc_from_plankton_best_files/libs/quarto-html/anchor.min.js"></script>
+<link href="07.pred_poc_from_plankton_best_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="07.pred_poc_from_plankton_best_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="07.pred_poc_from_plankton_best_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="07.pred_poc_from_plankton_best_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="07.pred_poc_from_plankton_best_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 
 
 </head>
@@ -112,8 +112,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Predict POC values from both env and plankton</h1>
-<p class="subtitle lead">Train a XGBoost model to predict POC values from environmental data and plankton diversity data.</p>
+<h1 class="title">Predict POC values from plankton</h1>
+<p class="subtitle lead">Train a XGBoost model to predict POC values from few variables of plankton diversity data.</p>
 </div>
 
 
@@ -153,7 +153,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/poc_hist-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/poc_hist-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -165,7 +165,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/poc_log_hist-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/poc_log_hist-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -177,7 +177,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Select explanatory variables.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Explanatory variables</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>exp_vars <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(ta_ric<span class="sc">:</span>par_sd) <span class="sc">%&gt;%</span> <span class="fu">colnames</span>()</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>exp_vars <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(ta_div, mo_div, ta_eve, mo_eve) <span class="sc">%&gt;%</span> <span class="fu">colnames</span>()</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Metadata variables</span></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>meta_vars <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(lon, lat, datetime) <span class="sc">%&gt;%</span> <span class="fu">colnames</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -209,7 +209,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pca_eig-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pca_eig-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -220,16 +220,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="05.pred_poc_from_all_files/figure-html/pca_plot_var-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="07.pred_poc_from_plankton_best_files/figure-html/pca_plot_var-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>The two first axes are:</p>
-<ul>
-<li><p>PC1: oxygen rich in positive values VS warm in negative values</p></li>
-<li><p>PC2: mixed waters in positive values VS stratified waters in negative values</p></li>
-</ul>
 <p>Extract coordinates in the PCA space.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Get coordinates of individuals</span></span>
@@ -246,7 +241,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="05.pred_poc_from_all_files/figure-html/pca_map_1-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="07.pred_poc_from_plankton_best_files/figure-html/pca_map_1-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -256,7 +251,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display page-columns page-full">
 <div class="page-columns page-full">
 <figure class="figure page-columns page-full">
-<p class="page-columns page-full"><img src="05.pred_poc_from_all_files/figure-html/pca_map_2-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
+<p class="page-columns page-full"><img src="07.pred_poc_from_plankton_best_files/figure-html/pca_map_2-1.png" class="img-fluid figure-img column-body-outset" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -317,25 +312,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="recipe">Recipe</h2>
 <p>Let’s use a recipe to define the model formula and assign roles to variables. We want to predict <code>poc_log</code> from all other variables expect <code>lon</code>, <code>lat</code> and original <code>poc</code> values, yet it is convenient to keep these in the dataset.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>xgb_rec <span class="ot">&lt;-</span> <span class="fu">recipe</span>(poc_log <span class="sc">~</span> ., <span class="at">data =</span> df_train) <span class="sc">%&gt;%</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(lon, lat, datetime, <span class="at">new_role =</span> <span class="st">"coords"</span>) <span class="sc">%&gt;%</span> <span class="co"># These variables can be retained in the data but not included in the model</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(poc, <span class="at">new_role =</span> <span class="st">"untransformed outcome"</span>)</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(xgb_rec)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate formula from list of explanatory variables</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># NB: we also add metadata variables and untransformed "poc" for technical reasons but these will not be used to fit the model</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>xgb_form <span class="ot">&lt;-</span> <span class="fu">as.formula</span>(<span class="fu">paste</span>(<span class="st">"poc_log ~ "</span>, <span class="fu">paste</span>(<span class="fu">c</span>(<span class="st">"poc"</span>, meta_vars, exp_vars), <span class="at">collapse =</span> <span class="st">" + "</span>), <span class="at">sep =</span> <span class="st">""</span>))</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>xgb_rec <span class="ot">&lt;-</span> <span class="fu">recipe</span>(xgb_form, <span class="at">data =</span> df_train) <span class="sc">%&gt;%</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(lon, lat, datetime, <span class="at">new_role =</span> <span class="st">"coords"</span>) <span class="sc">%&gt;%</span> <span class="co"># These variables can be retained in the data but not included in the model</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(poc, <span class="at">new_role =</span> <span class="st">"untransformed outcome"</span>)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(xgb_rec)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 47 × 4
-   variable     type      role      source  
-   &lt;chr&gt;        &lt;list&gt;    &lt;chr&gt;     &lt;chr&gt;   
- 1 lon          &lt;chr [2]&gt; coords    original
- 2 lat          &lt;chr [2]&gt; coords    original
- 3 datetime     &lt;chr [1]&gt; coords    original
- 4 ta_ric       &lt;chr [2]&gt; predictor original
- 5 ta_div       &lt;chr [2]&gt; predictor original
- 6 ta_eve       &lt;chr [2]&gt; predictor original
- 7 mo_size_mean &lt;chr [2]&gt; predictor original
- 8 mo_size_sd   &lt;chr [2]&gt; predictor original
- 9 mo_grey_mean &lt;chr [2]&gt; predictor original
-10 mo_grey_sd   &lt;chr [2]&gt; predictor original
-# ℹ 37 more rows</code></pre>
+<pre><code># A tibble: 9 × 4
+  variable type      role                  source  
+  &lt;chr&gt;    &lt;list&gt;    &lt;chr&gt;                 &lt;chr&gt;   
+1 poc      &lt;chr [2]&gt; untransformed outcome original
+2 lon      &lt;chr [2]&gt; coords                original
+3 lat      &lt;chr [2]&gt; coords                original
+4 datetime &lt;chr [1]&gt; coords                original
+5 ta_div   &lt;chr [2]&gt; predictor             original
+6 mo_div   &lt;chr [2]&gt; predictor             original
+7 ta_eve   &lt;chr [2]&gt; predictor             original
+8 mo_eve   &lt;chr [2]&gt; predictor             original
+9 poc_log  &lt;chr [2]&gt; outcome               original</code></pre>
 </div>
 </div>
 </section>
@@ -393,7 +390,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/gridsearch-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/gridsearch-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -405,11 +402,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code># A tibble: 5 × 10
   trees min_n tree_depth learn_rate .metric .estimator  mean     n std_err
   &lt;int&gt; &lt;int&gt;      &lt;int&gt;      &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
-1   774    26         12    0.0406  rmse    standard   0.303    10  0.0211
-2  1466    22          4    0.0170  rmse    standard   0.306    10  0.0195
-3  1724    37         10    0.0122  rmse    standard   0.307    10  0.0185
-4  1750     9          2    0.0610  rmse    standard   0.318    10  0.0189
-5  1357     3          8    0.00411 rmse    standard   0.321    10  0.0178
+1  1724    37         10    0.0122  rmse    standard   0.824    10  0.0304
+2  1357     3          8    0.00411 rmse    standard   0.838    10  0.0333
+3  1466    22          4    0.0170  rmse    standard   0.846    10  0.0306
+4  1331    11          7    0.00207 rmse    standard   0.847    10  0.0305
+5   774    26         12    0.0406  rmse    standard   0.875    10  0.0273
 # ℹ 1 more variable: .config &lt;chr&gt;</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>best_xgb <span class="ot">&lt;-</span> <span class="fu">select_best</span>(xgb_res, <span class="at">metric =</span> <span class="st">"rmse"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -428,7 +425,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>final_res <span class="ot">&lt;-</span> <span class="fu">fit</span>(final_xgb, df_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[15:59:03] WARNING: src/learner.cc:767: 
+<pre><code>[16:28:46] WARNING: src/learner.cc:767: 
 Parameters: { "num_threads" } are not used.</code></pre>
 </div>
 </div>
@@ -452,14 +449,14 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rmse    standard       0.340</code></pre>
+1 rmse    standard       0.757</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsq</span>(test_preds, <span class="at">truth =</span> poc_log, <span class="at">estimate =</span> .pred_logged)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 3
   .metric .estimator .estimate
   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-1 rsq     standard       0.871</code></pre>
+1 rsq     standard       0.390</code></pre>
 </div>
 </div>
 </section>
@@ -475,7 +472,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pred_vs_truth-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pred_vs_truth-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -487,7 +484,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pred_vs_truth-2.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pred_vs_truth-2.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -503,7 +500,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/residuals-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/residuals-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -524,7 +521,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>all_preds <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(test_preds, train_preds)</span>
 <span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Save all predictions</span></span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(all_preds, <span class="at">file =</span> <span class="st">"data/05.all_preds_poc_from_all.Rdata"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(all_preds, <span class="at">file =</span> <span class="st">"data/07.all_preds_poc_from_plankton_best.Rdata"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="model-interpretation" class="level2">
@@ -545,15 +542,15 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Preparation of a new explainer is initiated
   -&gt; model label       :  model_fit  (  default  )
-  -&gt; data              :  372  rows  42  cols 
+  -&gt; data              :  372  rows  4  cols 
   -&gt; data              :  tibble converted into a data.frame 
   -&gt; target variable   :  372  values 
   -&gt; predict function  :  yhat.model_fit  will be used (  default  )
   -&gt; predicted values  :  No value for predict function target column. (  default  )
   -&gt; model_info        :  package parsnip , ver. 1.1.1 , task regression (  default  ) 
-  -&gt; predicted values  :  numerical, min =  1.876185 , mean =  4.376004 , max =  6.652642  
+  -&gt; predicted values  :  numerical, min =  2.794945 , mean =  4.375997 , max =  5.976648  
   -&gt; residual function :  difference between y and yhat (  default  )
-  -&gt; residuals         :  numerical, min =  -0.537194 , mean =  -5.43375e-07 , max =  0.1108801  
+  -&gt; residuals         :  numerical, min =  -1.524334 , mean =  7.409359e-06 , max =  1.685626  
   A new explainer has been created!  </code></pre>
 </div>
 </div>
@@ -565,7 +562,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/var_imp-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/var_imp-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -574,43 +571,43 @@ Parameters: { "num_threads" } are not used.</code></pre>
 <section id="partial-dependence-plots" class="level3">
 <h3 class="anchored" data-anchor-id="partial-dependence-plots">Partial dependence plots</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_temp <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"temperature_mean"</span>))</span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_temp, temperature_mean) <span class="sc">+</span></span>
-<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Temperature_mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_ta_eve <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"ta_eve"</span>))</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_ta_eve, ta_eve) <span class="sc">+</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Taxonomic Eveness"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pdp-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pdp-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_zeu <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"z_eu_mean"</span>))</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_zeu, z_eu_mean) <span class="sc">+</span></span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Z_eu_mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_ta_div <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"ta_div"</span>))</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_ta_div, ta_div) <span class="sc">+</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Taxonomic Diversity"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pdp-2.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pdp-2.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_phos <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"phosphate_sd"</span>))</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_phos, phosphate_sd) <span class="sc">+</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Phospate_sd"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_mo_eve <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"mo_eve"</span>))</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_mo_eve, mo_eve) <span class="sc">+</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Morphological Eveness"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pdp-3.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pdp-3.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_nit <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"nitrate_mean"</span>))</span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_nit, nitrate_mean) <span class="sc">+</span></span>
-<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Nitrate_mean"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>xgb_pdp_mo_div <span class="ot">&lt;-</span> <span class="fu">model_profile</span>(<span class="at">explainer =</span> xgb_explain, <span class="at">variables =</span> <span class="fu">c</span>(<span class="st">"mo_div"</span>))</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot_pdp</span>(xgb_pdp_mo_div, mo_div) <span class="sc">+</span></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Morphological Divergence"</span>, <span class="at">y =</span> <span class="st">"Logged predicted POC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05.pred_poc_from_all_files/figure-html/pdp-4.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="07.pred_poc_from_plankton_best_files/figure-html/pdp-4.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -619,7 +616,7 @@ Parameters: { "num_threads" } are not used.</code></pre>
 </section>
 <section id="conclusion" class="level2">
 <h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
-<p>Plankton diversity seems to have low effect on <code>poc</code> values compared to environment, but still not negligible.</p>
+<p>Using only 4 variables describing plankton diversity, we can explain 39% of POC variance.</p>
 </section>
 
 </main>
