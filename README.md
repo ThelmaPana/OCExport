@@ -9,37 +9,25 @@ Predict ocean carbon export
 
 ## TODOs
 
--   get environmental data (<https://data.up.ethz.ch/shared/AtlantECO/>)
-
-    -   SST:
-
-    -   SSS:
-
-    -   MLD:
-
-    -   nutrients + clines
-
-    -   Zeu: computed from surface chl a
-
-    -   O2
-
-    -   PAR (see https://ads.atmosphere.copernicus.eu/cdsapp#!/dataset/cams-solar-radiation-timeseries?tab=form)
-
--   get carbon export data (<https://zenodo.org/records/8253973> & <https://www.nature.com/articles/s41586-023-06772-4>)
-
 -   investigate BARTs (<https://cran.r-project.org/web/packages/BART/vignettes/the-BART-R-package.pdf>)
 
 -   generate proxis of diversity for zooplankton (taxonomic, trophic & morphologic)
 
+-   can we predict POC values from a few plankton variables? -> Yes!
+
+-   can these plankton variables be predicted from the environment?
+
+-   can we isolate the effect of plankton on POC:
+    
+    - compute POC residuals from env
+    
+    - compute plankton residuals from env (plankton is multivariate, use MBTR)
+    
+    - predict POC residuals from plankton residuals
 
 
-Regarding data, source has yet to be determined:
 
-- NPP climatologies from Oregon group
 
-- other env data?
-
-- monthly VS yearly?
 
 ## Repo organisation
 
@@ -49,17 +37,37 @@ Contains data
 
 ### Scripts
 
+-   `utils.R`: useful stuffs for all the projects: loading packages, default values, functions…
+
 -   `00.get_carbon.R`: download POC data
 
--   `01.get_env.R`: download environmental data
+-   `01.get_env.qmd`: download and process environmental data
 
 -   `02.get_uvp.R`: download UVP data from Ecotaxa
 
--   `03.uvp_diversity.R`: compute diversity metrics for UVP data
+-   `03.uvp_diversity.qmd`: compute taxonomic/morphological/trophic diversity metrics for UVP data
 
--   `04.assemble.R`: assemble poc and environmental data
+-   `04.assemble.qmd`: assemble poc, env and plankton data
 
--   `05.xgboost.R`: fit a tidymodel XGBoost to predict POC values from env data
+-   `05.pred_poc_from_all.qmd`: fit a XGBoost model to predict poc from env + plankton data
 
--   `06.bart.R`: fit a tidymodel BART to predict POC values from env data
+-   `06.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from all plankton data
 
+-   `07.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from a few plankton variables, identified as the best predictors in `06.pred_poc_from_plankton.qmd`
+
+-   `08.pred_poc_from_pca.qmd`: fit a XGBoost model to predict poc from PCA outputs on all plankton data
+
+
+### Notes
+
+Ideas in development / reports. 
+
+
+### Presentations
+
+Quarto presentations for meetings.
+
+
+### Old
+
+Old stuff. 
