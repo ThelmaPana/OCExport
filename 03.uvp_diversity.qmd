@@ -5,6 +5,7 @@ author: "Thelma Panaïotis"
 format:
   html:
     toc: true
+    embed-resources: true
 editor: visual
 execute:
   cache: true
@@ -14,6 +15,7 @@ execute:
 ```{r set_up}
 #| output: false
 #| warning: false
+#| cache: false
 source("utils.R")
 ```
 
@@ -711,6 +713,18 @@ We need the following matrices:
 
 -   morphs assemblages (profiles × morphs)
 
+The following metrics are computed (see Magneville et al. 2022):
+
+-   `fric` (functional richness): The volume of the convex hull shaping the species present in the assemblage
+-   `fide` (functional identity): The weighted average position of species of the assemblage along each axis. NB: note computed as we already have individuals projections on PCA axes.
+-   `fdis` (functional dispersion): The weighted deviation to center of gravity (i.e. defined by the FIde values) of species in the assemblage
+-   `fdiv` (functional divergence): The deviation of biomass-density to the center of gravity of the vertices shaping the convex hull of the studied assemblage
+-   `feve` (functional evenness): The regularity of biomass-density distribution along the minimum spanning tree (i.e. the tree linking all species of the assemblage with the lowest cumulative branch length) for the studied assemblage
+-   `fori` (functional originality): The weighted mean distance to the nearest species from the global species pool
+-   `fspe` (functional specialisation): The weighted mean distance to the centroid of the global species pool (i.e. center of the functional space)
+-   `fmpd` (functional mean pairwise distance): The mean weighted distance between all pairs of species
+-   `fnnd` (functional mean nearest neighbour distance): The weighted distance to the nearest neighbour within the assemblage
+
 ```{r compute_morph_metrics}
 # Matrix of trait values for each morph, i.e. centers of morphs in mspace
 # - rows = morphs
@@ -744,7 +758,7 @@ weights <- o %>%
 morpho_div <- alpha.fd.multidim(
   sp_faxes_coord = mo_coord,
   asb_sp_w = weights,
-  ind_vect = c("feve", "fric", "fdiv"),
+  ind_vect = c("fdis", "fmpd", "fnnd", "feve", "fric", "fdiv", "fori", "fspe"),
   details_returned = FALSE,
   verbose = FALSE
 )
@@ -753,7 +767,9 @@ morpho_div <- alpha.fd.multidim(
 morpho_div <- morpho_div$functional_diversity_indices %>% 
   rownames_to_column(var = "profile_id") %>% 
   as_tibble() %>% 
-  select(profile_id, mo_ric = fric, mo_div = fdiv, mo_eve = feve)
+  select(-sp_richn) %>% 
+  # rename metrics from functional to morphological
+  set_names(~ str_replace_all(., "^f", "mo_")) 
 
 # And add to table of profiles
 profiles <- profiles %>% 
@@ -764,8 +780,13 @@ Plot maps of resulting morphological diversity metrics
 
 ```{r plot_morph_metrics}
 ggmap(profiles, var = "mo_ric", type = "point")
+ggmap(profiles, var = "mo_dis", type = "point")
 ggmap(profiles, var = "mo_div", type = "point")
 ggmap(profiles, var = "mo_eve", type = "point")
+ggmap(profiles, var = "mo_ori", type = "point")
+ggmap(profiles, var = "mo_spe", type = "point")
+ggmap(profiles, var = "mo_mpd", type = "point")
+ggmap(profiles, var = "mo_nnd", type = "point")
 ```
 
 ## Save
