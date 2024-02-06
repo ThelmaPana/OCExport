@@ -57,6 +57,8 @@ Contains data
 
 -   `08.pred_poc_from_pca.qmd`: fit a XGBoost model to predict poc from PCA outputs on all plankton data
 
+-   `09.pred_plankton_from_env.qmd`: fit a XGBoost model to predict best plankton predictors (from `06.pred_poc_from_plankton.qmd`) from env variables
+
 
 ### Notes
 

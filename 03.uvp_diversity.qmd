@@ -5,10 +5,11 @@ author: "Thelma Panaïotis"
 format:
   html:
     toc: true
+    toc-depth: 3
     embed-resources: true
 editor: visual
 execute:
-  cache: true
+  cache: false
   warning: false
 ---
 

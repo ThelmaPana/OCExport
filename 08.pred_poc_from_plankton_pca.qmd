@@ -5,9 +5,10 @@ author: "Thelma Panaïotis"
 format:
   html:
     toc: true
+    embed-resources: true
 editor: visual
 execute:
-  cache: true
+  cache: false
   warning: false
 ---
 
@@ -45,7 +46,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:mo_eve) %>% colnames()
+exp_vars <- df %>% select(ta_ric:mo_spe) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -80,7 +81,7 @@ eig %>%
   labs(x = "PC", y = "Explained variance")
 ```
 
-Let’s keep first 2 PCs to predict POC values.
+Let’s keep first 3 PCs to predict POC values.
 
 Plot first plane.
 
@@ -125,7 +126,7 @@ We will use projections of profiles in the first plane of the PCA as predictors.
 df <- inds
 
 # Define new set of exp variables
-exp_vars <- df %>% select(dim1, dim2) %>% colnames()
+exp_vars <- df %>% select(dim1, dim2, dim3) %>% colnames()
 ```
 
 Let’s take 80% of the data to fit the model, and keep 20% to test the model at the very end. We stratify our split by `poc_log`, the response value, so that both training and testing sets are representative of the whole range of values.
@@ -355,8 +356,12 @@ ggplot_pdp(xgb_pdp_dim1, dim1) +
 xgb_pdp_dim2 <- model_profile(explainer = xgb_explain, variables = c("dim2"))
 ggplot_pdp(xgb_pdp_dim2, dim2) +
   labs(x = "Dim 2", y = "Logged predicted POC")
+
+xgb_pdp_dim3 <- model_profile(explainer = xgb_explain, variables = c("dim3"))
+ggplot_pdp(xgb_pdp_dim3, dim3) +
+  labs(x = "Dim 2", y = "Logged predicted POC")
 ```
 
 ## Conclusion
 
-Using only the first two axes of a PCA fed with variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.
+Using only the first 3 axes of a PCA fed with variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.

@@ -5,6 +5,7 @@ author: "Thelma Panaïotis"
 format:
   html:
     toc: true
+    embed-resources: true
 editor: visual
 execute:
   cache: true
@@ -85,7 +86,7 @@ Plot first plane.
 ```{r pca_plot_var}
 #| fig-column: body-outset
 #| out-width: 100%
-plot(pca_all, choix="var", axes = c(1, 2))
+plot(pca_all, choix="var", axes = c(1, 2), cex = 0.7)
 ```
 
 The two first axes are:

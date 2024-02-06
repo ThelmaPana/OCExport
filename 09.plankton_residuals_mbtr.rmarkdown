@@ -1,0 +1,319 @@
+---
+title: "Predict plankton values from env."
+subtitle: "Train a MBRT model to predict a few plankton variables (the best POC predictors) from env data."
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    embed-resources: true
+editor: visual
+execute:
+  cache: true
+  warning: false
+---
+
+
+## Set-up
+
+### Python
+
+
+```{python py_set_up}
+import os
+import pandas as pd
+import numpy as np
+import multiprocess as mp
+import pyreadr
+
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+
+from mbtr.mbtr import MBT
+from sklearn import metrics
+from sklearn.model_selection import train_test_split, KFold, ParameterGrid
+
+random_state = 12
+```
+
+
+### R
+
+
+```{r r_set_up}
+#|include: false
+#|warning: false
+source("utils.R")
+```
+
+
+::: callout-caution
+-   Consider transforming input data for better results?
+
+-   Use only env predictors as in Wang et al. 2023
+:::
+
+## Read data
+
+
+```{r read_data}
+load("data/04.all_data.Rdata")
+
+## Types of variables
+# Metadata
+meta_var <- df %>% select(lon:datetime) %>% colnames()
+# Response variables, here we use only best POC predictors
+#resp_var <- df %>% select(ta_ric:m_eve) %>% colnames()
+resp_var <- c("mo_ric", "ta_div", "ta_eve")
+# Explanatory variables
+exp_var <- df %>% select(temperature_mean:par_sd) %>% colnames()
+
+# subsample
+#df <- df %>% slice_sample(prop = 0.2)
+```
+
+
+Inspect response data.
+
+
+```{r plot_resp}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 15
+#| fig-height: 4
+df %>% 
+  select(all_of(resp_var)) %>% 
+  pivot_longer(everything()) %>% 
+  ggplot() +
+  geom_histogram(aes(x = value)) +
+  facet_wrap(~name, scales = "free")
+```
+
+
+## Split data
+
+Split data into training VS testing
+
+
+```{r split_train_test}
+# Train VS test
+df_split <- initial_split(df, prop = 0.8)
+df_train <- training(df_split)
+df_test <- testing(df_split)
+```
+
+
+Split data into response VS predictor
+
+
+```{python split_exp_resp}
+# Explanatory variables
+X_train = r.df_train[r.exp_var].to_numpy()
+X_test = r.df_test[r.exp_var].to_numpy()
+
+# Response variables
+Y_train = r.df_train[r.resp_var].to_numpy()
+Y_test = r.df_test[r.resp_var].to_numpy()
+```
+
+
+## MBTR
+
+### Gridsearch
+
+
+```{python gridsearch}
+# define the grid of parameters to search over
+grid = {
+    'n_boosts' : [100], 
+    'lambda_weights' : [0.001],
+    'lambda_leaves' : [0.001],
+    'early_stopping_rounds' : [10],
+    'learning_rate' : [0.1, 0.05, 0.025],
+    'min_leaf' : [1, 4, 8]
+}
+
+
+# initialise a data splitter into 5 folds
+n_splits = 3
+cv = KFold(n_splits = n_splits, shuffle = True, random_state = random_state)
+
+res = []
+
+def fit_cv(params):
+  
+    # initialise
+    val_loss = np.zeros((params['n_boosts'],n_splits))
+    k = 0
+
+    for train,val in cv.split(X_train, Y_train):
+        # fit model
+        MBT_model = MBT(**params)
+        MBT_model.fit(X_train[train], Y_train[train])
+        # compute validation curve
+        for i in range(params['n_boosts']):
+            Y_pred = MBT_model.predict(X_train[val], n=i+1)
+            val_loss[i,k] = metrics.mean_squared_error(
+                Y_train[val],
+                Y_pred
+            )
+        k += 1
+
+    # store result
+    res.append({**params, 'val_loss': val_loss})
+    
+    return(res)
+  
+## Run this in parallel
+# number of cores is minimum between:
+# - nb of available cores - 2
+# - nb of grids to test
+n_cores = min(mp.cpu_count() - 2, len(list(ParameterGrid(grid)))) 
+with mp.Pool(n_cores) as pool:
+    res = pool.map(fit_cv, ParameterGrid(grid))
+
+# Unlist top level
+res = [l for li in res for l in li]
+save_res = res
+
+```
+
+
+Plot results
+
+
+```{python plot_grid_res}
+#| warning: false
+n_trees = np.arange(1, grid['n_boosts'][0]+1)
+
+fig,axs = plt.subplots(1, len(grid['min_leaf']))
+s = 0
+for min_leaf in grid['min_leaf']:
+    res_subset = [r for r in res if (r['min_leaf'] == min_leaf)]
+    
+    for i in range(len(res_subset)):
+        axs[s].plot(n_trees, np.mean(res_subset[i]['val_loss'], axis=1),
+            label=f"lr: {res_subset[i]['learning_rate']:.3f}")
+        axs[s].legend()
+        axs[s].set_title(f"min_leaf: {min_leaf}")
+        #axs[s].set_ylim([0.001, 0.0035])
+    s += 1
+
+plt.show()
+```
+
+
+### Get best params with R
+
+
+```{r get_best_params}
+res <- py$res
+# Convert results to dataframe
+df_res <- tibble()
+for (i in 1:length(res)){
+  df_res <- rbind(df_res, data.frame(res[i]))
+}
+
+# Compute mean of val_loss across CV folds
+df_res <- df_res %>% 
+  mutate(val_loss = select(., val_loss.1:val_loss.3) %>% rowMeans()) %>% 
+  select(-c(val_loss.1:val_loss.3))
+
+# Get lower val_loss
+best_params <- df_res %>% 
+  arrange(val_loss) %>% 
+  select(-val_loss) %>% 
+  dplyr::slice(1) %>% 
+  pivot_longer(cols = everything())
+best_params
+```
+
+
+### Refit the model
+
+
+```{python refit}
+# convert dataframe to dict
+best_params = r.best_params
+best_params = best_params.set_index('name')
+best_params = best_params['value'].to_dict()
+
+# Set n_boosts as an integer
+best_params['n_boosts'] = int(best_params['n_boosts'])
+# Disable early stopping
+best_params['early_stopping_rounds'] = 100
+
+# Refit model
+MBT_model = MBT(**best_params)
+MBT_model.fit(X_train, Y_train)
+
+# Predict test set to get metrics
+Y_test_pred = MBT_model.predict(X_test, n=best_params['n_boosts'])
+print(f"Multiple R2 on test set : {metrics.r2_score(Y_test, Y_test_pred):.2f}")
+```
+
+```{r plot_pred_vs_truth}
+#| out-width: 100%
+#| fig-width: 16
+#| fig-height: 4
+# Get predictions and true values, as vertical DF to bind together
+Y_test_pred <- py$Y_test_pred %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(resp_var) %>% 
+  pivot_longer(all_of(resp_var), names_to = "variable", values_to = "pred")
+
+Y_test <- py$Y_test %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(resp_var) %>% 
+  pivot_longer(all_of(resp_var), names_to = "variable", values_to = "truth")
+
+Y_test %>% 
+  bind_cols(Y_test_pred %>% select(-variable)) %>% 
+  ggplot() +
+  geom_point(aes(x = truth, y = pred)) +
+  geom_abline(slope = 1, intercept = 0, colour = "red") +
+  facet_wrap(~variable, scales = "free") +
+  coord_fixed()
+```
+
+
+### Predict all data
+
+Predict all data to get all residuals.
+
+
+```{python pred_all}
+X_all = np.concatenate((X_train, X_test))
+Y_all = np.concatenate((Y_train, Y_test))
+Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
+```
+
+
+### Compute residuals and save them
+
+
+```{r get_resids_and_save}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 8
+
+# Get predictions for all dataset
+all_preds <- py$Y_all_pred %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(paste0("pred_", resp_var))
+
+# Generate a df of residuals
+all_resids <- py$Y_all - py$Y_all_pred %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(paste0("resid_", resp_var))
+
+# Add metadata
+plankton_res <- df %>% 
+  select(all_of(meta_var), all_of(resp_var)) %>% 
+  bind_cols(all_preds) %>% 
+  bind_cols(all_resids)
+
+# Save
+save(plankton_res, file = "data/09.all_preds_plankton_best_from_env.Rdata")
+```
+

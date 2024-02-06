@@ -5,6 +5,7 @@ author: "Thelma Panaïotis"
 format:
   html:
     toc: true
+    embed-resources: true
 editor: visual
 execute:
   cache: true
@@ -45,7 +46,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_div, mo_div, ta_eve, mo_eve) %>% colnames()
+exp_vars <- df %>% select(ta_eve, ta_div, mo_ric) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -344,13 +345,9 @@ xgb_pdp_ta_div <- model_profile(explainer = xgb_explain, variables = c("ta_div")
 ggplot_pdp(xgb_pdp_ta_div, ta_div) +
   labs(x = "Taxonomic Diversity", y = "Logged predicted POC")
 
-xgb_pdp_mo_eve <- model_profile(explainer = xgb_explain, variables = c("mo_eve"))
-ggplot_pdp(xgb_pdp_mo_eve, mo_eve) +
-  labs(x = "Morphological Eveness", y = "Logged predicted POC")
-
-xgb_pdp_mo_div <- model_profile(explainer = xgb_explain, variables = c("mo_div"))
-ggplot_pdp(xgb_pdp_mo_div, mo_div) +
-  labs(x = "Morphological Divergence", y = "Logged predicted POC")
+xgb_pdp_mo_ric <- model_profile(explainer = xgb_explain, variables = c("mo_ric"))
+ggplot_pdp(xgb_pdp_mo_ric, mo_ric) +
+  labs(x = "Morphological Richness", y = "Logged predicted POC")
 ```
 
 ## Conclusion
