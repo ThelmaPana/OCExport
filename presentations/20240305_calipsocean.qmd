@@ -2,80 +2,177 @@
 title: "Predicting POC export from plankton diversity"
 subtitle: "Calipsocean meeting"
 author: "Thelma Panaïotis"
-date: "05/03/2024"
+date: "03/05/2024"
 date-format: "DD/MM/YYYY"
 format: 
   revealjs:
     theme: simple
     #footer: ""
     slide-number: c
+    auto-stretch: false
+    embed-resources: true
 editor: visual
 execute: 
-  cache: false
+  cache: true
 ---
 
 ```{r}
 #| output: false
 #| echo: false
+#| cache: false
 source(here::here("utils.R"))
 
+# Raw datas
 load(here("data/00.carbon_data.Rdata"))
 load(here("data/01.all_env.Rdata"))
 load(here("data/03.uvp_profiles.Rdata"))
 load(here("data/04.all_data.Rdata"))
 rm(coast)
+
+# Model outputs
+load(here("data/06.all_preds_poc_from_env.Rdata"))
+
 ```
+
+# Aim
+
+## Environment, plankton and carbon
+
+```{dot diagram}
+digraph {
+  rankdir="LR"
+  "env"[color="#ffe50a"]
+  "plankton*"[color="#5ed496"]
+  "carbon export**"[color="#00b5ff"]
+  "env" -> "plankton*"
+  "env" -> "carbon export**"
+  "plankton*" -> "carbon export**"
+}
+```
+
+::: aside
+[\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
+
+[\*\*Here, we will use POC as a proxy for carbon export.]{style="color: gray;font-size: 20px;"}
+:::
+
+
+
+## Questions
+
+::: {.fragment .fade-in-then-semi-out}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
+:::
+
+::: {.fragment .fade-in-then-semi-out}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}?
+:::
+
+::: {.fragment .fade-in-then-semi-out}
+-   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
+:::
+
+::: {.fragment .fade-in}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}}?
+:::
 
 # Data
 
 ## POC
 
-POC export at 1000 m, from [Wang et al. 2023](https://www.nature.com/articles/s41586-023-06772-4).
+::: panel-tabset
+## Ref
 
-```{r}
+[![](wang_2023.png){width="80%" fig-align="center"}](https://www.nature.com/articles/s41586-023-06772-4)
+
+## Map
+
+POC export at 1000 m
+
+```{r poc_map}
 ggmap(df = df_c, var = "poc", type = "raster")
 ```
+:::
 
 ## Environment
 
+As in [Wang et al., 2023](https://www.nature.com/articles/s41586-023-06772-4):
+
+-   temperature
+
+-   silicate
+
+-   oxygen
+
+-   [NPP]{style="color:gray;"} → Z~eu~
+
+-   [DIP, DIC, ALK, DOC]{style="color:gray;"}
+
 ## Plankton
 
-UVP5 dataset
+UVP5 dataset: `r nrow(profiles)` profiles
 
-```{r}
+```{r uvp_map}
 ggplot(profiles, aes(x = lon, y = lat)) +
   geom_polygon(data = world, aes(group = group), fill = "gray") +
   geom_point(size = 0.5) +
-  coord_quickmap(expand = FALSE)
+  coord_quickmap(expand = FALSE) +
+  theme_minimal()
 ```
 
 ## Plankton - Taxonomy
 
 ::: panel-tabset
-## Richness
+## Variables
 
-```{r}
+-   taxonomic richness
+
+-   taxonomic diversity (Shannon)
+
+-   taxonomic evenness (Pielou)
+
+-   [others to come…]{style="color:gray;"}
+
+## Map
+
+```{r map_ta_ric}
 ggmap(profiles, var = "ta_ric", type = "point") + labs(colour = "Species\nRichness")
-```
-
-## Diversity
-
-```{r}
-ggmap(profiles, var = "ta_div", type = "point") + labs(colour = "Shannon’s\n Diversity")
-```
-
-## Evenness
-
-```{r}
-ggmap(profiles, var = "ta_eve", type = "point") + labs(colour = "Pielou’s\nEvenness")
 ```
 :::
 
 ## Plankton - Morphology
 
+::: panel-tabset
+### Variables
+
+::: {.fragment .semi-fade-out fragment-index="1"}
+Function diversity metrics [(Magneville et al. 2022)](https://nsojournals.onlinelibrary.wiley.com/doi/10.1111/ecog.05904)
+:::
+
+::: {.fragment .fade-in fragment-index="1"}
+→ morphological diversity metrics [(Beck et al., 2023)](https://royalsocietypublishing.org/doi/suppl/10.1098/rspb.2023.2109)
+
+-   morphological richness
+
+-   morphological divergence
+
+-   morphological evenness
+
+-   …
+:::
+
+### Map
+
+```{r map_mo_ric}
+ggmap(profiles, var = "mo_ric", type = "point") + labs(colour = "Morpho\nRichness")
+```
+:::
+
 ## Plankton - Trophic Status
 
 Coming soon.
+
+[(No plankton trophic database to my knowledge.)]{style="color:gray;"}
 
 ## Final dataset
 
@@ -85,7 +182,7 @@ Coming soon.
 Placeholder
 :::
 
-```{r}
+```{r poc_ras_uvp}
 ggmap(df = df_c, var = "poc", type = "raster") +
   geom_point(data = profiles, aes(x = lon, y = lat), size = 0.5)
 ```
@@ -96,7 +193,7 @@ ggmap(df = df_c, var = "poc", type = "raster") +
 Placeholder
 :::
 
-```{r}
+```{r poc_ras_uvp_round}
 ggmap(df = df_c, var = "poc", type = "raster") +
   geom_point(data = df, aes(x = lon, y = lat), size = 0.5)
 ```
@@ -105,7 +202,7 @@ ggmap(df = df_c, var = "poc", type = "raster") +
 ::: {.fragment .fade-in}
 `r nrow(df)` data points
 
-```{r}
+```{r poc_pt_uvp_round}
 ggmap(df, var = "poc", type = "point")
 ```
 :::
@@ -113,23 +210,238 @@ ggmap(df, var = "poc", type = "point")
 
 ## Final dataset -- Splits
 
-Learning VS test set, stratified by `POC`.
+Learning\* VS test set, stratified by [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}.
 
-```{r}
-set.seed(12)
-df <- df %>% mutate(poc_log = log(poc))
-df_split <- initial_split(df, prop = 0.8, strata = poc_log)
-training(df_split) %>% 
-  mutate(split = "learn") %>% 
-  bind_rows(testing(df_split) %>% mutate(split = "test")) %>% 
-  ggplot(aes(x = lon, y = lat)) +
-  geom_polygon(data = world, aes(group = group), fill = "grey") +
-  geom_point(aes(colour = split), size = 0.5) +
+::: r-stack
+::: fragment
+```{r split_map}
+all_preds %>% 
+  select(split, lon, lat) %>% 
+  mutate(split = ifelse(split == "train", "learn", "test")) %>% 
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = split), size = 0.5) +
+  scale_colour_manual(values = c("learn" = "#004c96", "test" = "#ff8700")) +
   coord_quickmap(expand = FALSE)
 ```
+
+::: aside
+[\*learning = training + validation, cross-validated]{style="color: gray;font-size: 20px;"}
+:::
+
+
+:::
+
+::: {.fragment .fade-in}
+::: {.callout-caution appearance="simple"}
+What about spatial & temporal autocorrelation?
+:::
+:::
+:::
 
 # Model
 
 ## XGBoost
+
+Need to log-transform poc values.
+
+# Results
+
+## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
+
+`POC ~ temperature + silicate + Zeu + oxygen`
+
+
+::: columns
+::: {.column width="70%"}
+::: {.fragment .fade-in}
+```{r poc_from_env}
+all_preds %>% 
+  filter(split == "test") %>% 
+  select(poc, poc_log, .pred_logged, .pred) %>% 
+  ggplot() +
+  geom_point(aes(x = poc, y = .pred)) +
+  geom_abline(slope = 1, intercept = 0, color = "#ff82ff") +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "POC", y = "Predicted POC")
+```
+:::
+:::
+
+::: {.column width="30%"}
+::: {.fragment .fade-in}
+```{r poc_from_env_rsquare}
+rsquare <- all_preds %>% filter(split == "test") %>% 
+  rsq(truth = poc_log, estimate = .pred_logged)
+
+```
+
+R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
+
+::: {.callout-tip icon="false" appearance="simple"}
+Good prediction!
+:::
+:::
+:::
+:::
+
+::: aside
+[Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
+:::
+
+## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}
+
+`POC ~ all plankton metrics`
+
+
+::: columns
+::: {.column width="70%"}
+::: {.fragment .fade-in}
+```{r poc_from_plankton}
+load(here("data/07.all_preds_poc_from_plankton.Rdata"))
+
+all_preds %>% 
+  filter(split == "test") %>% 
+  select(poc, poc_log, .pred_logged, .pred) %>% 
+  ggplot() +
+  geom_point(aes(x = poc, y = .pred)) +
+  geom_abline(slope = 1, intercept = 0, color = "#ff82ff") +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "POC", y = "Predicted POC")
+```
+:::
+:::
+
+::: {.column width="30%"}
+::: {.fragment .fade-in}
+```{r poc_from_plankton_rsquare}
+rsquare <- all_preds %>% filter(split == "test") %>% 
+  rsq(truth = poc_log, estimate = .pred_logged)
+
+```
+
+R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
+
+::: {.callout-tip icon="false" appearance="simple"}
+OK prediction!
+:::
+::: {.fragment .fade-in}
+Best predictors:
+
+- [ta. evenness]{style="font-size: 30px;"}
+
+- [ta. diversity]{style="font-size: 30px;"}
+
+- [mo. richness]{style="font-size: 30px;"}
+
+
+
+
+:::
+:::
+:::
+:::
+
+::: aside
+[Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
+:::
+
+
+## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors
+
+`POC ~ ta_eve + ta_div + mo_ric`
+
+
+::: columns
+::: {.column width="70%"}
+::: {.fragment .fade-in}
+```{r poc_from_plankton_best}
+load(here("data/08.all_preds_poc_from_plankton_best.Rdata"))
+
+all_preds %>% 
+  filter(split == "test") %>% 
+  select(poc, poc_log, .pred_logged, .pred) %>% 
+  ggplot() +
+  geom_point(aes(x = poc, y = .pred)) +
+  geom_abline(slope = 1, intercept = 0, color = "#ff82ff") +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "POC", y = "Predicted POC")
+```
+:::
+:::
+
+::: {.column width="30%"}
+::: {.fragment .fade-in}
+```{r poc_from_plankton_best_rsquare}
+rsquare <- all_preds %>% filter(split == "test") %>% 
+  rsq(truth = poc_log, estimate = .pred_logged)
+
+```
+
+R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
+
+::: {.callout-tip icon="false" appearance="simple"}
+OK prediction!
+:::
+
+:::
+:::
+:::
+
+::: aside
+[Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
+:::
+
+
+## [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
+
+`ta_eve + ta_div + mo_ric ~ temperature + silicate + Zeu + oxygen`
+
+
+::: columns
+::: {.column width="70%"}
+::: {.fragment .fade-in}
+```{r}
+load(here("data/10.all_preds_plankton_best_from_env.Rdata"))
+
+plankton_res %>% 
+  select(lon:datetime, mo_ric:pred_ta_div) %>% 
+  pivot_longer(mo_ric:pred_ta_div) %>% 
+  mutate(
+    type = ifelse(str_detect(name, "pred"), "pred", "truth"),
+    name = str_remove_all(name, "pred_")
+    ) %>% 
+  pivot_wider(names_from = type, values_from = value) %>% 
+  ggplot() +
+  geom_point(aes(x = truth, y = pred)) +
+    geom_abline(slope = 1, intercept = 0, color = "#ff82ff") +
+  facet_wrap(~name, scales = "free")
+```
+:::
+:::
+
+::: {.column width="30%"}
+::: {.fragment .fade-in}
+```{r}
+
+
+```
+
+R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
+
+::: {.callout-tip icon="false" appearance="simple"}
+OK prediction!
+:::
+
+:::
+:::
+:::
+
+::: aside
+[Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
+:::
 
 
