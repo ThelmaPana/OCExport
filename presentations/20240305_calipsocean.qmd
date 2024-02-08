@@ -56,8 +56,6 @@ digraph {
 [\*\*Here, we will use POC as a proxy for carbon export.]{style="color: gray;font-size: 20px;"}
 :::
 
-
-
 ## Questions
 
 ::: {.fragment .fade-in-then-semi-out}
@@ -228,8 +226,6 @@ all_preds %>%
 ::: aside
 [\*learning = training + validation, cross-validated]{style="color: gray;font-size: 20px;"}
 :::
-
-
 :::
 
 ::: {.fragment .fade-in}
@@ -250,7 +246,6 @@ Need to log-transform poc values.
 ## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
 
 `POC ~ temperature + silicate + Zeu + oxygen`
-
 
 ::: columns
 ::: {.column width="70%"}
@@ -294,7 +289,6 @@ Good prediction!
 
 `POC ~ all plankton metrics`
 
-
 ::: columns
 ::: {.column width="70%"}
 ::: {.fragment .fade-in}
@@ -327,18 +321,15 @@ R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
 ::: {.callout-tip icon="false" appearance="simple"}
 OK prediction!
 :::
+
 ::: {.fragment .fade-in}
 Best predictors:
 
-- [ta. evenness]{style="font-size: 30px;"}
+-   [ta. evenness]{style="font-size: 30px;"}
 
-- [ta. diversity]{style="font-size: 30px;"}
+-   [ta. diversity]{style="font-size: 30px;"}
 
-- [mo. richness]{style="font-size: 30px;"}
-
-
-
-
+-   [mo. richness]{style="font-size: 30px;"}
 :::
 :::
 :::
@@ -348,11 +339,9 @@ Best predictors:
 [Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
 :::
 
-
 ## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors
 
 `POC ~ ta_eve + ta_div + mo_ric`
-
 
 ::: columns
 ::: {.column width="70%"}
@@ -386,7 +375,6 @@ R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
 ::: {.callout-tip icon="false" appearance="simple"}
 OK prediction!
 :::
-
 :::
 :::
 :::
@@ -395,11 +383,9 @@ OK prediction!
 [Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
 :::
 
-
 ## [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
 
 `ta_eve + ta_div + mo_ric ~ temperature + silicate + Zeu + oxygen`
-
 
 ::: columns
 ::: {.column width="70%"}
@@ -407,9 +393,11 @@ OK prediction!
 ```{r}
 load(here("data/10.all_preds_plankton_best_from_env.Rdata"))
 
-plankton_res %>% 
-  select(lon:datetime, mo_ric:pred_ta_div) %>% 
-  pivot_longer(mo_ric:pred_ta_div) %>% 
+all_preds %>% 
+  filter(split == "test") %>% 
+  select(-contains("resid")) %>% 
+  select(lon, lat, datetime, contains("_")) %>% 
+  pivot_longer(contains("_")) %>% 
   mutate(
     type = ifelse(str_detect(name, "pred"), "pred", "truth"),
     name = str_remove_all(name, "pred_")
@@ -425,17 +413,26 @@ plankton_res %>%
 
 ::: {.column width="30%"}
 ::: {.fragment .fade-in}
-```{r}
+```{r extract}
+Y_test <- all_preds %>% 
+  filter(split == "test") %>% 
+  select(c("mo_ric", "ta_div", "ta_eve"))
 
-
+Y_test_pred <- all_preds %>% 
+  filter(split == "test") %>% 
+  select(contains("pred"))
 ```
 
-R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
+```{python mult_rsq}
+from sklearn import metrics
+mult_rsquare = metrics.r2_score(r.Y_test, r.Y_test_pred)
+```
+
+Multiple R² = `r percent(py$mult_rsquare, accuracy = 0.1)`
 
 ::: {.callout-tip icon="false" appearance="simple"}
 OK prediction!
 :::
-
 :::
 :::
 :::
@@ -444,4 +441,64 @@ OK prediction!
 [Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
 :::
 
+## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}} from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}}
 
+`POC_res ~ ta_eve_res + ta_div_res + mo_ric_res`
+
+::: {.fragment .fade-in}
+::: columns
+::: {.column width="70%"}
+::: {.fragment .fade-in}
+```{r poc_res_from_plankton_res}
+load(here("data/11.all_preds_poc_res_from_plankton_res.Rdata"))
+
+all_preds %>% 
+  filter(split == "test") %>% 
+  select(resid_poc, pred_resid_poc) %>% 
+  ggplot() +
+  geom_point(aes(x = resid_poc, y = pred_resid_poc)) +
+  geom_abline(slope = 1, intercept = 0, color = "#ff82ff") +
+  labs(x = "POC res.", y = "Predicted POC res.")
+```
+:::
+:::
+
+::: {.column width="30%"}
+::: {.fragment .fade-in}
+```{r poc_res_from_plankton_res_rsquare}
+rsquare <- all_preds %>% filter(split == "test") %>% 
+  rsq(truth = resid_poc, estimate = pred_resid_poc)
+
+```
+
+R² = `r percent(rsquare$.estimate, accuracy = 0.1)`
+
+::: {.callout-tip icon="false" appearance="simple"}
+Bad prediction!
+:::
+:::
+:::
+:::
+
+::: aside
+[Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
+:::
+:::
+
+# Conclusion
+
+::: {.fragment .fade-in}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
+:::
+
+::: {.fragment .fade-in}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}? [→ **Yes**]{.fragment}
+:::
+
+::: {.fragment .fade-in}
+-   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
+:::
+
+::: {.fragment .fade-in}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}}? [→ **No**]{.fragment}
+:::

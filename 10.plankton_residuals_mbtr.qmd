@@ -278,20 +278,6 @@ Y_test %>%
   facet_wrap(~variable, scales = "free")
 ```
 
-### Predict all data
-
-Predict all data to get all residuals.
-
-```{python pred_all}
-#X_all = np.concatenate((X_train, X_test))
-#Y_all = np.concatenate((Y_train, Y_test))
-#Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
-#
-#Y_train_pred = MBT_model.predict(X_train, n=best_params['n_boosts'])
-#Y_test_pred  = MBT_model.predict(X_test, n=best_params['n_boosts'])
-
-```
-
 ### Compute residuals and save them
 
 ```{r get_resids_and_save}
