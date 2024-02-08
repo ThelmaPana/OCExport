@@ -3140,8 +3140,7 @@ Caution
 </div>
 <div class="callout-body-container callout-body">
 <ul>
-<li><p>Consider transforming input data for better results?</p></li>
-<li><p>Use only env predictors as in Wang et al. 2023</p></li>
+<li>Consider transforming input data for better results?</li>
 </ul>
 </div>
 </div>
@@ -3212,7 +3211,25 @@ Caution
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Response variables</span></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>Y_train <span class="op">=</span> r.df_train[r.resp_vars].to_numpy()</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>Y_test <span class="op">=</span> r.df_test[r.resp_vars].to_numpy()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>Y_test <span class="op">=</span> r.df_test[r.resp_vars].to_numpy()</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>r.df_train[r.resp_vars]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       mo_ric    ta_div    ta_eve
+0    0.023707  1.480878  0.833659
+1    0.218157  1.695683  0.641363
+2    0.284726  1.714205  0.667830
+3    0.031481  1.569674  0.924549
+4    0.288397  1.466762  0.577446
+..        ...       ...       ...
+369  0.283877  2.048354  0.756395
+370  0.154466  1.653366  0.677976
+371  0.123869  1.410143  0.649834
+372  0.182950  1.412382  0.642803
+373  0.043007  1.598830  0.828077
+
+[374 rows x 3 columns]</code></pre>
+</div>
 </div>
 </section>
 <section id="mbtr" class="level2">
@@ -3220,77 +3237,77 @@ Caution
 <section id="gridsearch" class="level3">
 <h3 class="anchored" data-anchor-id="gridsearch">Gridsearch</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># define the grid of parameters to search over</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> {</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;n_boosts&#39;</span> : [<span class="dv">100</span>], </span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;lambda_weights&#39;</span> : [<span class="fl">0.001</span>],</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;lambda_leaves&#39;</span> : [<span class="fl">0.001</span>],</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;early_stopping_rounds&#39;</span> : [<span class="dv">10</span>],</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;learning_rate&#39;</span> : [<span class="fl">0.1</span>, <span class="fl">0.05</span>, <span class="fl">0.025</span>],</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;min_leaf&#39;</span> : [<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">8</span>]</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co"># initialise a data splitter into 5 folds</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>n_splits <span class="op">=</span> <span class="dv">3</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>cv <span class="op">=</span> KFold(n_splits <span class="op">=</span> n_splits, shuffle <span class="op">=</span> <span class="va">True</span>, random_state <span class="op">=</span> random_state)</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>res <span class="op">=</span> []</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fit_cv(params):</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># initialise</span></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    val_loss <span class="op">=</span> np.zeros((params[<span class="st">&#39;n_boosts&#39;</span>],n_splits))</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    k <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> train,val <span class="kw">in</span> cv.split(X_train, Y_train):</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>        <span class="co"># fit model</span></span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>        MBT_model <span class="op">=</span> MBT(<span class="op">**</span>params)</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>        MBT_model.fit(X_train[train], Y_train[train])</span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>        <span class="co"># compute validation curve</span></span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(params[<span class="st">&#39;n_boosts&#39;</span>]):</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>            Y_pred <span class="op">=</span> MBT_model.predict(X_train[val], n<span class="op">=</span>i<span class="op">+</span><span class="dv">1</span>)</span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>            val_loss[i,k] <span class="op">=</span> metrics.mean_squared_error(</span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>                Y_train[val],</span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>                Y_pred</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>        k <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>    <span class="co"># store result</span></span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    res.append({<span class="op">**</span>params, <span class="st">&#39;val_loss&#39;</span>: val_loss})</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span>(res)</span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a><span class="co">## Run this in parallel</span></span>
-<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a><span class="co"># number of cores is minimum between:</span></span>
-<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a><span class="co"># - nb of available cores - 2</span></span>
-<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a><span class="co"># - nb of grids to test</span></span>
-<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>n_cores <span class="op">=</span> <span class="bu">min</span>(mp.cpu_count() <span class="op">-</span> <span class="dv">2</span>, <span class="bu">len</span>(<span class="bu">list</span>(ParameterGrid(grid)))) </span>
-<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> mp.Pool(n_cores) <span class="im">as</span> pool:</span>
-<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> pool.<span class="bu">map</span>(fit_cv, ParameterGrid(grid))</span>
-<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Unlist top level</span></span>
-<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>res <span class="op">=</span> [l <span class="cf">for</span> li <span class="kw">in</span> res <span class="cf">for</span> l <span class="kw">in</span> li]</span>
-<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>save_res <span class="op">=</span> res</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># define the grid of parameters to search over</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> {</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;n_boosts&#39;</span> : [<span class="dv">100</span>], </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;lambda_weights&#39;</span> : [<span class="fl">0.001</span>],</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;lambda_leaves&#39;</span> : [<span class="fl">0.001</span>],</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;early_stopping_rounds&#39;</span> : [<span class="dv">10</span>],</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;learning_rate&#39;</span> : [<span class="fl">0.1</span>, <span class="fl">0.05</span>, <span class="fl">0.025</span>],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;min_leaf&#39;</span> : [<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">8</span>]</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># initialise a data splitter into 5 folds</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>n_splits <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>cv <span class="op">=</span> KFold(n_splits <span class="op">=</span> n_splits, shuffle <span class="op">=</span> <span class="va">True</span>, random_state <span class="op">=</span> random_state)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>res <span class="op">=</span> []</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fit_cv(params):</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># initialise</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    val_loss <span class="op">=</span> np.zeros((params[<span class="st">&#39;n_boosts&#39;</span>],n_splits))</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    k <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> train,val <span class="kw">in</span> cv.split(X_train, Y_train):</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>        <span class="co"># fit model</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>        MBT_model <span class="op">=</span> MBT(<span class="op">**</span>params)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>        MBT_model.fit(X_train[train], Y_train[train])</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>        <span class="co"># compute validation curve</span></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(params[<span class="st">&#39;n_boosts&#39;</span>]):</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>            Y_pred <span class="op">=</span> MBT_model.predict(X_train[val], n<span class="op">=</span>i<span class="op">+</span><span class="dv">1</span>)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>            val_loss[i,k] <span class="op">=</span> metrics.mean_squared_error(</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>                Y_train[val],</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>                Y_pred</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>        k <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>    <span class="co"># store result</span></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>    res.append({<span class="op">**</span>params, <span class="st">&#39;val_loss&#39;</span>: val_loss})</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span>(res)</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a><span class="co">## Run this in parallel</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a><span class="co"># number of cores is minimum between:</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="co"># - nb of available cores - 2</span></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="co"># - nb of grids to test</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>n_cores <span class="op">=</span> <span class="bu">min</span>(mp.cpu_count() <span class="op">-</span> <span class="dv">2</span>, <span class="bu">len</span>(<span class="bu">list</span>(ParameterGrid(grid)))) </span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> mp.Pool(n_cores) <span class="im">as</span> pool:</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> pool.<span class="bu">map</span>(fit_cv, ParameterGrid(grid))</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Unlist top level</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>res <span class="op">=</span> [l <span class="cf">for</span> li <span class="kw">in</span> res <span class="cf">for</span> l <span class="kw">in</span> li]</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>save_res <span class="op">=</span> res</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Plot results</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>n_trees <span class="op">=</span> np.arange(<span class="dv">1</span>, grid[<span class="st">&#39;n_boosts&#39;</span>][<span class="dv">0</span>]<span class="op">+</span><span class="dv">1</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>fig,axs <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="bu">len</span>(grid[<span class="st">&#39;min_leaf&#39;</span>]))</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>s <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> min_leaf <span class="kw">in</span> grid[<span class="st">&#39;min_leaf&#39;</span>]:</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    res_subset <span class="op">=</span> [r <span class="cf">for</span> r <span class="kw">in</span> res <span class="cf">if</span> (r[<span class="st">&#39;min_leaf&#39;</span>] <span class="op">==</span> min_leaf)]</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(res_subset)):</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        axs[s].plot(n_trees, np.mean(res_subset[i][<span class="st">&#39;val_loss&#39;</span>], axis<span class="op">=</span><span class="dv">1</span>),</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span><span class="ss">f&quot;lr: </span><span class="sc">{</span>res_subset[i][<span class="st">&#39;learning_rate&#39;</span>]<span class="sc">:.3f}</span><span class="ss">&quot;</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        axs[s].legend()</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        axs[s].set_title(<span class="ss">f&quot;min_leaf: </span><span class="sc">{</span>min_leaf<span class="sc">}</span><span class="ss">&quot;</span>)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        <span class="co">#axs[s].set_ylim([0.001, 0.0035])</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    s <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>n_trees <span class="op">=</span> np.arange(<span class="dv">1</span>, grid[<span class="st">&#39;n_boosts&#39;</span>][<span class="dv">0</span>]<span class="op">+</span><span class="dv">1</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>fig,axs <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="bu">len</span>(grid[<span class="st">&#39;min_leaf&#39;</span>]))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>s <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> min_leaf <span class="kw">in</span> grid[<span class="st">&#39;min_leaf&#39;</span>]:</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    res_subset <span class="op">=</span> [r <span class="cf">for</span> r <span class="kw">in</span> res <span class="cf">if</span> (r[<span class="st">&#39;min_leaf&#39;</span>] <span class="op">==</span> min_leaf)]</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(res_subset)):</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        axs[s].plot(n_trees, np.mean(res_subset[i][<span class="st">&#39;val_loss&#39;</span>], axis<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span><span class="ss">f&quot;lr: </span><span class="sc">{</span>res_subset[i][<span class="st">&#39;learning_rate&#39;</span>]<span class="sc">:.3f}</span><span class="ss">&quot;</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        axs[s].legend()</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        axs[s].set_title(<span class="ss">f&quot;min_leaf: </span><span class="sc">{</span>min_leaf<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        <span class="co">#axs[s].set_ylim([0.001, 0.0035])</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    s <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3303,25 +3320,25 @@ Caution
 <section id="get-best-params-with-r" class="level3">
 <h3 class="anchored" data-anchor-id="get-best-params-with-r">Get best params with R</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> py<span class="sc">$</span>res</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert results to dataframe</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>df_res <span class="ot">&lt;-</span> <span class="fu">tibble</span>()</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(res)){</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  df_res <span class="ot">&lt;-</span> <span class="fu">rbind</span>(df_res, <span class="fu">data.frame</span>(res[i]))</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute mean of val_loss across CV folds</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>df_res <span class="ot">&lt;-</span> df_res <span class="sc">%&gt;%</span> </span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">val_loss =</span> <span class="fu">select</span>(., val_loss<span class="fl">.1</span><span class="sc">:</span>val_loss<span class="fl">.3</span>) <span class="sc">%&gt;%</span> <span class="fu">rowMeans</span>()) <span class="sc">%&gt;%</span> </span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(val_loss<span class="fl">.1</span><span class="sc">:</span>val_loss<span class="fl">.3</span>))</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Get lower val_loss</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>best_params <span class="ot">&lt;-</span> df_res <span class="sc">%&gt;%</span> </span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(val_loss) <span class="sc">%&gt;%</span> </span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>val_loss) <span class="sc">%&gt;%</span> </span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">everything</span>())</span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>best_params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> py<span class="sc">$</span>res</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert results to dataframe</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>df_res <span class="ot">&lt;-</span> <span class="fu">tibble</span>()</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(res)){</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  df_res <span class="ot">&lt;-</span> <span class="fu">rbind</span>(df_res, <span class="fu">data.frame</span>(res[i]))</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute mean of val_loss across CV folds</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>df_res <span class="ot">&lt;-</span> df_res <span class="sc">%&gt;%</span> </span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">val_loss =</span> <span class="fu">select</span>(., val_loss<span class="fl">.1</span><span class="sc">:</span>val_loss<span class="fl">.3</span>) <span class="sc">%&gt;%</span> <span class="fu">rowMeans</span>()) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(val_loss<span class="fl">.1</span><span class="sc">:</span>val_loss<span class="fl">.3</span>))</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Get lower val_loss</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>best_params <span class="ot">&lt;-</span> df_res <span class="sc">%&gt;%</span> </span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(val_loss) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>val_loss) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">everything</span>())</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>best_params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 2
   name                    value
@@ -3338,152 +3355,155 @@ Caution
 <section id="refit-the-model" class="level3">
 <h3 class="anchored" data-anchor-id="refit-the-model">Refit the model</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># convert dataframe to dict</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>best_params <span class="op">=</span> r.best_params</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>best_params <span class="op">=</span> best_params.set_index(<span class="st">&#39;name&#39;</span>)</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>best_params <span class="op">=</span> best_params[<span class="st">&#39;value&#39;</span>].to_dict()</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Set n_boosts as an integer</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>best_params[<span class="st">&#39;n_boosts&#39;</span>] <span class="op">=</span> <span class="bu">int</span>(best_params[<span class="st">&#39;n_boosts&#39;</span>])</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Disable early stopping</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>best_params[<span class="st">&#39;early_stopping_rounds&#39;</span>] <span class="op">=</span> <span class="dv">100</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Refit model</span></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>MBT_model <span class="op">=</span> MBT(<span class="op">**</span>best_params)</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>MBT_model.fit(X_train, Y_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># convert dataframe to dict</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>best_params <span class="op">=</span> r.best_params</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>best_params <span class="op">=</span> best_params.set_index(<span class="st">&#39;name&#39;</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>best_params <span class="op">=</span> best_params[<span class="st">&#39;value&#39;</span>].to_dict()</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Set n_boosts as an integer</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>best_params[<span class="st">&#39;n_boosts&#39;</span>] <span class="op">=</span> <span class="bu">int</span>(best_params[<span class="st">&#39;n_boosts&#39;</span>])</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Disable early stopping</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>best_params[<span class="st">&#39;early_stopping_rounds&#39;</span>] <span class="op">=</span> <span class="dv">100</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Refit model</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>MBT_model <span class="op">=</span> MBT(<span class="op">**</span>best_params)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>MBT_model.fit(X_train, Y_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>#---------------- Model fitted in 3.36e-01 min ----------------
-&lt;mbtr.mbtr.MBT object at 0x14b5bf310&gt;
+<pre><code>#---------------- Model fitted in 3.48e-01 min ----------------
+&lt;mbtr.mbtr.MBT object at 0x142324e10&gt;
 
 
   0%|          | 0/100 [00:00&lt;?, ?it/s]
-  1%|1         | 1/100 [00:00&lt;00:19,  5.13it/s]
-  2%|2         | 2/100 [00:00&lt;00:17,  5.60it/s]
-  3%|3         | 3/100 [00:00&lt;00:17,  5.55it/s]
-  4%|4         | 4/100 [00:00&lt;00:17,  5.43it/s]
-  5%|5         | 5/100 [00:00&lt;00:17,  5.48it/s]
-  6%|6         | 6/100 [00:01&lt;00:17,  5.31it/s]
-  7%|7         | 7/100 [00:01&lt;00:17,  5.41it/s]
-  8%|8         | 8/100 [00:01&lt;00:16,  5.62it/s]
-  9%|9         | 9/100 [00:01&lt;00:16,  5.65it/s]
- 10%|#         | 10/100 [00:01&lt;00:15,  5.64it/s]
- 11%|#1        | 11/100 [00:01&lt;00:16,  5.54it/s]
- 12%|#2        | 12/100 [00:02&lt;00:15,  5.63it/s]
- 13%|#3        | 13/100 [00:02&lt;00:16,  5.43it/s]
- 14%|#4        | 14/100 [00:02&lt;00:15,  5.38it/s]
- 15%|#5        | 15/100 [00:02&lt;00:15,  5.37it/s]
- 16%|#6        | 16/100 [00:02&lt;00:15,  5.26it/s]
- 17%|#7        | 17/100 [00:03&lt;00:15,  5.22it/s]
- 18%|#8        | 18/100 [00:03&lt;00:15,  5.17it/s]
- 19%|#9        | 19/100 [00:03&lt;00:15,  5.14it/s]
- 20%|##        | 20/100 [00:03&lt;00:15,  5.15it/s]
- 21%|##1       | 21/100 [00:03&lt;00:15,  5.17it/s]
- 22%|##2       | 22/100 [00:04&lt;00:15,  5.20it/s]
- 23%|##3       | 23/100 [00:04&lt;00:14,  5.19it/s]
- 24%|##4       | 24/100 [00:04&lt;00:15,  4.96it/s]
+  1%|1         | 1/100 [00:00&lt;00:18,  5.33it/s]
+  2%|2         | 2/100 [00:00&lt;00:17,  5.58it/s]
+  3%|3         | 3/100 [00:00&lt;00:17,  5.42it/s]
+  4%|4         | 4/100 [00:00&lt;00:17,  5.34it/s]
+  5%|5         | 5/100 [00:00&lt;00:17,  5.38it/s]
+  6%|6         | 6/100 [00:01&lt;00:17,  5.28it/s]
+  7%|7         | 7/100 [00:01&lt;00:17,  5.20it/s]
+  8%|8         | 8/100 [00:01&lt;00:17,  5.27it/s]
+  9%|9         | 9/100 [00:01&lt;00:17,  5.32it/s]
+ 10%|#         | 10/100 [00:01&lt;00:16,  5.43it/s]
+ 11%|#1        | 11/100 [00:02&lt;00:16,  5.34it/s]
+ 12%|#2        | 12/100 [00:02&lt;00:16,  5.33it/s]
+ 13%|#3        | 13/100 [00:02&lt;00:17,  5.11it/s]
+ 14%|#4        | 14/100 [00:02&lt;00:17,  5.01it/s]
+ 15%|#5        | 15/100 [00:02&lt;00:16,  5.07it/s]
+ 16%|#6        | 16/100 [00:03&lt;00:17,  4.90it/s]
+ 17%|#7        | 17/100 [00:03&lt;00:16,  4.89it/s]
+ 18%|#8        | 18/100 [00:03&lt;00:16,  4.86it/s]
+ 19%|#9        | 19/100 [00:03&lt;00:16,  4.86it/s]
+ 20%|##        | 20/100 [00:03&lt;00:16,  4.95it/s]
+ 21%|##1       | 21/100 [00:04&lt;00:16,  4.92it/s]
+ 22%|##2       | 22/100 [00:04&lt;00:15,  5.02it/s]
+ 23%|##3       | 23/100 [00:04&lt;00:15,  5.07it/s]
+ 24%|##4       | 24/100 [00:04&lt;00:15,  4.91it/s]
  25%|##5       | 25/100 [00:04&lt;00:15,  4.90it/s]
- 26%|##6       | 26/100 [00:04&lt;00:15,  4.77it/s]
- 27%|##7       | 27/100 [00:05&lt;00:15,  4.83it/s]
- 28%|##8       | 28/100 [00:05&lt;00:14,  4.98it/s]
- 29%|##9       | 29/100 [00:05&lt;00:14,  4.96it/s]
- 30%|###       | 30/100 [00:05&lt;00:13,  5.13it/s]
- 31%|###1      | 31/100 [00:05&lt;00:13,  5.18it/s]
- 32%|###2      | 32/100 [00:06&lt;00:13,  5.14it/s]
- 33%|###3      | 33/100 [00:06&lt;00:13,  5.09it/s]
- 34%|###4      | 34/100 [00:06&lt;00:12,  5.11it/s]
- 35%|###5      | 35/100 [00:06&lt;00:12,  5.08it/s]
- 36%|###6      | 36/100 [00:06&lt;00:12,  5.05it/s]
- 37%|###7      | 37/100 [00:07&lt;00:12,  4.96it/s]
- 38%|###8      | 38/100 [00:07&lt;00:12,  5.07it/s]
- 39%|###9      | 39/100 [00:07&lt;00:11,  5.20it/s]
- 40%|####      | 40/100 [00:07&lt;00:11,  5.05it/s]
- 41%|####1     | 41/100 [00:07&lt;00:11,  4.95it/s]
- 42%|####2     | 42/100 [00:08&lt;00:11,  4.95it/s]
- 43%|####3     | 43/100 [00:08&lt;00:11,  5.08it/s]
- 44%|####4     | 44/100 [00:08&lt;00:10,  5.17it/s]
- 45%|####5     | 45/100 [00:08&lt;00:10,  5.19it/s]
- 46%|####6     | 46/100 [00:08&lt;00:10,  5.17it/s]
- 47%|####6     | 47/100 [00:09&lt;00:10,  5.13it/s]
- 48%|####8     | 48/100 [00:09&lt;00:10,  5.16it/s]
- 49%|####9     | 49/100 [00:09&lt;00:09,  5.19it/s]
- 50%|#####     | 50/100 [00:09&lt;00:09,  5.14it/s]
- 51%|#####1    | 51/100 [00:09&lt;00:09,  5.11it/s]
- 52%|#####2    | 52/100 [00:10&lt;00:09,  5.10it/s]
- 53%|#####3    | 53/100 [00:10&lt;00:09,  5.18it/s]
- 54%|#####4    | 54/100 [00:10&lt;00:08,  5.23it/s]
- 55%|#####5    | 55/100 [00:10&lt;00:08,  5.09it/s]
- 56%|#####6    | 56/100 [00:10&lt;00:08,  5.08it/s]
- 57%|#####6    | 57/100 [00:11&lt;00:08,  5.16it/s]
- 58%|#####8    | 58/100 [00:11&lt;00:08,  5.13it/s]
- 59%|#####8    | 59/100 [00:11&lt;00:08,  4.89it/s]
- 60%|######    | 60/100 [00:11&lt;00:08,  4.87it/s]
- 61%|######1   | 61/100 [00:11&lt;00:07,  4.97it/s]
- 62%|######2   | 62/100 [00:12&lt;00:07,  5.08it/s]
- 63%|######3   | 63/100 [00:12&lt;00:07,  5.20it/s]
- 64%|######4   | 64/100 [00:12&lt;00:06,  5.22it/s]
- 65%|######5   | 65/100 [00:12&lt;00:07,  5.00it/s]
- 66%|######6   | 66/100 [00:12&lt;00:06,  4.96it/s]
- 67%|######7   | 67/100 [00:13&lt;00:06,  5.02it/s]
- 68%|######8   | 68/100 [00:13&lt;00:06,  4.94it/s]
- 69%|######9   | 69/100 [00:13&lt;00:06,  4.93it/s]
- 70%|#######   | 70/100 [00:13&lt;00:06,  4.98it/s]
- 71%|#######1  | 71/100 [00:13&lt;00:06,  4.75it/s]
- 72%|#######2  | 72/100 [00:14&lt;00:05,  4.70it/s]
- 73%|#######3  | 73/100 [00:14&lt;00:05,  4.74it/s]
- 74%|#######4  | 74/100 [00:14&lt;00:05,  4.69it/s]
- 75%|#######5  | 75/100 [00:14&lt;00:05,  4.74it/s]
- 76%|#######6  | 76/100 [00:14&lt;00:05,  4.65it/s]
- 77%|#######7  | 77/100 [00:15&lt;00:05,  4.50it/s]
- 78%|#######8  | 78/100 [00:15&lt;00:04,  4.53it/s]
- 79%|#######9  | 79/100 [00:15&lt;00:04,  4.54it/s]
- 80%|########  | 80/100 [00:15&lt;00:04,  4.69it/s]
- 81%|########1 | 81/100 [00:15&lt;00:04,  4.74it/s]
- 82%|########2 | 82/100 [00:16&lt;00:03,  4.84it/s]
- 83%|########2 | 83/100 [00:16&lt;00:03,  4.91it/s]
- 84%|########4 | 84/100 [00:16&lt;00:03,  4.96it/s]
- 85%|########5 | 85/100 [00:16&lt;00:03,  4.90it/s]
- 86%|########6 | 86/100 [00:17&lt;00:02,  4.85it/s]
- 87%|########7 | 87/100 [00:17&lt;00:02,  4.76it/s]
- 88%|########8 | 88/100 [00:17&lt;00:02,  4.64it/s]
- 89%|########9 | 89/100 [00:17&lt;00:02,  4.52it/s]
- 90%|######### | 90/100 [00:17&lt;00:02,  4.45it/s]
- 91%|#########1| 91/100 [00:18&lt;00:02,  4.44it/s]
- 92%|#########2| 92/100 [00:18&lt;00:01,  4.48it/s]
- 93%|#########3| 93/100 [00:18&lt;00:01,  4.50it/s]
- 94%|#########3| 94/100 [00:18&lt;00:01,  4.63it/s]
- 95%|#########5| 95/100 [00:19&lt;00:01,  4.65it/s]
- 96%|#########6| 96/100 [00:19&lt;00:00,  4.64it/s]
- 97%|#########7| 97/100 [00:19&lt;00:00,  4.65it/s]
- 98%|#########8| 98/100 [00:19&lt;00:00,  4.70it/s]
- 99%|#########9| 99/100 [00:19&lt;00:00,  4.74it/s]
-100%|##########| 100/100 [00:20&lt;00:00,  4.66it/s]
-100%|##########| 100/100 [00:20&lt;00:00,  4.98it/s]</code></pre>
+ 26%|##6       | 26/100 [00:05&lt;00:15,  4.79it/s]
+ 27%|##7       | 27/100 [00:05&lt;00:15,  4.86it/s]
+ 28%|##8       | 28/100 [00:05&lt;00:14,  4.90it/s]
+ 29%|##9       | 29/100 [00:05&lt;00:14,  4.97it/s]
+ 30%|###       | 30/100 [00:05&lt;00:13,  5.06it/s]
+ 31%|###1      | 31/100 [00:06&lt;00:13,  4.97it/s]
+ 32%|###2      | 32/100 [00:06&lt;00:13,  4.91it/s]
+ 33%|###3      | 33/100 [00:06&lt;00:13,  4.81it/s]
+ 34%|###4      | 34/100 [00:06&lt;00:13,  4.77it/s]
+ 35%|###5      | 35/100 [00:06&lt;00:13,  4.82it/s]
+ 36%|###6      | 36/100 [00:07&lt;00:13,  4.76it/s]
+ 37%|###7      | 37/100 [00:07&lt;00:13,  4.81it/s]
+ 38%|###8      | 38/100 [00:07&lt;00:12,  4.83it/s]
+ 39%|###9      | 39/100 [00:07&lt;00:12,  4.94it/s]
+ 40%|####      | 40/100 [00:07&lt;00:12,  4.86it/s]
+ 41%|####1     | 41/100 [00:08&lt;00:12,  4.88it/s]
+ 42%|####2     | 42/100 [00:08&lt;00:11,  4.97it/s]
+ 43%|####3     | 43/100 [00:08&lt;00:11,  5.03it/s]
+ 44%|####4     | 44/100 [00:08&lt;00:10,  5.15it/s]
+ 45%|####5     | 45/100 [00:08&lt;00:10,  5.09it/s]
+ 46%|####6     | 46/100 [00:09&lt;00:10,  5.05it/s]
+ 47%|####6     | 47/100 [00:09&lt;00:10,  4.94it/s]
+ 48%|####8     | 48/100 [00:09&lt;00:10,  4.91it/s]
+ 49%|####9     | 49/100 [00:09&lt;00:10,  4.92it/s]
+ 50%|#####     | 50/100 [00:09&lt;00:10,  4.90it/s]
+ 51%|#####1    | 51/100 [00:10&lt;00:10,  4.86it/s]
+ 52%|#####2    | 52/100 [00:10&lt;00:09,  4.88it/s]
+ 53%|#####3    | 53/100 [00:10&lt;00:09,  4.88it/s]
+ 54%|#####4    | 54/100 [00:10&lt;00:09,  4.88it/s]
+ 55%|#####5    | 55/100 [00:11&lt;00:09,  4.80it/s]
+ 56%|#####6    | 56/100 [00:11&lt;00:09,  4.82it/s]
+ 57%|#####6    | 57/100 [00:11&lt;00:08,  4.90it/s]
+ 58%|#####8    | 58/100 [00:11&lt;00:08,  4.89it/s]
+ 59%|#####8    | 59/100 [00:11&lt;00:08,  4.84it/s]
+ 60%|######    | 60/100 [00:12&lt;00:08,  4.69it/s]
+ 61%|######1   | 61/100 [00:12&lt;00:08,  4.79it/s]
+ 62%|######2   | 62/100 [00:12&lt;00:07,  4.84it/s]
+ 63%|######3   | 63/100 [00:12&lt;00:07,  4.85it/s]
+ 64%|######4   | 64/100 [00:12&lt;00:07,  4.94it/s]
+ 65%|######5   | 65/100 [00:13&lt;00:07,  4.85it/s]
+ 66%|######6   | 66/100 [00:13&lt;00:07,  4.78it/s]
+ 67%|######7   | 67/100 [00:13&lt;00:06,  4.84it/s]
+ 68%|######8   | 68/100 [00:13&lt;00:06,  4.81it/s]
+ 69%|######9   | 69/100 [00:13&lt;00:06,  4.82it/s]
+ 70%|#######   | 70/100 [00:14&lt;00:06,  4.86it/s]
+ 71%|#######1  | 71/100 [00:14&lt;00:05,  4.94it/s]
+ 72%|#######2  | 72/100 [00:14&lt;00:05,  5.00it/s]
+ 73%|#######3  | 73/100 [00:14&lt;00:05,  4.97it/s]
+ 74%|#######4  | 74/100 [00:14&lt;00:05,  4.87it/s]
+ 75%|#######5  | 75/100 [00:15&lt;00:05,  4.78it/s]
+ 76%|#######6  | 76/100 [00:15&lt;00:05,  4.66it/s]
+ 77%|#######7  | 77/100 [00:15&lt;00:04,  4.67it/s]
+ 78%|#######8  | 78/100 [00:15&lt;00:04,  4.71it/s]
+ 79%|#######9  | 79/100 [00:16&lt;00:04,  4.60it/s]
+ 80%|########  | 80/100 [00:16&lt;00:04,  4.66it/s]
+ 81%|########1 | 81/100 [00:16&lt;00:04,  4.59it/s]
+ 82%|########2 | 82/100 [00:16&lt;00:03,  4.61it/s]
+ 83%|########2 | 83/100 [00:16&lt;00:03,  4.62it/s]
+ 84%|########4 | 84/100 [00:17&lt;00:03,  4.61it/s]
+ 85%|########5 | 85/100 [00:17&lt;00:03,  4.55it/s]
+ 86%|########6 | 86/100 [00:17&lt;00:03,  4.50it/s]
+ 87%|########7 | 87/100 [00:17&lt;00:02,  4.34it/s]
+ 88%|########8 | 88/100 [00:18&lt;00:02,  4.38it/s]
+ 89%|########9 | 89/100 [00:18&lt;00:02,  4.37it/s]
+ 90%|######### | 90/100 [00:18&lt;00:02,  4.30it/s]
+ 91%|#########1| 91/100 [00:18&lt;00:02,  4.38it/s]
+ 92%|#########2| 92/100 [00:18&lt;00:01,  4.43it/s]
+ 93%|#########3| 93/100 [00:19&lt;00:01,  4.40it/s]
+ 94%|#########3| 94/100 [00:19&lt;00:01,  4.42it/s]
+ 95%|#########5| 95/100 [00:19&lt;00:01,  4.40it/s]
+ 96%|#########6| 96/100 [00:19&lt;00:00,  4.31it/s]
+ 97%|#########7| 97/100 [00:20&lt;00:00,  4.35it/s]
+ 98%|#########8| 98/100 [00:20&lt;00:00,  4.42it/s]
+ 99%|#########9| 99/100 [00:20&lt;00:00,  4.42it/s]
+100%|##########| 100/100 [00:20&lt;00:00,  4.20it/s]
+100%|##########| 100/100 [00:20&lt;00:00,  4.80it/s]</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict test set to get metrics</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>Y_test_pred <span class="op">=</span> MBT_model.predict(X_test, n<span class="op">=</span>best_params[<span class="st">&#39;n_boosts&#39;</span>])</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Multiple R2 on test set : </span><span class="sc">{</span>metrics<span class="sc">.</span>r2_score(Y_test, Y_test_pred)<span class="sc">:.2f}</span><span class="ss">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict test set to get metrics</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>Y_test_pred <span class="op">=</span> MBT_model.predict(X_test, n<span class="op">=</span>best_params[<span class="st">&#39;n_boosts&#39;</span>])</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># also predict training set to save for lates</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>Y_train_pred <span class="op">=</span> MBT_model.predict(X_train, n<span class="op">=</span>best_params[<span class="st">&#39;n_boosts&#39;</span>])</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Multiple R2 on test set : </span><span class="sc">{</span>metrics<span class="sc">.</span>r2_score(Y_test, Y_test_pred)<span class="sc">:.2f}</span><span class="ss">&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Multiple R2 on test set : 0.42</code></pre>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get predictions and true values, as vertical DF to bind together</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>Y_test_pred <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_test_pred <span class="sc">%&gt;%</span> </span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(resp_vars) <span class="sc">%&gt;%</span> </span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(resp_vars), <span class="at">names_to =</span> <span class="st">&quot;variable&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;pred&quot;</span>)</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>Y_test <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_test <span class="sc">%&gt;%</span> </span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(resp_vars) <span class="sc">%&gt;%</span> </span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(resp_vars), <span class="at">names_to =</span> <span class="st">&quot;variable&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;truth&quot;</span>)</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>Y_test <span class="sc">%&gt;%</span> </span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(Y_test_pred <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>variable)) <span class="sc">%&gt;%</span> </span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> truth, <span class="at">y =</span> pred)) <span class="sc">+</span></span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">&quot;red&quot;</span>) <span class="sc">+</span></span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scales =</span> <span class="st">&quot;free&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get predictions and true values, as vertical DF to bind together</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>Y_test_pred <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_test_pred <span class="sc">%&gt;%</span> </span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(resp_vars) <span class="sc">%&gt;%</span> </span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(resp_vars), <span class="at">names_to =</span> <span class="st">&quot;variable&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;pred&quot;</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>Y_test <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_test <span class="sc">%&gt;%</span> </span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(resp_vars) <span class="sc">%&gt;%</span> </span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(resp_vars), <span class="at">names_to =</span> <span class="st">&quot;variable&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;truth&quot;</span>)</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>Y_test <span class="sc">%&gt;%</span> </span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(Y_test_pred <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>variable)) <span class="sc">%&gt;%</span> </span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> truth, <span class="at">y =</span> pred)) <span class="sc">+</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">&quot;red&quot;</span>) <span class="sc">+</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scales =</span> <span class="st">&quot;free&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3497,32 +3517,59 @@ Caution
 <h3 class="anchored" data-anchor-id="predict-all-data">Predict all data</h3>
 <p>Predict all data to get all residuals.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>X_all <span class="op">=</span> np.concatenate((X_train, X_test))</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>Y_all <span class="op">=</span> np.concatenate((Y_train, Y_test))</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>Y_all_pred <span class="op">=</span> MBT_model.predict(X_all, n<span class="op">=</span>best_params[<span class="st">&#39;n_boosts&#39;</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">#X_all = np.concatenate((X_train, X_test))</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">#Y_all = np.concatenate((Y_train, Y_test))</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">#Y_all_pred = MBT_model.predict(X_all, n=best_params[&#39;n_boosts&#39;])</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">#Y_train_pred = MBT_model.predict(X_train, n=best_params[&#39;n_boosts&#39;])</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#Y_test_pred  = MBT_model.predict(X_test, n=best_params[&#39;n_boosts&#39;])</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="compute-residuals-and-save-them" class="level3">
 <h3 class="anchored" data-anchor-id="compute-residuals-and-save-them">Compute residuals and save them</h3>
 <div class="cell fig-column-screen-inset">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get predictions for all dataset</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>all_preds <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_all_pred <span class="sc">%&gt;%</span> </span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">paste0</span>(<span class="st">&quot;pred_&quot;</span>, resp_vars))</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a df of residuals</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>all_resids <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_all <span class="sc">-</span> py<span class="sc">$</span>Y_all_pred <span class="sc">%&gt;%</span> </span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">paste0</span>(<span class="st">&quot;resid_&quot;</span>, resp_vars))</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Add metadata</span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>plankton_res <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> </span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(meta_vars), <span class="fu">all_of</span>(resp_vars)) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(all_preds) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(all_resids)</span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Save</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(plankton_res, <span class="at">file =</span> output_filename)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Training set</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Predictions</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>train_preds <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_train_pred <span class="sc">%&gt;%</span> </span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">paste0</span>(<span class="st">&quot;pred_&quot;</span>, resp_vars)) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">split =</span> <span class="st">&quot;train&quot;</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Residuals</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>train_res <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_train <span class="sc">-</span> py<span class="sc">$</span>Y_train_pred <span class="sc">%&gt;%</span> </span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">paste0</span>(<span class="st">&quot;resid_&quot;</span>, resp_vars)) </span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Store together with meta and response variables</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>train <span class="ot">&lt;-</span> df_train <span class="sc">%&gt;%</span> </span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(meta_vars), <span class="fu">all_of</span>(resp_vars)) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(train_preds) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(train_res)</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="do">## Test set</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Predictions</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>test_preds <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_test_pred <span class="sc">%&gt;%</span> </span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">paste0</span>(<span class="st">&quot;pred_&quot;</span>, resp_vars)) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">split =</span> <span class="st">&quot;test&quot;</span>)</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Residuals</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>test_res <span class="ot">&lt;-</span> py<span class="sc">$</span>Y_test <span class="sc">-</span> py<span class="sc">$</span>Y_test_pred <span class="sc">%&gt;%</span> </span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>(<span class="at">.name_repair =</span> <span class="st">&quot;minimal&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">paste0</span>(<span class="st">&quot;resid_&quot;</span>, resp_vars)) </span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Store together with meta and response variables</span></span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>test <span class="ot">&lt;-</span> df_test <span class="sc">%&gt;%</span> </span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(meta_vars), <span class="fu">all_of</span>(resp_vars)) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(test_preds) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(test_res)</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a><span class="co"># All predictions together</span></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>all_preds <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(train, test)</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Save</span></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(all_preds, <span class="at">file =</span> output_filename)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>

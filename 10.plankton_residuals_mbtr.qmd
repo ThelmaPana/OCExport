@@ -119,6 +119,9 @@ X_test = r.df_test[r.exp_vars].to_numpy()
 # Response variables
 Y_train = r.df_train[r.resp_vars].to_numpy()
 Y_test = r.df_test[r.resp_vars].to_numpy()
+
+r.df_train[r.resp_vars]
+
 ```
 
 ## MBTR
@@ -246,6 +249,9 @@ MBT_model.fit(X_train, Y_train)
 
 # Predict test set to get metrics
 Y_test_pred = MBT_model.predict(X_test, n=best_params['n_boosts'])
+
+# also predict training set to save for lates
+Y_train_pred = MBT_model.predict(X_train, n=best_params['n_boosts'])
 print(f"Multiple R2 on test set : {metrics.r2_score(Y_test, Y_test_pred):.2f}")
 ```
 
@@ -277,9 +283,13 @@ Y_test %>%
 Predict all data to get all residuals.
 
 ```{python pred_all}
-X_all = np.concatenate((X_train, X_test))
-Y_all = np.concatenate((Y_train, Y_test))
-Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
+#X_all = np.concatenate((X_train, X_test))
+#Y_all = np.concatenate((Y_train, Y_test))
+#Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
+#
+#Y_train_pred = MBT_model.predict(X_train, n=best_params['n_boosts'])
+#Y_test_pred  = MBT_model.predict(X_test, n=best_params['n_boosts'])
+
 ```
 
 ### Compute residuals and save them
@@ -290,22 +300,46 @@ Y_all_pred = MBT_model.predict(X_all, n=best_params['n_boosts'])
 #| fig-width: 10
 #| fig-height: 8
 
-# Get predictions for all dataset
-all_preds <- py$Y_all_pred %>% 
+## Training set
+# Predictions
+train_preds <- py$Y_train_pred %>% 
   as_tibble(.name_repair = "minimal") %>% 
-  set_names(paste0("pred_", resp_vars))
+  set_names(paste0("pred_", resp_vars)) %>% 
+  mutate(split = "train")
 
-# Generate a df of residuals
-all_resids <- py$Y_all - py$Y_all_pred %>% 
+# Residuals
+train_res <- py$Y_train - py$Y_train_pred %>% 
   as_tibble(.name_repair = "minimal") %>% 
-  set_names(paste0("resid_", resp_vars))
+  set_names(paste0("resid_", resp_vars)) 
 
-# Add metadata
-plankton_res <- df %>% 
+# Store together with meta and response variables
+train <- df_train %>% 
   select(all_of(meta_vars), all_of(resp_vars)) %>% 
-  bind_cols(all_preds) %>% 
-  bind_cols(all_resids)
+  bind_cols(train_preds) %>% 
+  bind_cols(train_res)
+
+## Test set
+# Predictions
+test_preds <- py$Y_test_pred %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(paste0("pred_", resp_vars)) %>% 
+  mutate(split = "test")
+
+# Residuals
+test_res <- py$Y_test - py$Y_test_pred %>% 
+  as_tibble(.name_repair = "minimal") %>% 
+  set_names(paste0("resid_", resp_vars)) 
+
+# Store together with meta and response variables
+test <- df_test %>% 
+  select(all_of(meta_vars), all_of(resp_vars)) %>% 
+  bind_cols(test_preds) %>% 
+  bind_cols(test_res)
+
+# All predictions together
+all_preds <- bind_rows(train, test)
+
 
 # Save
-save(plankton_res, file = output_filename)
+save(all_preds, file = output_filename)
 ```
