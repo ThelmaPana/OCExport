@@ -1,6 +1,6 @@
 ---
-title: "Predict POC values from plankton"
-subtitle: "Train a XGBoost model to predict POC values from plankton diversity data."
+title: "Predict POC values from env"
+subtitle: "Train a XGBoost model to predict POC values from environmental data used in Wang et al., 2023."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -18,7 +18,7 @@ execute:
 #| output: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-output_filename <- "data/06.all_preds_poc_from_plankton.Rdata"
+output_filename <- "data/06.all_preds_poc_from_env.Rdata"
 ```
 
 ## Data inspection
@@ -46,7 +46,15 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:mo_spe) %>% colnames()
+exp_vars <- df %>% 
+  select(
+    temperature_mean,
+    silicate_mean,
+    z_eu_mean,
+    oxygen_mean
+    ) %>% 
+  colnames()
+
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -86,8 +94,14 @@ Plot first plane.
 ```{r pca_plot_var}
 #| fig-column: body-outset
 #| out-width: 100%
-plot(pca_all, choix="var", axes = c(1, 2))
+plot(pca_all, choix="var", axes = c(1, 2), cex = 0.7)
 ```
+
+The two first axes are:
+
+-   PC1: oxygen rich in positive values VS warm in negative values
+
+-   PC2: mixed waters in positive values VS stratified waters in negative values
 
 Extract coordinates in the PCA space.
 
@@ -145,7 +159,7 @@ Let’s define a XGBoost regression model, with tunable hyperparameters:
 
 -   `learn_rate`
 
-```{r def_mod}
+```{r def_model}
 # Define a xgboost model with hyperparameters to tune
 xgb_spec <- boost_tree(
   trees = tune(),
@@ -221,7 +235,7 @@ autoplot(xgb_res)
 
 Select the best set of hyperparameters based on `rmse` value.
 
-```{r sel_best}
+```{r find_best}
 show_best(xgb_res, metric = "rmse")
 best_xgb <- select_best(xgb_res, metric = "rmse")
 ```
@@ -337,33 +351,23 @@ ggplot_imp(xgb_var_imp)
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_ta_div <- model_profile(explainer = xgb_explain, variables = c("ta_div"))
-ggplot_pdp(xgb_pdp_ta_div, ta_div) +
-  labs(x = "Taxonomic Diversity", y = "Logged predicted POC")
+xgb_pdp_temp <- model_profile(explainer = xgb_explain, variables = c("temperature_mean"))
+ggplot_pdp(xgb_pdp_temp, temperature_mean) +
+  labs(x = "Temperature_mean", y = "Logged predicted POC")
 
-xgb_pdp_ta_eve <- model_profile(explainer = xgb_explain, variables = c("ta_eve"))
-ggplot_pdp(xgb_pdp_ta_eve, ta_eve) +
-  labs(x = "Taxonomic Eveness", y = "Logged predicted POC")
+xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
+ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
+  labs(x = "Z_eu_mean", y = "Logged predicted POC")
 
-xgb_pdp_mo_ric <- model_profile(explainer = xgb_explain, variables = c("mo_ric"))
-ggplot_pdp(xgb_pdp_mo_ric, mo_ric) +
-  labs(x = "Morphological Richness", y = "Logged predicted POC")
+xgb_pdp_sil <- model_profile(explainer = xgb_explain, variables = c("silicate_mean"))
+ggplot_pdp(xgb_pdp_sil, silicate_mean) +
+  labs(x = "Silicate_mean", y = "Logged predicted POC")
+
+xgb_pdp_oxy <- model_profile(explainer = xgb_explain, variables = c("oxygen_mean"))
+ggplot_pdp(xgb_pdp_oxy, oxygen_mean) +
+  labs(x = "Oxygen_mean", y = "Logged predicted POC")
 ```
 
 ## Conclusion
 
-Four plankton variables dominate to explain POC values:
-
--   taxonomic diversity
-
--   taxonomic evenness
-
--   morphological evenness
-
--   morphological divergence
-
-Future works:
-
--   predict POC values using only these variables
-
--   reduce dimensionality of plankton data using a PCA
+POC can be predicted from a few env variables.

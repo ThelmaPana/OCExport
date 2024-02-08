@@ -51,13 +51,15 @@ Contains data
 
 -   `05.pred_poc_from_all.qmd`: fit a XGBoost model to predict poc from env + plankton data
 
--   `06.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from all plankton data
+-   `06.pred_poc_from_env.qmd`: fit a XGBoost model to predict poc from env as in Wang et al., 2023
 
--   `07.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from a few plankton variables, identified as the best predictors in `06.pred_poc_from_plankton.qmd`
+-   `07.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from all plankton data
 
--   `08.pred_poc_from_pca.qmd`: fit a XGBoost model to predict poc from PCA outputs on all plankton data
+-   `08.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from a few plankton variables, identified as the best predictors in `06.pred_poc_from_plankton.qmd`
 
--   `09.pred_plankton_from_env.qmd`: fit a XGBoost model to predict best plankton predictors (from `06.pred_poc_from_plankton.qmd`) from env variables
+-   `09.pred_poc_from_pca.qmd`: fit a XGBoost model to predict poc from PCA outputs on all plankton data
+
+-   `10.pred_plankton_from_env.qmd`: fit a XGBoost model to predict best plankton predictors (from `06.pred_poc_from_plankton.qmd`) from env variables
 
 
 ### Notes
