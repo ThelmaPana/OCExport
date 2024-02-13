@@ -16,7 +16,7 @@ execute:
   cache: true
 ---
 
-```{r}
+```{r set_up}
 #| output: false
 #| echo: false
 #| cache: false
@@ -168,9 +168,33 @@ ggmap(profiles, var = "mo_ric", type = "point") + labs(colour = "Morpho\nRichnes
 
 ## Plankton - Trophic Status
 
-Coming soon.
+Coming soon [(no plankton trophic database to my knowledge)]{style="color:gray;"}.
 
-[(No plankton trophic database to my knowledge.)]{style="color:gray;"}
+::: {.fragment .fade-in}
+- Trophic status of a chaetognath
+:::
+
+::: {.fragment .fade-in}
+- Trophic status of a copepod?
+
+
+  ::: {.fragment .fade-in}
+  ::: {.fragment .strike}
+  - by size?
+  :::
+  :::
+
+  ::: {.fragment .fade-in}
+  ::: {.fragment .strike}
+  - by region?
+  :::
+  :::
+:::
+
+::: {.fragment .fade-in}
+Other dataset? [&uarr; taxonomic resolution but &darr; coverage.]{.fragment}
+:::
+
 
 ## Final dataset
 
@@ -235,11 +259,21 @@ What about spatial & temporal autocorrelation?
 :::
 :::
 
-# Model
+# ML Model
 
-## XGBoost
+## (Multivariate) boosted trees
 
-Need to log-transform poc values.
+Response variable: 
+
+-  uni- or multivariate
+
+-  ~normally distributed &rarr; `log(POC)`
+
+Flexibility for predictors, handles interactions.
+
+Complex & non-linear relationships.
+
+Easy interpretation & implementation. 
 
 # Results
 
@@ -424,11 +458,17 @@ Y_test_pred <- all_preds %>%
 ```
 
 ```{python mult_rsq}
+#| cache: false
 from sklearn import metrics
 mult_rsquare = metrics.r2_score(r.Y_test, r.Y_test_pred)
 ```
 
-Multiple R² = `r percent(py$mult_rsquare, accuracy = 0.1)`
+```{r mult_rsq_r}
+#| cache: false
+mult_rsquare <- py$mult_rsquare
+```
+
+Mult. R² = `r percent(mult_rsquare, accuracy = 0.1)`
 
 ::: {.callout-tip icon="false" appearance="simple"}
 OK prediction!
