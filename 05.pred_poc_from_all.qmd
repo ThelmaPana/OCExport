@@ -8,7 +8,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: true
+  cache: false
   warning: false
 ---
 
@@ -16,6 +16,7 @@ execute:
 
 ```{r set_up}
 #| output: false
+#| cache: false
 source("utils.R")
 load("data/04.all_data.Rdata")
 output_filename <- "data/05.all_preds_poc_from_all.Rdata"
@@ -46,7 +47,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:par_sd) %>% colnames()
+exp_vars <- df %>% select(ta_ric:par) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -339,21 +340,17 @@ ggplot_imp(xgb_var_imp)
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_temp <- model_profile(explainer = xgb_explain, variables = c("temperature_mean"))
-ggplot_pdp(xgb_pdp_temp, temperature_mean) +
-  labs(x = "Temperature_mean", y = "Logged predicted POC")
+xgb_pdp_1 <- model_profile(explainer = xgb_explain, variables = c("z_eu"))
+ggplot_pdp(xgb_pdp_1, z_eu) +
+  labs(x = "z_eu", y = "Logged predicted POC")
 
-xgb_pdp_zeu <- model_profile(explainer = xgb_explain, variables = c("z_eu_mean"))
-ggplot_pdp(xgb_pdp_zeu, z_eu_mean) +
-  labs(x = "Z_eu_mean", y = "Logged predicted POC")
+xgb_pdp_2 <- model_profile(explainer = xgb_explain, variables = c("dic"))
+ggplot_pdp(xgb_pdp_2, dic) +
+  labs(x = "DIC", y = "Logged predicted POC")
 
-xgb_pdp_phos <- model_profile(explainer = xgb_explain, variables = c("phosphate_sd"))
-ggplot_pdp(xgb_pdp_phos, phosphate_sd) +
-  labs(x = "Phospate_sd", y = "Logged predicted POC")
-
-xgb_pdp_nit <- model_profile(explainer = xgb_explain, variables = c("nitrate_mean"))
-ggplot_pdp(xgb_pdp_nit, nitrate_mean) +
-  labs(x = "Nitrate_mean", y = "Logged predicted POC")
+xgb_pdp_3 <- model_profile(explainer = xgb_explain, variables = c("nitrate"))
+ggplot_pdp(xgb_pdp_3, nitrate) +
+  labs(x = "Nitrate", y = "Logged predicted POC")
 ```
 
 ## Conclusion

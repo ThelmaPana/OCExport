@@ -137,7 +137,7 @@ Or temperature.
 ```{r map_temp_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(df, "temperature_mean", type = "point") + scale_colour_cmocean(name = "thermal") # manually add scale to show NA values
+ggmap(df, "temperature", type = "point") + scale_colour_cmocean(name = "thermal") # manually add scale to show NA values
 ```
 
 In both cases, we notice that some POC and temperature data is not available at some UVP locations.

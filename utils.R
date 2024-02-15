@@ -80,18 +80,21 @@ n_min_uvp <- 10
 #--------------------------------------------------------------------------#
 
 ## Colour palettes for image.plot
-col_temp = cmocean("thermal")(100)
-col_sal  = cmocean("haline")(100)
-col_dens = cmocean("dense")(100)
-col_oxy  = brewer_colors(100, "Blues")
-col_nit  = cmocean("tempo")(100)
-col_phos = brewer_colors(100, "BuPu")
-col_sil  = brewer_colors(100, "PuBu")
-col_chl  = cmocean("algae")(100)
-col_irr  = cmocean("solar")(100)
-col_depth  = cmocean("deep")(100)
-col_poc  = cmocean("matter")(100)
-col_misc  = viridis_colors(100)
+col_temp  <- cmocean("thermal")(100)
+col_sal   <- cmocean("haline")(100)
+col_dens  <- cmocean("dense")(100)
+col_oxy   <- brewer_colors(100, "Blues")
+col_nit   <- cmocean("tempo")(100)
+col_phos  <- brewer_colors(100, "BuPu")
+col_sil   <- brewer_colors(100, "PuBu")
+col_chl   <- cmocean("algae")(100)
+col_irr   <- cmocean("solar")(100)
+col_depth <- cmocean("deep")(100)
+col_alk   <- brewer_colors(100, "PuRd")
+col_dic   <- cmocean("turbid")(100) %>% rev()
+col_poc   <- cmocean("matter")(100)
+col_misc  <- viridis_colors(100)
+
 
 ## Colour palettes for ggplot
 div_pal <- scale_colour_gradient2(low = "#4575b4", mid = "#ffffbf", high = "#d73027") # diverging palette centered at 0
@@ -179,6 +182,8 @@ ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = N
       "s_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
       "p_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
       "n_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
+      "alkalinity",  scale_fill_distiller(palette = "PuRd", na.value = NA, direction = 1), scale_colour_distiller(palette = "PuRd", na.value = NA, direction = 1),
+      "dic",         scale_fill_cmocean(name = "turbid", na.value = NA, direction = -1),   scale_colour_cmocean(name = "turbid", na.value = NA, direction = -1),
       "poc",         scale_fill_cmocean(name = "matter", na.value = NA),                   scale_colour_cmocean(name = "matter", na.value = NA)
     )
 
