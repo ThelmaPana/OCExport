@@ -65,17 +65,22 @@ load("data/04.all_data.Rdata")
 ## Types of variables
 # Metadata
 meta_vars <- df %>% select(lon:datetime) %>% colnames()
+
 # Response variables, here we use only best POC predictors
 #resp_vars <- df %>% select(ta_ric:m_eve) %>% colnames()
-resp_vars <- c("mo_ric", "ta_div", "ta_eve")
+resp_vars <- c("ta_ric_3", "mo_ric", "ta_eve_1")
+
 # Explanatory variables
 #exp_vars <- df %>% select(temperature_mean:par_sd) %>% colnames()
 exp_vars <- df %>% 
   select(
-    temperature_mean,
-    silicate_mean,
-    z_eu_mean,
-    oxygen_mean
+    temperature,
+    phosphate,
+    silicate,
+    alkalinity,
+    dic,
+    npp,
+    oxygen
     ) %>% 
   colnames()
 
@@ -329,3 +334,4 @@ all_preds <- bind_rows(train, test)
 # Save
 save(all_preds, file = output_filename)
 ```
+

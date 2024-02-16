@@ -75,6 +75,9 @@ max_depth_uvp <- 1000
 # Minimum number of objects in a UVP profile to consider it
 n_min_uvp <- 10
 
+# Number of best predictors to plot partial dependence plots for
+n_pdp <- 3
+
 
 
 ## Colour palettes ----
@@ -333,6 +336,13 @@ ggplot_imp <- function(...) {
 
 ## Plot partial dependence plot ----
 #--------------------------------------------------------------------------#
+# Generate plot from explainer and variable
+plot_pdp <- function(explainer, variable){
+  xgb_pdp_1 <- model_profile(explainer = xgb_explain, variables = variable)
+  ggplot_pdp(xgb_pdp_1, variable) + labs(x = variable, y = "Logged predicted POC")
+}
+
+# Plot pdp from model profile
 ggplot_pdp <- function(obj, x) {
 
   p <-

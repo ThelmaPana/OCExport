@@ -381,6 +381,8 @@ This is better, we will clean inland data below.
 
 ## Various climatologies
 
+### Misc
+
 Easy one: read the `.mat` file, reshape `lon` vs `lat` and reverse `lat`. The grid is already 1°×1°×12 months.
 
 ::: {.callout-warning icon="false"}

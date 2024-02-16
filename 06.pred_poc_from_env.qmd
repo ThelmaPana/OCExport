@@ -8,7 +8,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: false
+  cache: true
   warning: false
 ---
 
@@ -54,7 +54,7 @@ exp_vars <- df %>%
     silicate,
     alkalinity,
     dic,
-    z_eu,
+    npp,
     oxygen
     ) %>% 
   colnames()
@@ -350,22 +350,29 @@ xgb_explain <-
 ```{r var_imp}
 xgb_var_imp <- model_parts(xgb_explain)
 ggplot_imp(xgb_var_imp)
+
+# Extract most important variables
+vars_pdp <- xgb_var_imp %>% 
+  as_tibble() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  filter(variable %in% exp_vars) %>% 
+  group_by(variable) %>% 
+  slice_head(n = 1) %>% 
+  ungroup() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  slice_head(n = n_pdp) %>% 
+  pull(variable)
 ```
 
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_1 <- model_profile(explainer = xgb_explain, variables = c("z_eu"))
-ggplot_pdp(xgb_pdp_1, z_eu) +
-  labs(x = "z_eu", y = "Logged predicted POC")
-
-xgb_pdp_2 <- model_profile(explainer = xgb_explain, variables = c("dic"))
-ggplot_pdp(xgb_pdp_2, dic) +
-  labs(x = "DIC", y = "Logged predicted POC")
-
-xgb_pdp_3 <- model_profile(explainer = xgb_explain, variables = c("phosphate"))
-ggplot_pdp(xgb_pdp_3, phosphate) +
-  labs(x = "Phosphate", y = "Logged predicted POC")
+plots <- list()
+for (i in 1:n_pdp){
+  var <- vars_pdp[i]
+  plots[[i]] <- plot_pdp(xgb_explain, var)
+}
+plots
 ```
 
 ## Conclusion

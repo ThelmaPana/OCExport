@@ -9,7 +9,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: false
+  cache: true
   warning: false
 ---
 
@@ -102,15 +102,75 @@ We have `r nrow(o)` objects belonging to `r nrow(profiles)` profiles.
 
 ## Taxonomic diversity
 
-Compute taxonomic diversity indices:
+Tabula package for diversity indices: <https://cran.r-project.org/web/packages/tabula/vignettes/diversity.html>
 
--   Taxonomic richness
+Species richness
 
--   Shannon Diversity
+-   number of species = Richness
 
--   Pielou Evenness
+-   Margalef’s
+
+-   Menhinick’s
+
+Diversity / evenness indices
+
+-   Shannon
+
+-   Brillouin
+
+-   Simpson
+
+```{r tabula indices}
+# Generate a contingency table as a matrix to compute indices
+cont <- o %>%
+  count(profile_id, taxon) %>%
+  pivot_wider(names_from = "taxon", values_from = "n", values_fill = 0) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "profile_id") %>%
+  as.matrix()
+
+# test for profile id 100
+# 65 objects
+# 7 taxa
+# (7-1)/log(65) # Margalef
+# 7/sqrt(65) # Menhinick
+# all godd
+
+# Compute diversity metrics
+ta_div_prof <- tibble(
+  profile_id = rownames(cont),
+  # Richess
+  ta_ric_1 = specnumber(cont), # species count
+  ta_ric_2 = (specnumber(cont) - 1)/log(rowSums(cont)), # Margalef
+  ta_ric_3 = specnumber(cont)/sqrt(rowSums(cont)), # Menhinick
+  # Heterogeneity/evenness
+  ta_div_1 = heterogeneity(cont, method = "shannon"),
+  ta_eve_1 = evenness(cont, method = "shannon"),
+  ta_div_2 = heterogeneity(cont, method = "brillouin"),
+  ta_eve_2 = evenness(cont, method = "brillouin"),
+  ta_div_3 = heterogeneity(cont, method = "simpson"),
+  ta_eve_3 = evenness(cont, method = "simpson"),
+  # Master predictor
+  ta_mast = specnumber(cont)/rowSums(cont)
+) %>%
+  left_join(profiles, by = join_by(profile_id)) %>%
+  select(profile_id, lon, lat, everything())
+
+# Quick PCA to see correlations
+ta_pca <- FactoMineR::PCA(ta_div_prof %>% select(-c(profile_id, lon, lat, datetime)), graph = FALSE)
+plot(ta_pca, choix = "var")
+
+# ta_eve_1 and ta_eve_2 are strongly correlated, ignore one
+ta_div_prof <- ta_div_prof %>% select(-ta_eve_2)
+
+# Store results with table of profiles
+profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat, datetime))
+```
 
 ```{r ta_div}
+#| echo: False
+#| eval: False
+# Old version
 # Generate a contingency table as a matrix to feed to vegan
 cont <- o %>%
   count(profile_id, taxon) %>%
@@ -141,19 +201,19 @@ Plot taxonomic diversity metrics.
 #| out-width: 100%
 ggmap(
   profiles, 
-  "ta_ric", 
+  "ta_ric_1", 
   type = "point"
   )
 
 ggmap(
   profiles, 
-  "ta_div", 
+  "ta_div_1", 
   type = "point"
   )
 
 ggmap(
   profiles, 
-  "ta_eve", 
+  "ta_eve_1", 
   type = "point"
   )
 ```
@@ -166,7 +226,11 @@ Based on:
 
 -   <https://github.com/jiho/ptb_morphodiv/tree/master>
 
+-   [Magneville et al. 2021](https://nsojournals.onlinelibrary.wiley.com/doi/full/10.1111/ecog.05904)
+
 -   [Beck et al. 2023](https://royalsocietypublishing.org/doi/full/10.1098/rspb.2023.2109)
+
+-   [mFD R package](https://cmlmagneville.github.io/mFD/index.html)
 
 ### Features
 
@@ -590,14 +654,6 @@ Computing these metrics require defining "morphs" (i.e. morphologically similar 
 
 Define morphs using kmeans, in parallel.
 
-[TODO: Number of clusters.]{style="color: red;"} This depends on:
-
--   number of objects to cluster
-
--   number of profiles
-
--   number of retained morphospace axes
-
 If we retain `n` morphospace axes, then we need at least `n+1` morphs to be present in each profile (to compute a convex hull in `n` dimensions, we need `n+1` points).
 
 ```{r def_morphs}
@@ -809,5 +865,6 @@ profiles <- profiles %>%
 ```
 
 ```{r save_final}
+#|cache: false
 save(profiles, file = "data/03.uvp_profiles.Rdata")
 ```

@@ -7,7 +7,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: false
+  cache: true
   warning: false
 ---
 
@@ -108,7 +108,7 @@ Let’s have a quick look at Shannon diversity on this new grid.
 ```{r map_ta_ric}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(profiles, "ta_ric", type = "point")
+ggmap(profiles, "ta_ric_1", type = "point")
 ```
 
 ## Assemble env, UVP and carbon data

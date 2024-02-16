@@ -20,12 +20,12 @@ execute:
 source("utils.R")
 
 # POC residuals from env
-load("data/ ")
+load("data/06.all_preds_poc_from_env.Rdata")
 poc_res <- all_preds %>% select(lon, lat, datetime, resid_poc = residuals)
 
 # plankton residuals from env
 load("data/10.all_preds_plankton_best_from_env.Rdata")
-plankton_res <- plankton_res %>% select(lon, lat, datetime, contains("resid"))
+plankton_res <- all_preds %>% select(lon, lat, datetime, contains("resid"))
 
 # store together
 df <- left_join(poc_res, plankton_res, by = join_by(lon, lat, datetime))
@@ -51,7 +51,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(resid_mo_ric, resid_ta_div, resid_ta_eve) %>% colnames()
+exp_vars <- df %>% select(-resid_poc) %>%  select(contains("resid")) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```

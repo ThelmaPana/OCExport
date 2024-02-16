@@ -46,8 +46,9 @@ This is much better. We’ll then try to predict `log(poc)`.
 Select explanatory variables.
 
 ```{r sel_var}
+#df <- df %>% select(-ta_ric_2)
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:mo_spe) %>% colnames()
+exp_vars <- df %>% select(contains(c("ta", "mo"))) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -333,38 +334,41 @@ xgb_explain <-
 ```{r var_imp}
 xgb_var_imp <- model_parts(xgb_explain)
 ggplot_imp(xgb_var_imp)
+
+# Extract most important variables
+vars_pdp <- xgb_var_imp %>% 
+  as_tibble() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  filter(variable %in% exp_vars) %>% 
+  group_by(variable) %>% 
+  slice_head(n = 1) %>% 
+  ungroup() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  slice_head(n = n_pdp) %>% 
+  pull(variable)
 ```
 
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_ta_div <- model_profile(explainer = xgb_explain, variables = c("ta_div"))
-ggplot_pdp(xgb_pdp_ta_div, ta_div) +
-  labs(x = "Taxonomic Diversity", y = "Logged predicted POC")
-
-xgb_pdp_ta_eve <- model_profile(explainer = xgb_explain, variables = c("ta_eve"))
-ggplot_pdp(xgb_pdp_ta_eve, ta_eve) +
-  labs(x = "Taxonomic Eveness", y = "Logged predicted POC")
-
-xgb_pdp_mo_ric <- model_profile(explainer = xgb_explain, variables = c("mo_ric"))
-ggplot_pdp(xgb_pdp_mo_ric, mo_ric) +
-  labs(x = "Morphological Richness", y = "Logged predicted POC")
+plots <- list()
+for (i in 1:n_pdp){
+  var <- vars_pdp[i]
+  plots[[i]] <- plot_pdp(xgb_explain, var)
+}
+plots
 ```
 
 ## Conclusion
 
-Four plankton variables dominate to explain POC values:
-
--   taxonomic diversity
-
--   taxonomic evenness
-
--   morphological evenness
-
--   morphological divergence
+Plankton variables can be used to predict POC values.
 
 Future works:
 
 -   predict POC values using only these variables
 
 -   reduce dimensionality of plankton data using a PCA
+
+::: {.callout-note icon="false"}
+Taxonomic diversity computed as `S/N` was a very strong predictor.
+:::

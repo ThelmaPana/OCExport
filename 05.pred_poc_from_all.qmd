@@ -8,7 +8,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: false
+  cache: true
   warning: false
 ---
 
@@ -47,7 +47,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:par) %>% colnames()
+exp_vars <- df %>% select(ta_ric_1:par) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -333,24 +333,40 @@ xgb_explain <-
 ### Variable importance
 
 ```{r var_imp}
+#| fig-column: body-outset
+#| out-width: 100%
+#| fig.height: 7
 xgb_var_imp <- model_parts(xgb_explain)
 ggplot_imp(xgb_var_imp)
 ```
 
+Extract the `r n_pdp` best predictors.
+
+```{r best_vars}
+# Extract most important variables
+vars_pdp <- xgb_var_imp %>% 
+  as_tibble() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  filter(variable %in% exp_vars) %>% 
+  group_by(variable) %>% 
+  slice_head(n = 1) %>% 
+  ungroup() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  slice_head(n = n_pdp) %>% 
+  pull(variable)
+```
+
 ### Partial dependence plots
 
+And plot PDP for these variables.
+
 ```{r pdp}
-xgb_pdp_1 <- model_profile(explainer = xgb_explain, variables = c("z_eu"))
-ggplot_pdp(xgb_pdp_1, z_eu) +
-  labs(x = "z_eu", y = "Logged predicted POC")
-
-xgb_pdp_2 <- model_profile(explainer = xgb_explain, variables = c("dic"))
-ggplot_pdp(xgb_pdp_2, dic) +
-  labs(x = "DIC", y = "Logged predicted POC")
-
-xgb_pdp_3 <- model_profile(explainer = xgb_explain, variables = c("nitrate"))
-ggplot_pdp(xgb_pdp_3, nitrate) +
-  labs(x = "Nitrate", y = "Logged predicted POC")
+plots <- list()
+for (i in 1:n_pdp){
+  var <- vars_pdp[i]
+  plots[[i]] <- plot_pdp(xgb_explain, var)
+}
+plots
 ```
 
 ## Conclusion

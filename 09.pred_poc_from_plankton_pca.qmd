@@ -8,7 +8,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: false
+  cache: true
   warning: false
 ---
 
@@ -47,7 +47,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric:mo_spe) %>% colnames()
+exp_vars <- df %>% select(contains(c("ta", "mo"))) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -127,7 +127,7 @@ We will use projections of profiles in the first plane of the PCA as predictors.
 df <- inds
 
 # Define new set of exp variables
-exp_vars <- df %>% select(dim1, dim2, dim3) %>% colnames()
+exp_vars <- df %>% select(dim1:dim5) %>% colnames()
 ```
 
 Let’s take 80% of the data to fit the model, and keep 20% to test the model at the very end. We stratify our split by `poc_log`, the response value, so that both training and testing sets are representative of the whole range of values.
@@ -345,22 +345,29 @@ xgb_explain <-
 ```{r var_imp}
 xgb_var_imp <- model_parts(xgb_explain)
 ggplot_imp(xgb_var_imp)
+
+# Extract most important variables
+vars_pdp <- xgb_var_imp %>% 
+  as_tibble() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  filter(variable %in% exp_vars) %>% 
+  group_by(variable) %>% 
+  slice_head(n = 1) %>% 
+  ungroup() %>% 
+  arrange(desc(dropout_loss)) %>% 
+  slice_head(n = n_pdp) %>% 
+  pull(variable)
 ```
 
 ### Partial dependence plots
 
 ```{r pdp}
-xgb_pdp_dim1 <- model_profile(explainer = xgb_explain, variables = c("dim1"))
-ggplot_pdp(xgb_pdp_dim1, dim1) +
-  labs(x = "Dim 1", y = "Logged predicted POC")
-
-xgb_pdp_dim2 <- model_profile(explainer = xgb_explain, variables = c("dim2"))
-ggplot_pdp(xgb_pdp_dim2, dim2) +
-  labs(x = "Dim 2", y = "Logged predicted POC")
-
-xgb_pdp_dim3 <- model_profile(explainer = xgb_explain, variables = c("dim3"))
-ggplot_pdp(xgb_pdp_dim3, dim3) +
-  labs(x = "Dim 2", y = "Logged predicted POC")
+plots <- list()
+for (i in 1:n_pdp){
+  var <- vars_pdp[i]
+  plots[[i]] <- plot_pdp(xgb_explain, var)
+}
+plots
 ```
 
 ## Conclusion
