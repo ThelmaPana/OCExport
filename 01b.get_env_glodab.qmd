@@ -7,7 +7,7 @@ format:
     embed-resources: true
 editor: visual
 execute:
-  cache: true
+  cache: false
   warning: false
 ---
 
@@ -17,7 +17,7 @@ execute:
 source("utils.R")
 ```
 
-## Read
+## GLODAP
 
 Read one file to get dimensions.
 
@@ -342,7 +342,7 @@ env <- mclapply(names(glodap), function(var) {
 names(env) <- names(glodap)
 ```
 
-## MLD data
+## MLD Argo Mixed Layers
 
 Let’s try data from Argo Mixed Layers: <http://mixedlayer.ucsd.edu/>.
 
@@ -379,28 +379,41 @@ image.plot(mld_argo, col = col_depth)
 
 This is better, we will clean inland data below.
 
-## Euphotic depth data
+## Various climatologies
 
 Easy one: read the `.mat` file, reshape `lon` vs `lat` and reverse `lat`. The grid is already 1°×1°×12 months.
 
-[TODO: check grid definition.]{style="color: red;"}
+::: {.callout-warning icon="false"}
+Check grid definition
+:::
 
-```{r z_eu}
-## Euphotic zone
-z_eu <- readMat("data/raw/clim4cael.mat")$z.eu
-# Swap lon and lat dimensions
-z_eu <- aperm(z_eu, c(2,1,3))
-# Reorder lat
-z_eu <- z_eu[, ncol(z_eu):1,]
+```{r clims_cael}
+npp <- read_clim("data/raw/clim4cael.mat", "cafes")
+image(npp, col = col_npp, main = "NPP (cafe)")
 
-# Compute yearly from monthly
-z_eu <- apply(z_eu, c(1,2), mean, na.rm = TRUE)
+z_eu <- read_clim("data/raw/clim4cael.mat", "z.eu")
+image(z_eu, col = col_depth, main = "Euphotic depth")
 
-# Plot for January
-image.plot(z_eu, col = col_depth, main = "Euphotic depth")
+bbp <- read_clim("data/raw/clim4cael.mat", "bbp")
+image(bbp, col = col_bbp, main = "BBP")
+
+fmicro <- read_clim("data/raw/clim4cael.mat", "fmicro")
+image(fmicro, col = col_fmicro, main = "Fmicro")
+
+log_chl <- read_clim("data/raw/clim4cael.mat", "logChl")
+image(log_chl, col = col_chl, main = "log(Chl)")
+
+pic <- read_clim("data/raw/picpoc.mat", "pic")
+image(pic, col = col_pic, main = "PIC")
+
+#poc <- read_clim("data/raw/picpoc.mat", "poc")
+#image(poc, col = col_poc, main = "POC")
+
+psd <- read_clim("data/raw/PSD_slope.mat", "Xi")
+image(psd, col = col_psd, main = "Phyto PSD slope")
 ```
 
-## Irradiance data
+### Irradiance data
 
 Climatology data in 12 netcdf files. Raw resolution is very high and needs to be downgraded to a 1°×1° grid.
 
@@ -483,17 +496,30 @@ env$n_cline <- n_cline
 env$p_cline <- p_cline
 env$s_cline <- s_cline
 
-# Zeu
-env$z_eu <- z_eu
+# Other climatologies
+env$z_eu    <- z_eu
+env$npp     <- npp
+env$bbp    <- bbp
+env$fmicro  <- fmicro
+env$log_chl <- log_chl
+env$pic     <- pic
+env$psd     <- psd
+
 
 # Clean dimnames
-dimnames(env$pyc) <- NULL
-dimnames(env$mld) <- NULL
+dimnames(env$pyc)      <- NULL
+dimnames(env$mld)      <- NULL
 dimnames(env$mld_argo) <- NULL
-dimnames(env$n_cline) <- NULL
-dimnames(env$p_cline) <- NULL
-dimnames(env$s_cline) <- NULL
-dimnames(env$z_eu) <- NULL
+dimnames(env$n_cline)  <- NULL
+dimnames(env$p_cline)  <- NULL
+dimnames(env$s_cline)  <- NULL
+dimnames(env$z_eu)     <- NULL
+dimnames(env$npp)      <- NULL
+dimnames(env$bbp)      <- NULL
+dimnames(env$fmicro)   <- NULL
+dimnames(env$log_chl)  <- NULL
+dimnames(env$pic)      <- NULL
+dimnames(env$psd)      <- NULL
 ```
 
 ## Convert to dataframe
@@ -562,7 +588,7 @@ Plot a few maps without land to check.
 ```{r maps_check}
 ggmap(df_env, "temperature", type = "raster", land = FALSE)
 ggmap(df_env, "par", type = "raster", land = FALSE)
-ggmap(df_env, "mld", type = "raster", land = FALSE)
+ggmap(df_env, "pyc", type = "raster", land = FALSE)
 ggmap(df_env, "mld_argo", type = "raster", land = FALSE)
 ```
 
@@ -579,7 +605,7 @@ save(env, file = "data/01.all_env.Rdata")
 
 ```{r plot_all}
 # Names of env variables
-var_names <- env %>% select(-c(lon, lat)) %>% colnames()
+var_names <- df_env %>% select(-c(lon, lat)) %>% colnames()
 
 plot_list <- list()
 for (i in 1:length(var_names)){plot_list[[i]] <- ggmap(env, var_names[i], type = "raster")}

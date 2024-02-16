@@ -80,20 +80,26 @@ n_min_uvp <- 10
 #--------------------------------------------------------------------------#
 
 ## Colour palettes for image.plot
-col_temp  <- cmocean("thermal")(100)
-col_sal   <- cmocean("haline")(100)
-col_dens  <- cmocean("dense")(100)
-col_oxy   <- brewer_colors(100, "Blues")
-col_nit   <- cmocean("tempo")(100)
-col_phos  <- brewer_colors(100, "BuPu")
-col_sil   <- brewer_colors(100, "PuBu")
-col_chl   <- cmocean("algae")(100)
-col_irr   <- cmocean("solar")(100)
-col_depth <- cmocean("deep")(100)
-col_alk   <- brewer_colors(100, "PuRd")
-col_dic   <- cmocean("turbid")(100) %>% rev()
-col_poc   <- cmocean("matter")(100)
-col_misc  <- viridis_colors(100)
+col_temp   <- cmocean("thermal")(100)
+col_sal    <- cmocean("haline")(100)
+col_dens   <- cmocean("dense")(100)
+col_oxy    <- brewer_colors(100, "Blues")
+col_nit    <- cmocean("tempo")(100)
+col_phos   <- brewer_colors(100, "BuPu")
+col_sil    <- brewer_colors(100, "PuBu")
+col_chl    <- cmocean("algae")(100)
+col_irr    <- cmocean("solar")(100)
+col_depth  <- cmocean("deep")(100)
+col_alk    <- brewer_colors(100, "RdPu")
+col_bbp    <- cmocean("turbid")(100)
+col_npp    <- brewer_colors(100, "YlGn")
+col_psd    <- brewer_colors(100, "Greens")
+col_fmicro <- brewer_colors(100, "Greys")
+col_dic    <- brewer_colors(100, "YlOrBr")
+col_pic    <- brewer_colors(100, "OrRd")
+col_poc    <- cmocean("matter")(100)
+col_misc   <- viridis_colors(100)
+
 
 
 ## Colour palettes for ggplot
@@ -123,6 +129,38 @@ percent_na <- function(x) {
   return(res)
 }
 
+
+## Read mat files from Cael ----
+#--------------------------------------------------------------------------#
+#' Read mat file and extract variable of interest from Cael climatology
+#'
+#' @param file path to .mat file
+#' @param var name of variable to extract
+#' @param yearly whether to compute yearly average, if `FALSE` monthly data is returned
+#'
+#' @return an array
+#'
+#' @examples read_clim(file = "data/raw/clim4cael.mat", var = "cafes")
+read_clim <- function(file, var, yearly = TRUE){
+  # Read file
+  clim <- readMat(file)
+
+  # Extract variable of interest
+  data <- clim[[var]]
+
+  # Swap lon and lat dimensions
+  data <- aperm(data, c(2,1,3))
+  # Reorder lat
+  data <- data[, ncol(data):1,]
+
+  # Compute yearly from monthly
+  if (yearly){
+    data <- apply(data, c(1,2), mean, na.rm = TRUE)
+  }
+  return(data)
+}
+
+
 ## Plot a nice ggplot map ----
 #--------------------------------------------------------------------------#
 #' Plot a map, whether raster or points
@@ -139,7 +177,6 @@ percent_na <- function(x) {
 #' @param palette a filling palette, will be generated if none is
 #'
 #' @return a ggplot object
-#' @export
 #'
 #' @examples ggmap(df, var = "temperature", type = "raster")
 ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = NULL) {
@@ -166,25 +203,30 @@ ggmap <- function(df, var, type = c("raster", "point"), land = TRUE, palette = N
     # List of palettes for common variables
     pals <- tribble(
       ~vars, ~raster, ~point,
-      "temperature", scale_fill_cmocean(name = "thermal", na.value = NA),                  scale_colour_cmocean(name = "thermal", na.value = NA),
-      "salinity",    scale_fill_cmocean(name = "haline", na.value = NA),                   scale_colour_cmocean(name = "haline", na.value = NA),
-      "density",     scale_fill_cmocean(name = "dense", na.value = NA),                    scale_colour_cmocean(name = "dense", na.value = NA),
-      "oxygen",      scale_fill_distiller(palette = "Blues", na.value = NA),               scale_colour_distiller(palette = "Blues", na.value = NA),
-      "nitrate",     scale_fill_cmocean(name = "tempo", na.value = NA),                    scale_colour_cmocean(name = "tempo", na.value = NA),
-      "phosphate",   scale_fill_distiller(palette = "BuPu", na.value = NA, direction = 1), scale_colour_distiller(palette = "BuPu", na.value = NA, direction = 1),
-      "silicate",    scale_fill_distiller(palette = "PuBu", na.value = NA, direction = 1), scale_colour_distiller(palette = "PuBu", na.value = NA, direction = 1),
-      "chl",         scale_fill_cmocean(name = "algae", na.value = NA),                    scale_colour_cmocean(name = "algae", na.value = NA),
-      "par",         scale_fill_cmocean(name = "solar", na.value = NA),                    scale_colour_cmocean(name = "solar", na.value = NA),
-      "mld",         scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "mld_argo",    scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "pyc",         scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "z_eu",        scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "s_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "p_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "n_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                     scale_colour_cmocean(name = "deep", na.value = NA),
-      "alkalinity",  scale_fill_distiller(palette = "PuRd", na.value = NA, direction = 1), scale_colour_distiller(palette = "PuRd", na.value = NA, direction = 1),
-      "dic",         scale_fill_cmocean(name = "turbid", na.value = NA, direction = -1),   scale_colour_cmocean(name = "turbid", na.value = NA, direction = -1),
-      "poc",         scale_fill_cmocean(name = "matter", na.value = NA),                   scale_colour_cmocean(name = "matter", na.value = NA)
+      "temperature", scale_fill_cmocean(name = "thermal", na.value = NA),                    scale_colour_cmocean(name = "thermal", na.value = NA),
+      "salinity",    scale_fill_cmocean(name = "haline", na.value = NA),                     scale_colour_cmocean(name = "haline", na.value = NA),
+      "density",     scale_fill_cmocean(name = "dense", na.value = NA),                      scale_colour_cmocean(name = "dense", na.value = NA),
+      "oxygen",      scale_fill_distiller(palette = "Blues", na.value = NA),                 scale_colour_distiller(palette = "Blues", na.value = NA),
+      "nitrate",     scale_fill_cmocean(name = "tempo", na.value = NA),                      scale_colour_cmocean(name = "tempo", na.value = NA),
+      "phosphate",   scale_fill_distiller(palette = "BuPu", na.value = NA, direction = 1),   scale_colour_distiller(palette = "BuPu", na.value = NA, direction = 1),
+      "silicate",    scale_fill_distiller(palette = "PuBu", na.value = NA, direction = 1),   scale_colour_distiller(palette = "PuBu", na.value = NA, direction = 1),
+      "chl",         scale_fill_cmocean(name = "algae", na.value = NA),                      scale_colour_cmocean(name = "algae", na.value = NA),
+      "par",         scale_fill_cmocean(name = "solar", na.value = NA),                      scale_colour_cmocean(name = "solar", na.value = NA),
+      "mld",         scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "mld_argo",    scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "pyc",         scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "z_eu",        scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "s_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "p_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "n_cline",     scale_fill_cmocean(name = "deep", na.value = NA),                       scale_colour_cmocean(name = "deep", na.value = NA),
+      "alkalinity",  scale_fill_distiller(palette = "PuRd", na.value = NA, direction = 1),   scale_colour_distiller(palette = "PuRd", na.value = NA, direction = 1),
+      "bbp",         scale_fill_cmocean(name = "turbid", na.value = NA),                     scale_colour_cmocean(name = "turbid", na.value = NA),
+      "npp",         scale_fill_distiller(palette = "YlGn", na.value = NA, direction = 1),   scale_colour_distiller(palette = "YlGn", na.value = NA, direction = 1),
+      "psd",         scale_fill_distiller(palette = "Greens", na.value = NA, direction = 1), scale_colour_distiller(palette = "Greens", na.value = NA, direction = 1),
+      "fmicro",      scale_fill_distiller(palette = "Greys", na.value = NA, direction = 1),  scale_colour_distiller(palette = "Greys", na.value = NA, direction = 1),
+      "dic",         scale_fill_distiller(palette = "YlOrBr", na.value = NA, direction = 1), scale_colour_distiller(palette = "YlOrBr", na.value = NA, direction = 1),
+      "pic",         scale_fill_distiller(palette = "OrRd", na.value = NA, direction = 1),   scale_colour_distiller(palette = "OrRd", na.value = NA, direction = 1),
+      "poc",         scale_fill_cmocean(name = "matter", na.value = NA),                     scale_colour_cmocean(name = "matter", na.value = NA)
     )
 
     # Find the matching palette for variable to plot
