@@ -461,6 +461,20 @@
       ],
       "Hash": "10705eec964349f270504754d8fe8ef1"
     },
+    "arkhe": {
+      "Package": "arkhe",
+      "Version": "1.5.0",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "graphics",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "291029c80353c17dbec47f8a5efad7f8"
+    },
     "askpass": {
       "Package": "askpass",
       "Version": "1.2.0",
@@ -3291,6 +3305,22 @@
         "cpp11"
       ],
       "Hash": "15b594369e70b975ba9f064295983499"
+    },
+    "tabula": {
+      "Package": "tabula",
+      "Version": "3.0.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "arkhe",
+        "grDevices",
+        "graphics",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "5a2ca151a57278c02d991d3a094c25ff"
     },
     "testthat": {
       "Package": "testthat",
