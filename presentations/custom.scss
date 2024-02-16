@@ -1,0 +1,40 @@
+/*-- scss:defaults --*/
+$darkblue: #053660;
+$teal: #147C91;
+$darkgray: #333333;
+
+/*-- scss:rules --*/
+h1 {
+  font-color: $darkblue;
+}
+
+// Custom callout
+.goals {
+  margin: 1em 0;
+  border: 2px solid gray;
+  border-left: 10px solid rgb(240, 173, 78);
+  border-radius: 10px;
+}
+.goals-header {
+  margin-left: 0em;
+  padding-left:  60px;
+  padding-top:  5px;
+  padding-bottom: 0.1em;
+  color: black;
+  background-color: rgb(254, 248, 240);
+  border-top-right-radius: 10px;
+  font-size: 1em;
+  font-weight: bold;
+  background-size: 40px;
+  background-repeat: no-repeat;
+  background-position: 15px center
+}
+.goals-container {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
+  color: black;
+  background-color: white;
+  border-bottom-right-radius: 10px;
+}

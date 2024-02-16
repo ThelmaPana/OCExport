@@ -6,7 +6,7 @@ date: "03/05/2024"
 date-format: "DD/MM/YYYY"
 format: 
   revealjs:
-    theme: simple
+    theme: [simple, custom.scss]
     #footer: ""
     slide-number: c
     auto-stretch: false
@@ -49,6 +49,7 @@ digraph {
   "plankton*" -> "carbon export**"
 }
 ```
+
 
 ::: aside
 [\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
@@ -171,30 +172,28 @@ ggmap(profiles, var = "mo_ric", type = "point") + labs(colour = "Morpho\nRichnes
 Coming soon [(no plankton trophic database to my knowledge)]{style="color:gray;"}.
 
 ::: {.fragment .fade-in}
-- Trophic status of a chaetognath
+-   Trophic status of a chaetognath
 :::
 
 ::: {.fragment .fade-in}
-- Trophic status of a copepod?
+-   Trophic status of a copepod?
 
+    ::: {.fragment .fade-in}
+    ::: {.fragment .strike}
+    -   by size?
+    :::
+    :::
 
-  ::: {.fragment .fade-in}
-  ::: {.fragment .strike}
-  - by size?
-  :::
-  :::
-
-  ::: {.fragment .fade-in}
-  ::: {.fragment .strike}
-  - by region?
-  :::
-  :::
+    ::: {.fragment .fade-in}
+    ::: {.fragment .strike}
+    -   by region?
+    :::
+    :::
 :::
 
 ::: {.fragment .fade-in}
-Other dataset? [&uarr; taxonomic resolution but &darr; coverage.]{.fragment}
+Other dataset? [↑ taxonomic resolution but ↓ coverage.]{.fragment}
 :::
-
 
 ## Final dataset
 
@@ -253,27 +252,33 @@ all_preds %>%
 :::
 
 ::: {.fragment .fade-in}
-::: {.callout-caution appearance="simple"}
-What about spatial & temporal autocorrelation?
+::: goals
+::: goals-header
+:::
+
+::: goals-container
+Account for spatial & temporal autocorrelation
 :::
 :::
 :::
+:::
+
 
 # ML Model
 
 ## (Multivariate) boosted trees
 
-Response variable: 
+Response variable:
 
--  uni- or multivariate
+-   uni- or multivariate
 
--  ~normally distributed &rarr; `log(POC)`
+-   \~normally distributed → `log(POC)`
 
 Flexibility for predictors, handles interactions.
 
 Complex & non-linear relationships.
 
-Easy interpretation & implementation. 
+Easy interpretation & implementation.
 
 # Results
 
