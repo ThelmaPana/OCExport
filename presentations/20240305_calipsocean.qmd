@@ -50,7 +50,6 @@ digraph {
 }
 ```
 
-
 ::: aside
 [\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
 
@@ -95,17 +94,30 @@ ggmap(df = df_c, var = "poc", type = "raster")
 
 ## Environment
 
-As in [Wang et al., 2023](https://www.nature.com/articles/s41586-023-06772-4):
+As in [Wang et al., 2023](https://www.nature.com/articles/s41586-023-06772-4).
 
+Yearly climatologies from GLODAPv2.
+
+
+:::: {layout-ncol="2"}
+::: {}
 -   temperature
 
 -   silicate
 
+-   phosphates
+
 -   oxygen
+:::
 
--   [NPP]{style="color:gray;"} → Z~eu~
+::: {}
+-   NPP
 
--   [DIP, DIC, ALK, DOC]{style="color:gray;"}
+-   alkalinity
+
+-   [DIC, DOC]{style="color:gray;"}
+:::
+::::
 
 ## Plankton
 
@@ -167,33 +179,47 @@ ggmap(profiles, var = "mo_ric", type = "point") + labs(colour = "Morpho\nRichnes
 ```
 :::
 
-## Plankton - Trophic Status
 
-Coming soon [(no plankton trophic database to my knowledge)]{style="color:gray;"}.
+## Plankton - Trophic Status [(not yet)]{style="color:gray;"}
+
+### The problem(s)
+
+-   low taxonomic resolution of the UVP5 dataset
 
 ::: {.fragment .fade-in}
--   Trophic status of a chaetognath
+-   trophic status of a chaetognath
 :::
 
 ::: {.fragment .fade-in}
--   Trophic status of a copepod?
+-   trophic status of a copepod?
+:::
+
+## Plankton - Trophic Status [(not yet)]{style="color:gray;"}
+
+### The ideas
+
+::: {.fragment .fade-in}
+-   [by size?]{.fragment .strike}
+:::
+
+::: {.fragment .fade-in}
+-   by taxa-region matches?
 
     ::: {.fragment .fade-in}
-    ::: {.fragment .strike}
-    -   by size?
-    :::
-    :::
+    -   [Matthews and Ohman, 2023](https://onlinelibrary.wiley.com/doi/abs/10.1002/lno.12450)
 
-    ::: {.fragment .fade-in}
-    ::: {.fragment .strike}
-    -   by region?
-    :::
+    -   [Benedetti et al., 2023](https://onlinelibrary.wiley.com/doi/abs/10.1111/jbi.14512) (copepods only)
     :::
 :::
 
 ::: {.fragment .fade-in}
-Other dataset? [↑ taxonomic resolution but ↓ coverage.]{.fragment}
+-   other dataset? [↑ taxonomic resolution but ↓ coverage.]{.fragment}
 :::
+
+::: {.fragment .fade-in}
+-   plankton NASS to infer trophic structure?
+:::
+
 
 ## Final dataset
 
@@ -262,7 +288,6 @@ Account for spatial & temporal autocorrelation
 :::
 :::
 :::
-
 
 # ML Model
 
