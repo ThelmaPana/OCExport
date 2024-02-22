@@ -8,6 +8,7 @@ format:
   revealjs:
     theme: [simple, custom.scss]
     #footer: ""
+    logo: images/noc_small.png
     slide-number: c
     auto-stretch: false
     embed-resources: true
@@ -38,6 +39,7 @@ load(here("data/06.all_preds_poc_from_env.Rdata"))
 
 ## Environment, plankton and carbon
 
+::: {.absolute top=5}
 ```{dot diagram}
 digraph {
   rankdir="LR"
@@ -49,6 +51,12 @@ digraph {
   "plankton*" -> "carbon export**"
 }
 ```
+:::
+
+::: {.absolute top=400 .fragment}
+Can we improve the representation of zooplankton diversity in ESM?
+:::
+
 
 ::: aside
 [\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
@@ -81,7 +89,7 @@ digraph {
 ::: panel-tabset
 ## Ref
 
-[![](wang_2023.png){width="80%" fig-align="center"}](https://www.nature.com/articles/s41586-023-06772-4)
+[![](images/wang_2023.png){width="80%" fig-align="center"}](https://www.nature.com/articles/s41586-023-06772-4)
 
 ## Map
 
@@ -105,7 +113,7 @@ Yearly climatologies from GLODAPv2.
 
 -   silicate
 
--   phosphates
+-   phosphate
 
 -   oxygen
 :::
@@ -115,10 +123,14 @@ Yearly climatologies from GLODAPv2.
 
 -   alkalinity
 
--   [DIC, DOC]{style="color:gray;"}
+-   DIC
+
+-   [DOC]{style="color:gray;"}
 :::
 ::::
 
+    
+    
 ## Plankton
 
 UVP5 dataset: `r nrow(profiles)` profiles
@@ -138,16 +150,15 @@ ggplot(profiles, aes(x = lon, y = lat)) +
 
 -   taxonomic richness
 
--   taxonomic diversity (Shannon)
+-   taxonomic diversity
 
--   taxonomic evenness (Pielou)
+-   taxonomic evenness
 
--   [others to come…]{style="color:gray;"}
 
 ## Map
 
 ```{r map_ta_ric}
-ggmap(profiles, var = "ta_ric", type = "point") + labs(colour = "Species\nRichness")
+ggmap(profiles, var = "ta_ric_1", type = "point") + labs(colour = "Taxo.\nRichness")
 ```
 :::
 
@@ -283,7 +294,7 @@ all_preds %>%
 :::
 
 ::: goals-container
-Account for spatial & temporal autocorrelation
+TODO: Account for spatial & temporal autocorrelation
 :::
 :::
 :::
@@ -309,7 +320,7 @@ Easy interpretation & implementation.
 
 ## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
 
-`POC ~ temperature + silicate + Zeu + oxygen`
+[`POC ~ temperature + silicate + phosphate + oxygen + NPP + alkalinity + DIC`]{style="font-size: 50%;"}
 
 ::: columns
 ::: {.column width="70%"}
@@ -431,6 +442,7 @@ all_preds %>%
 ```{r poc_from_plankton_best_rsquare}
 rsquare <- all_preds %>% filter(split == "test") %>% 
   rsq(truth = poc_log, estimate = .pred_logged)
+rsquare_conc <- rsquare
 
 ```
 
@@ -447,14 +459,44 @@ OK prediction!
 [Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
 :::
 
+## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors
+
+`POC ~ ta_eve + ta_div + mo_ric`
+
+:::: {.columns}
+
+::: {.column width="50%"}
+```{r poc_from_plankton_best_var_imp_1}
+#| fig-height: 7
+plot_pdp(xgb_explain, vars_pdp[1]) + theme(text = element_text(size = 20))
+```
+:::
+
+::: {.column width="50%"}
+```{r poc_from_plankton_best_var_imp_2}
+#| fig-height: 7
+plot_pdp(xgb_explain, vars_pdp[2]) + theme(text = element_text(size = 20))
+```
+:::
+
+::::
+
+::: {.fragment .fade-in}
+POC response to plankton descriptors. 
+:::
+
+
+
+
 ## [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
 
-`ta_eve + ta_div + mo_ric ~ temperature + silicate + Zeu + oxygen`
-
+[`ta_eve + ta_div + mo_ric ~ temperature + silicate + phosphate + oxygen + NPP + alkalinity + DIC`]{style="font-size: 50%;"}
+    
+    
 ::: columns
 ::: {.column width="70%"}
 ::: {.fragment .fade-in}
-```{r}
+```{r plankton_from_env}
 load(here("data/10.all_preds_plankton_best_from_env.Rdata"))
 
 all_preds %>% 
@@ -480,7 +522,7 @@ all_preds %>%
 ```{r extract}
 Y_test <- all_preds %>% 
   filter(split == "test") %>% 
-  select(c("mo_ric", "ta_div", "ta_eve"))
+  select(c("ta_ric_3", "mo_ric", "ta_eve_1"))
 
 Y_test_pred <- all_preds %>% 
   filter(split == "test") %>% 
@@ -513,7 +555,7 @@ OK prediction!
 
 ## [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}} from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}}
 
-`POC_res ~ ta_eve_res + ta_div_res + mo_ric_res`
+[`POC_res ~ ta_eve_res + ta_div_res + mo_ric_res`]{style="font-size: 70%;"}
 
 ::: {.fragment .fade-in}
 ::: columns
@@ -557,6 +599,8 @@ Bad prediction!
 
 # Conclusion
 
+## Conclusion
+
 ::: {.fragment .fade-in}
 -   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
 :::
@@ -571,4 +615,16 @@ Bad prediction!
 
 ::: {.fragment .fade-in}
 -   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}\\{[env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}}? [→ **No**]{.fragment}
+:::
+
+## Conclusion
+
+-   We can predict `r percent(rsquare_conc$.estimate, accuracy = 0.1)` of POC variance using only 3 descriptors of the zooplankton community.
+
+::: {.fragment .fade-in}
+-   We know how POC reponds to variations in these plankton descriptors.
+:::
+
+::: {.fragment .fade-in}
+-   These plankton descriptors can be predicted from the environment. 
 :::
