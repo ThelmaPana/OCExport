@@ -306,9 +306,6 @@ train_preds <- augment(final_res, new_data = df_train) %>%
 
 # Join predictions for test and training sets
 all_preds <- bind_rows(test_preds, train_preds)
-
-# Save all predictions
-save(all_preds, file = output_filename)
 ```
 
 ## Model interpretation
@@ -372,3 +369,8 @@ Future works:
 ::: {.callout-note icon="false"}
 Taxonomic diversity computed as `S/N` was a very strong predictor.
 :::
+
+```{r save}
+# Save all predictions, explainer and most important variables
+save(all_preds, xgb_explain, vars_pdp, file = output_filename)
+```

@@ -42,11 +42,13 @@ random_state = 12
 #| warning: false
 #| cache: false
 source("utils.R")
+load("data/08.all_preds_poc_from_plankton_best.Rdata")
+rm(all_preds, xgb_explain)
 output_filename <- "data/10.all_preds_plankton_best_from_env.Rdata"
 ```
 
-::: callout-caution
--   Consider transforming input data for better results?
+::: {.callout-caution appearance="simple" icon="false"}
+Consider transforming input data for better results?
 :::
 
 ## Read data
@@ -68,7 +70,8 @@ meta_vars <- df %>% select(lon:datetime) %>% colnames()
 
 # Response variables, here we use only best POC predictors
 #resp_vars <- df %>% select(ta_ric:m_eve) %>% colnames()
-resp_vars <- c("ta_ric_3", "mo_ric", "ta_eve_1")
+#resp_vars <- c("ta_ric_3", "mo_ric", "ta_eve_1")
+resp_vars <- vars_pdp
 
 # Explanatory variables
 #exp_vars <- df %>% select(temperature_mean:par_sd) %>% colnames()
@@ -103,6 +106,27 @@ df %>%
   facet_wrap(~name, scales = "free")
 ```
 
+```{r plot_resp_trans}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 15
+#| fig-height: 4
+df %>% 
+  select(all_of(resp_vars)) %>% 
+  mutate(
+    mo_ric = sqrt(mo_ric),
+    ta_mast = sqrt(ta_mast),
+  ) %>% 
+  pivot_longer(everything()) %>% 
+  ggplot() +
+  geom_histogram(aes(x = value)) +
+  facet_wrap(~name, scales = "free")
+```
+
+::: {.callout-caution appearance="simple" icon="false"}
+TODO: try to predict `sqrt(mo_ric)` and `sqrt(ta_mast)`
+:::
+
 ## Split data
 
 Split data into training VS testing
@@ -124,9 +148,6 @@ X_test = r.df_test[r.exp_vars].to_numpy()
 # Response variables
 Y_train = r.df_train[r.resp_vars].to_numpy()
 Y_test = r.df_test[r.resp_vars].to_numpy()
-
-r.df_train[r.resp_vars]
-
 ```
 
 ## MBTR
@@ -261,6 +282,7 @@ print(f"Multiple R2 on test set : {metrics.r2_score(Y_test, Y_test_pred):.2f}")
 ```
 
 ```{r plot_pred_vs_truth}
+#| fig-column: screen-inset
 #| out-width: 100%
 #| fig-width: 16
 #| fig-height: 4
@@ -334,4 +356,3 @@ all_preds <- bind_rows(train, test)
 # Save
 save(all_preds, file = output_filename)
 ```
-

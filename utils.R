@@ -312,7 +312,7 @@ ggplot_imp <- function(...) {
 
   p <- full_vip %>%
     filter(variable != "_full_model_") %>%
-    mutate(variable = fct_reorder(variable, dropout_loss)) %>%
+    mutate(variable = forcats::fct_reorder(variable, dropout_loss)) %>%
     ggplot(aes(dropout_loss, variable))
   if(length(obj) > 1) {
     p <- p +
