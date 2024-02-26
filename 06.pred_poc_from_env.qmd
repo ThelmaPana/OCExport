@@ -366,6 +366,10 @@ vars_pdp <- xgb_var_imp %>%
 
 ### Partial dependence plots
 
+-   blue line: prediction mean across *cp* profiles
+
+-   grey ribbon: prediction sd across *cp* profiles
+
 ```{r pdp}
 plots <- list()
 for (i in 1:n_pdp){

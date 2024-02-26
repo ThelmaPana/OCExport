@@ -337,29 +337,37 @@ ggplot_imp <- function(...) {
 ## Plot partial dependence plot ----
 #--------------------------------------------------------------------------#
 # Generate plot from explainer and variable
-plot_pdp <- function(explainer, variable){
+plot_pdp <- function(explainer, variable, unlog = FALSE){
   xgb_pdp_1 <- model_profile(explainer = xgb_explain, variables = variable)
-  ggplot_pdp(xgb_pdp_1, variable) + labs(x = variable, y = "Logged predicted POC")
+  ggplot_pdp(xgb_pdp_1, variable, unlog = unlog) + labs(x = variable, y = "Logged predicted POC")
 }
 
 # Plot pdp from model profile
-ggplot_pdp <- function(obj, x) {
+ggplot_pdp <- function(obj, x, unlog = FALSE) {
 
-  p <-
-    as_tibble(obj$agr_profiles) %>%
-    mutate(`_label_` = stringr::str_remove(`_label_`, "^[^_]*_")) %>%
-    ggplot(aes(`_x_`, `_yhat_`)) +
-    geom_line(data = as_tibble(obj$cp_profiles),
-              aes(x = .data[[x]], group = `_ids_`),
-              linewidth = 0.5, alpha = 0.05, color = "gray50")
+  # Get cp profiles
+  df <- as_tibble(obj$cp_profiles)
 
-  num_colors <- n_distinct(obj$agr_profiles$`_label_`)
-
-  if (num_colors > 1) {
-    p <- p + geom_line(aes(color = `_label_`), linewidth = 1.2, alpha = 0.8)
-  } else {
-    p <- p + geom_line(color = "midnightblue", linewidth = 1.2, alpha = 0.8)
+  # Unlog predictions
+  if (unlog){
+    df <- df %>% mutate(`_yhat_` = exp(`_yhat_`))
   }
+
+  # Compute mean and sd across cp profiles for each x value
+  df <- df %>%
+    group_by(across(all_of(x))) %>%
+    summarise(
+      yhat_loc = mean(`_yhat_`),
+      yhat_spr = sd(`_yhat_`)
+    ) %>%
+    ungroup() %>%
+    setNames(c("x", "yhat_loc", "yhat_spr"))
+
+
+  # Plot
+  p <- ggplot(df) +
+    geom_ribbon(aes(x = x, ymin = yhat_loc - yhat_spr, ymax = yhat_loc + yhat_spr), fill = "gray80", alpha = 0.5) +
+    geom_path(aes(x = x, y = yhat_loc), color = "midnightblue", linewidth = 1.2)
 
   p
 }
