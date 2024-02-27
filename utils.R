@@ -9,6 +9,7 @@ suppressWarnings(library(reticulate))
 suppressWarnings(library(ncdf4))
 suppressWarnings(library(R.matlab))
 suppressWarnings(library(ecotaxarapi))
+suppressWarnings(library(readxl))
 
 # Processing
 suppressWarnings(library(glue))

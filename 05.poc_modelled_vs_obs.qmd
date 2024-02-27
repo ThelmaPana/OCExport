@@ -285,4 +285,3 @@ toto %>%
   pivot_longer(everything()) %>% 
   summary()
 ```
-
