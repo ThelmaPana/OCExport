@@ -122,8 +122,20 @@ coast <- read_csv(here("data/raw/gshhg_world_c.csv"), col_types = cols())
 ## Function to increment file numbers in batch ----
 #--------------------------------------------------------------------------#
 increment_files <- function(to_increment){
+  ## Scripts
   # List files with this number
   to_rename <- list.files(pattern = paste0(to_increment, ".*"))
+
+  # Compute new number and generate new file names
+  new_nb <- as.character(as.numeric(to_increment) + 1) %>% str_pad(width = 2, pad = "0")
+  renamed <- str_replace_all(to_rename, pattern = to_increment, replacement = new_nb)
+
+  # Rename files
+  file.rename(from = to_rename, to = renamed)
+
+  ## Data
+  # List files with this number
+  to_rename <- list.files(path = "data", pattern = paste0(to_increment, ".*"))
 
   # Compute new number and generate new file names
   new_nb <- as.character(as.numeric(to_increment) + 1) %>% str_pad(width = 2, pad = "0")
