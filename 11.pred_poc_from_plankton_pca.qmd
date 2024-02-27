@@ -1,6 +1,6 @@
 ---
 title: "Predict POC values from plankton"
-subtitle: "Train a XGBoost model to predict POC values from few variables of plankton diversity data."
+subtitle: "Train a XGBoost model to predict POC values from a set of PCA-selected variables of plankton diversity."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -19,10 +19,7 @@ execute:
 #| cache: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-load("data/07.all_preds_poc_from_plankton.Rdata")
-best_vars <- vars_pdp # best plankton predictors
-rm(all_preds, xgb_explain)
-output_filename <- "data/08.all_preds_poc_from_plankton_best.Rdata"
+output_filename <- "data/11.all_preds_poc_from_plankton_pca.Rdata"
 ```
 
 ## Data inspection
@@ -50,7 +47,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(all_of(best_vars)) %>% colnames()
+exp_vars <- df %>% select(contains(c("ta", "mo"))) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -84,6 +81,8 @@ eig %>%
   scale_y_continuous(expand = c(0, 0)) +
   labs(x = "PC", y = "Explained variance")
 ```
+
+Let’s keep first 3 PCs to predict POC values.
 
 Plot first plane.
 
@@ -120,6 +119,16 @@ ggmap(inds, "dim2", type = "point", palette = div_pal)
 ```
 
 ## Data split
+
+We will use projections of profiles in the first plane of the PCA as predictors.
+
+```{r pc_as_preds}
+# Replace original data by data with PC projections
+df <- inds
+
+# Define new set of exp variables
+exp_vars <- df %>% select(dim1:dim5) %>% colnames()
+```
 
 Let’s take 80% of the data to fit the model, and keep 20% to test the model at the very end. We stratify our split by `poc_log`, the response value, so that both training and testing sets are representative of the whole range of values.
 
@@ -308,6 +317,9 @@ train_preds <- augment(final_res, new_data = df_train) %>%
 
 # Join predictions for test and training sets
 all_preds <- bind_rows(test_preds, train_preds)
+
+# Save all predictions
+save(all_preds, file = "data/07.all_preds_poc_from_plankton_best.Rdata")
 ```
 
 ## Model interpretation
@@ -360,9 +372,4 @@ plots
 
 ## Conclusion
 
-Using only `r length(exp_vars)` variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.
-
-```{r save}
-# Save all predictions, explainer and most important variables
-save(all_preds, xgb_explain, vars_pdp, file = output_filename)
-```
+Using only the first 3 axes of a PCA fed with variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.

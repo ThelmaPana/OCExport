@@ -1,6 +1,6 @@
 ---
-title: "Predict POC values from plankton"
-subtitle: "Train a XGBoost model to predict POC values from a set of PCA-selected variables of plankton diversity."
+title: "Predict POC residuals from plankton residuals"
+subtitle: "Train a XGBoost model to predict POC residuals (from env) from plankton residuals (from env)."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -18,8 +18,19 @@ execute:
 #| output: false
 #| cache: false
 source("utils.R")
-load("data/04.all_data.Rdata")
-output_filename <- "data/09.all_preds_poc_from_plankton_pca.Rdata"
+
+# POC residuals from env
+load("data/08.all_preds_poc_from_env.Rdata")
+poc_res <- all_preds %>% select(lon, lat, datetime, resid_poc = residuals)
+
+# plankton residuals from env
+load("data/12.all_preds_plankton_best_from_env.Rdata")
+plankton_res <- all_preds %>% select(lon, lat, datetime, contains("resid"))
+
+# store together
+df <- left_join(poc_res, plankton_res, by = join_by(lon, lat, datetime))
+
+output_filename <- "data/13.all_preds_poc_res_from_plankton_res.Rdata"
 ```
 
 ## Data inspection
@@ -29,17 +40,10 @@ output_filename <- "data/09.all_preds_poc_from_plankton_pca.Rdata"
 Let’s have a look at our response variable: POC value. We do not need to inspect response variables as the model we are going to use are robust to non-normal distributions.
 
 ```{r poc_hist}
-df %>% ggplot() + geom_histogram(aes(x = poc), bins = 100)
+df %>% ggplot() + geom_histogram(aes(x = resid_poc), bins = 100)
 ```
 
-The distribution is not normal, this is problematic. Let’s try a log-transformation.
-
-```{r poc_log_hist}
-df <- df %>% mutate(poc_log = log(poc))
-df %>% ggplot() + geom_histogram(aes(x = poc_log), bins = 100)
-```
-
-This is much better. We’ll then try to predict `log(poc)`.
+Nice normal distribution.
 
 ### Explanatory variables
 
@@ -47,7 +51,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(contains(c("ta", "mo"))) %>% colnames()
+exp_vars <- df %>% select(-resid_poc) %>%  select(contains("resid")) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -56,8 +60,8 @@ Let’s run a quick PCA. This allows us to have at correlations within our datas
 
 ```{r pca_exp}
 # Need to remove lon and lat and to scale because units differ between variables
-df_pca <- df %>% select(poc, poc_log, all_of(exp_vars))
-pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, scale.unit = TRUE, graph = FALSE)
+df_pca <- df %>% select(resid_poc, all_of(exp_vars))
+pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1, scale.unit = TRUE, graph = FALSE)
 ```
 
 Plot eigenvalues.
@@ -81,8 +85,6 @@ eig %>%
   scale_y_continuous(expand = c(0, 0)) +
   labs(x = "PC", y = "Explained variance")
 ```
-
-Let’s keep first 3 PCs to predict POC values.
 
 Plot first plane.
 
@@ -120,21 +122,11 @@ ggmap(inds, "dim2", type = "point", palette = div_pal)
 
 ## Data split
 
-We will use projections of profiles in the first plane of the PCA as predictors.
-
-```{r pc_as_preds}
-# Replace original data by data with PC projections
-df <- inds
-
-# Define new set of exp variables
-exp_vars <- df %>% select(dim1:dim5) %>% colnames()
-```
-
 Let’s take 80% of the data to fit the model, and keep 20% to test the model at the very end. We stratify our split by `poc_log`, the response value, so that both training and testing sets are representative of the whole range of values.
 
 ```{r data_split}
 # Train VS test, stratified
-df_split <- initial_split(df, prop = 0.8, strata = poc_log)
+df_split <- initial_split(df, prop = 0.8, strata = resid_poc)
 df_train <- training(df_split)
 df_test <- testing(df_split)
 ```
@@ -143,7 +135,7 @@ To evaluate model performance during training, we’ll use cross-validation on t
 
 ```{r data_cv}
 # Cross-validation, 10 folds, stratified
-df_folds <- vfold_cv(df_train, v = 10, strata = poc_log)
+df_folds <- vfold_cv(df_train, v = 10, strata = resid_poc)
 ```
 
 ## Model definition
@@ -183,11 +175,10 @@ Let’s use a recipe to define the model formula and assign roles to variables. 
 ```{r def_recipe}
 # Generate formula from list of explanatory variables
 # NB: we also add metadata variables and untransformed "poc" for technical reasons but these will not be used to fit the model
-xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", meta_vars, exp_vars), collapse = " + "), sep = ""))
+xgb_form <- as.formula(paste("resid_poc ~ ", paste(c(meta_vars, exp_vars), collapse = " + "), sep = ""))
 
 xgb_rec <- recipe(xgb_form, data = df_train) %>%
-  update_role(lon, lat, datetime, new_role = "coords") %>% # These variables can be retained in the data but not included in the model
-  update_role(poc, new_role = "untransformed outcome")
+  update_role(lon, lat, datetime, new_role = "coords") # These variables can be retained in the data but not included in the model
 summary(xgb_rec)
 ```
 
@@ -261,9 +252,7 @@ Predict test data, and apply `exp` transformation as we predict the `log` of `po
 ```{r pred_test}
 test_preds <- augment(final_res, new_data = df_test) %>%
   mutate(split = "test", .before = lon) %>% # tag split
-  rename(.pred_logged = .pred) %>% # prediction is actually log of prediction
-  mutate(.pred = exp(.pred_logged)) %>% # apply exp to prediction
-  mutate(residuals = .pred_logged - poc_log) # compute residuals
+  rename(pred_resid_poc = .pred)
 ```
 
 ## Model evaluation
@@ -273,8 +262,8 @@ test_preds <- augment(final_res, new_data = df_test) %>%
 Let’s have a look at prediction metrics on the test set.
 
 ```{r eval_test}
-rmse(test_preds, truth = poc_log, estimate = .pred_logged)
-rsq(test_preds, truth = poc_log, estimate = .pred_logged)
+rmse(test_preds, truth = resid_poc, estimate = pred_resid_poc)
+rsq(test_preds, truth = resid_poc, estimate = pred_resid_poc)
 ```
 
 ### Prediction VS truth
@@ -284,25 +273,9 @@ Plot predictions VS truth, both in the log-transformed space and in the non log-
 ```{r pred_vs_truth}
 test_preds %>%
   ggplot() +
-  geom_point(aes(x = poc_log, y = .pred_logged)) +
-  geom_abline(slope = 1, color = "red") +
-  labs(title = "Pred VS truth in log-transformed space")
-
-test_preds %>%
-  ggplot() +
-  geom_point(aes(x = poc, y = .pred)) +
+  geom_point(aes(x = resid_poc, y = pred_resid_poc)) +
   geom_abline(slope = 1, color = "red") +
   labs(title = "Pred VS truth")
-```
-
-### Residuals
-
-Finally, let’s have a look at residuals.
-
-```{r residuals}
-ggplot(test_preds) +
-  geom_density(aes(x = residuals)) +
-  labs(x = "Residuals")
 ```
 
 ## All predictions
@@ -311,65 +284,17 @@ ggplot(test_preds) +
 # Predict training set
 train_preds <- augment(final_res, new_data = df_train) %>% 
   mutate(split = "train", .before = lon) %>% # tag split
-  rename(.pred_logged = .pred) %>% # prediction is actually log of prediction
-  mutate(.pred = exp(.pred_logged)) %>% # apply exp to prediction
-  mutate(residuals = .pred_logged - poc_log) # compute residuals
+  rename(pred_resid_poc = .pred)
 
 # Join predictions for test and training sets
 all_preds <- bind_rows(test_preds, train_preds)
 
 # Save all predictions
-save(all_preds, file = "data/07.all_preds_poc_from_plankton_best.Rdata")
+save(all_preds, file = output_filename)
 ```
 
-## Model interpretation
-
-Let’s feed our model to `explain_tidymodel`, but first we need to select predictors only.
-
-```{r mod_explainer}
-# Select only predictors
-vip_train <- xgb_rec %>% prep() %>% bake(new_data = NULL, all_predictors())
-
-
-# Explainer
-xgb_explain <-
-  explain_tidymodels(
-    model = extract_fit_parsnip(final_res),
-    data = vip_train,
-    y = df_train %>%  pull(poc_log)
-  )
-```
-
-### Variable importance
-
-```{r var_imp}
-xgb_var_imp <- model_parts(xgb_explain)
-ggplot_imp(xgb_var_imp)
-
-# Extract most important variables
-vars_pdp <- xgb_var_imp %>% 
-  as_tibble() %>% 
-  arrange(desc(dropout_loss)) %>% 
-  filter(variable %in% exp_vars) %>% 
-  group_by(variable) %>% 
-  slice_head(n = 1) %>% 
-  ungroup() %>% 
-  arrange(desc(dropout_loss)) %>% 
-  slice_head(n = n_pdp) %>% 
-  pull(variable)
-```
-
-### Partial dependence plots
-
-```{r pdp}
-plots <- list()
-for (i in 1:n_pdp){
-  var <- vars_pdp[i]
-  plots[[i]] <- plot_pdp(xgb_explain, var)
-}
-plots
-```
-
+::: {.callout-note icon="false"}
 ## Conclusion
 
-Using only the first 3 axes of a PCA fed with variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.
+POC residuals cannot be predicted from plankton residuals.
+:::

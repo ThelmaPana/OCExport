@@ -1,6 +1,6 @@
 ---
-title: "Predict POC values from plankton"
-subtitle: "Train a XGBoost model to predict POC values from plankton diversity data."
+title: "Predict POC values from both env and plankton"
+subtitle: "Train a XGBoost model to predict POC values from environmental data and plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -19,7 +19,7 @@ execute:
 #| cache: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-output_filename <- "data/07.all_preds_poc_from_plankton.Rdata"
+output_filename <- "data/07.all_preds_poc_from_all.Rdata"
 ```
 
 ## Data inspection
@@ -46,9 +46,8 @@ This is much better. We’ll then try to predict `log(poc)`.
 Select explanatory variables.
 
 ```{r sel_var}
-#df <- df %>% select(-ta_ric_2)
 # Explanatory variables
-exp_vars <- df %>% select(contains(c("ta", "mo"))) %>% colnames()
+exp_vars <- df %>% select(ta_ric_1:par) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -88,8 +87,14 @@ Plot first plane.
 ```{r pca_plot_var}
 #| fig-column: body-outset
 #| out-width: 100%
-plot(pca_all, choix="var", axes = c(1, 2))
+plot(pca_all, choix="var", axes = c(1, 2), cex = 0.7)
 ```
+
+The two first axes are:
+
+-   PC1: oxygen rich in positive values VS warm in negative values
+
+-   PC2: mixed waters in positive values VS stratified waters in negative values
 
 Extract coordinates in the PCA space.
 
@@ -147,7 +152,7 @@ Let’s define a XGBoost regression model, with tunable hyperparameters:
 
 -   `learn_rate`
 
-```{r def_mod}
+```{r def_model}
 # Define a xgboost model with hyperparameters to tune
 xgb_spec <- boost_tree(
   trees = tune(),
@@ -170,11 +175,7 @@ The model will be run on `r n_cores` cores in parallel.
 Let’s use a recipe to define the model formula and assign roles to variables. We want to predict `poc_log` from all other variables expect `lon`, `lat` and original `poc` values, yet it is convenient to keep these in the dataset.
 
 ```{r def_recipe}
-# Generate formula from list of explanatory variables
-# NB: we also add metadata variables and untransformed "poc" for technical reasons but these will not be used to fit the model
-xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", meta_vars, exp_vars), collapse = " + "), sep = ""))
-
-xgb_rec <- recipe(xgb_form, data = df_train) %>%
+xgb_rec <- recipe(poc_log ~ ., data = df_train) %>%
   update_role(lon, lat, datetime, new_role = "coords") %>% # These variables can be retained in the data but not included in the model
   update_role(poc, new_role = "untransformed outcome")
 summary(xgb_rec)
@@ -223,7 +224,7 @@ autoplot(xgb_res)
 
 Select the best set of hyperparameters based on `rmse` value.
 
-```{r sel_best}
+```{r find_best}
 show_best(xgb_res, metric = "rmse")
 best_xgb <- select_best(xgb_res, metric = "rmse")
 ```
@@ -306,6 +307,9 @@ train_preds <- augment(final_res, new_data = df_train) %>%
 
 # Join predictions for test and training sets
 all_preds <- bind_rows(test_preds, train_preds)
+
+# Save all predictions
+save(all_preds, file = output_filename)
 ```
 
 ## Model interpretation
@@ -329,9 +333,16 @@ xgb_explain <-
 ### Variable importance
 
 ```{r var_imp}
+#| fig-column: body-outset
+#| out-width: 100%
+#| fig.height: 7
 xgb_var_imp <- model_parts(xgb_explain)
 ggplot_imp(xgb_var_imp)
+```
 
+Extract the `r n_pdp` best predictors.
+
+```{r best_vars}
 # Extract most important variables
 vars_pdp <- xgb_var_imp %>% 
   as_tibble() %>% 
@@ -347,6 +358,8 @@ vars_pdp <- xgb_var_imp %>%
 
 ### Partial dependence plots
 
+And plot PDP for these variables.
+
 ```{r pdp}
 plots <- list()
 for (i in 1:n_pdp){
@@ -358,19 +371,4 @@ plots
 
 ## Conclusion
 
-Plankton variables can be used to predict POC values.
-
-Future works:
-
--   predict POC values using only these variables
-
--   reduce dimensionality of plankton data using a PCA
-
-::: {.callout-note icon="false"}
-Taxonomic diversity computed as `S/N` was a very strong predictor.
-:::
-
-```{r save}
-# Save all predictions, explainer and most important variables
-save(all_preds, xgb_explain, vars_pdp, file = output_filename)
-```
+Plankton diversity seems to have low effect on `poc` values compared to environment, but still not negligible.

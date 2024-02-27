@@ -1,6 +1,6 @@
 ---
-title: "Predict POC values from env"
-subtitle: "Train a XGBoost model to predict POC values from environmental data used in Wang et al., 2023."
+title: "Predict POC values from plankton"
+subtitle: "Train a XGBoost model to predict POC values from few variables of plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -19,7 +19,10 @@ execute:
 #| cache: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-output_filename <- "data/06.all_preds_poc_from_env.Rdata"
+load("data/07.all_preds_poc_from_plankton.Rdata")
+best_vars <- vars_pdp # best plankton predictors
+rm(all_preds, xgb_explain)
+output_filename <- "data/10.all_preds_poc_from_plankton_best.Rdata"
 ```
 
 ## Data inspection
@@ -47,18 +50,7 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% 
-  select(
-    temperature,
-    phosphate,
-    silicate,
-    alkalinity,
-    dic,
-    npp,
-    oxygen
-    ) %>% 
-  colnames()
-
+exp_vars <- df %>% select(all_of(best_vars)) %>% colnames()
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -98,14 +90,8 @@ Plot first plane.
 ```{r pca_plot_var}
 #| fig-column: body-outset
 #| out-width: 100%
-plot(pca_all, choix="var", axes = c(1, 2), cex = 0.7)
+plot(pca_all, choix="var", axes = c(1, 2))
 ```
-
-The two first axes are:
-
--   PC1: oxygen rich in positive values VS warm in negative values
-
--   PC2: mixed waters in positive values VS stratified waters in negative values
 
 Extract coordinates in the PCA space.
 
@@ -163,7 +149,7 @@ Let’s define a XGBoost regression model, with tunable hyperparameters:
 
 -   `learn_rate`
 
-```{r def_model}
+```{r def_mod}
 # Define a xgboost model with hyperparameters to tune
 xgb_spec <- boost_tree(
   trees = tune(),
@@ -239,7 +225,7 @@ autoplot(xgb_res)
 
 Select the best set of hyperparameters based on `rmse` value.
 
-```{r find_best}
+```{r sel_best}
 show_best(xgb_res, metric = "rmse")
 best_xgb <- select_best(xgb_res, metric = "rmse")
 ```
@@ -322,9 +308,6 @@ train_preds <- augment(final_res, new_data = df_train) %>%
 
 # Join predictions for test and training sets
 all_preds <- bind_rows(test_preds, train_preds)
-
-# Save all predictions
-save(all_preds, file = output_filename)
 ```
 
 ## Model interpretation
@@ -366,10 +349,6 @@ vars_pdp <- xgb_var_imp %>%
 
 ### Partial dependence plots
 
--   blue line: prediction mean across *cp* profiles
-
--   grey ribbon: prediction sd across *cp* profiles
-
 ```{r pdp}
 plots <- list()
 for (i in 1:n_pdp){
@@ -381,4 +360,9 @@ plots
 
 ## Conclusion
 
-POC can be predicted from a few env variables.
+Using only `r length(exp_vars)` variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.
+
+```{r save}
+# Save all predictions, explainer and most important variables
+save(all_preds, xgb_explain, vars_pdp, file = output_filename)
+```

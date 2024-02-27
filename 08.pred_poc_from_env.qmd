@@ -1,6 +1,6 @@
 ---
-title: "Predict POC values from both env and plankton"
-subtitle: "Train a XGBoost model to predict POC values from environmental data and plankton diversity data."
+title: "Predict POC values from env"
+subtitle: "Train a XGBoost model to predict POC values from environmental data used in Wang et al., 2023."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -19,7 +19,7 @@ execute:
 #| cache: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-output_filename <- "data/05.all_preds_poc_from_all.Rdata"
+output_filename <- "data/08.all_preds_poc_from_env.Rdata"
 ```
 
 ## Data inspection
@@ -47,7 +47,18 @@ Select explanatory variables.
 
 ```{r sel_var}
 # Explanatory variables
-exp_vars <- df %>% select(ta_ric_1:par) %>% colnames()
+exp_vars <- df %>% 
+  select(
+    temperature,
+    phosphate,
+    silicate,
+    alkalinity,
+    dic,
+    npp,
+    oxygen
+    ) %>% 
+  colnames()
+
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
@@ -175,7 +186,11 @@ The model will be run on `r n_cores` cores in parallel.
 Let’s use a recipe to define the model formula and assign roles to variables. We want to predict `poc_log` from all other variables expect `lon`, `lat` and original `poc` values, yet it is convenient to keep these in the dataset.
 
 ```{r def_recipe}
-xgb_rec <- recipe(poc_log ~ ., data = df_train) %>%
+# Generate formula from list of explanatory variables
+# NB: we also add metadata variables and untransformed "poc" for technical reasons but these will not be used to fit the model
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", meta_vars, exp_vars), collapse = " + "), sep = ""))
+
+xgb_rec <- recipe(xgb_form, data = df_train) %>%
   update_role(lon, lat, datetime, new_role = "coords") %>% # These variables can be retained in the data but not included in the model
   update_role(poc, new_role = "untransformed outcome")
 summary(xgb_rec)
@@ -333,16 +348,9 @@ xgb_explain <-
 ### Variable importance
 
 ```{r var_imp}
-#| fig-column: body-outset
-#| out-width: 100%
-#| fig.height: 7
 xgb_var_imp <- model_parts(xgb_explain)
 ggplot_imp(xgb_var_imp)
-```
 
-Extract the `r n_pdp` best predictors.
-
-```{r best_vars}
 # Extract most important variables
 vars_pdp <- xgb_var_imp %>% 
   as_tibble() %>% 
@@ -358,7 +366,9 @@ vars_pdp <- xgb_var_imp %>%
 
 ### Partial dependence plots
 
-And plot PDP for these variables.
+-   blue line: prediction mean across *cp* profiles
+
+-   grey ribbon: prediction sd across *cp* profiles
 
 ```{r pdp}
 plots <- list()
@@ -371,4 +381,4 @@ plots
 
 ## Conclusion
 
-Plankton diversity seems to have low effect on `poc` values compared to environment, but still not negligible.
+POC can be predicted from a few env variables.
