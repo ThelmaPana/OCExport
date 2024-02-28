@@ -1,0 +1,534 @@
+---
+title: "Spatial cross validation"
+subtitle: "Explore how spatial cross validation can be used to predict POC from env."
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    embed-resources: true
+editor: visual
+execute:
+  cache: true
+  warning: false
+---
+
+```{r set_up}
+source("utils.R")
+library(sf)
+library(spatialsample)
+load("data/04.all_data.Rdata")
+df <- df %>% mutate(poc_log = log(poc))
+
+# CV set-up
+n_folds <- 10
+n_reps <- 1
+
+# Explanatory variables
+exp_vars <- df %>% 
+  select(
+    temperature,
+    phosphate,
+    silicate,
+    alkalinity,
+    dic,
+    npp,
+    oxygen
+    ) %>% 
+  colnames()
+```
+
+## Stratified CV only
+
+Cross-validation stratified on deciles of the response variable.
+
+### Prepare data
+
+```{r cv_dat}
+# Cross-validation, 10 folds, stratified
+df_folds <- vfold_cv(df, v = n_folds, strata = poc_log, breaks = 9, repeats = n_reps)
+
+# Check POC distribution across folds
+dist_folds <- lapply(1:nrow(df_folds), function(i){
+  x <- df_folds$splits[[i]]
+  
+  if (ncol(df_folds) == 2){
+    fold <- df_folds$id[[i]]
+  } else {
+    rep <- df_folds$id[[i]]
+    fold <- df_folds$id2[[i]]
+    fold <- paste(rep, fold)
+  }
+  
+  bind_rows(
+    analysis(x) %>% mutate(split = "analysis"),
+    assessment(x) %>% mutate(split = "assessment")
+  ) %>% 
+  mutate(fold = fold)
+})
+dist_folds <- do.call(bind_rows, dist_folds)
+
+ggplot(dist_folds) + 
+  geom_density(aes(x = poc_log, colour = fold, linetype = split), show.legend = FALSE) +
+  facet_wrap(~fold)
+
+ggplot(dist_folds) + 
+  geom_density(aes(x = poc_log, colour = fold, linetype = split)) + 
+  facet_wrap(~split, nrow = 2)
+```
+
+Analysis (i.e. train) and assessment (i.e. test) distributions are very simaliar and coherent across folds. We can expect low dispersion of R².
+
+### Train model
+
+```{r cv_mod}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  tree_depth = tune(),
+  min_n = tune(),
+  learn_rate = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost", num.threads = n_cores)
+
+
+## Recipe & Workflow
+# Generate formula from list of explanatory variables
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", exp_vars), collapse = " + "), sep = ""))
+xgb_rec <- recipe(xgb_form, data = df) %>%
+  update_role(poc, new_role = "untransformed outcome")
+
+xgb_wflow <- workflow() %>%
+  add_recipe(xgb_rec) %>%
+  add_model(xgb_spec)
+
+
+## Gridsearch
+xgb_grid <- grid_latin_hypercube(
+  trees(),
+  learn_rate(),
+  tree_depth(),
+  min_n(),
+  size = 30
+)
+doParallel::registerDoParallel()
+xgb_res <- tune_grid(
+  xgb_wflow,
+  resamples = df_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+#autoplot(xgb_res)
+best_xgb <- select_best(xgb_res, metric = "rmse")  
+```
+
+### Evaluate model
+
+```{r cv_eval}
+## Finalize
+final_xgb <- finalize_workflow(
+  xgb_wflow,
+  best_xgb
+)
+
+## Evaluate
+final_res_cv <- fit_resamples(final_xgb, df_folds)
+collect_metrics(final_res_cv)
+collect_metrics(final_res_cv, summarize = F) %>% 
+  filter(.metric == "rsq") %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = .metric, y = .estimate, group = .metric))
+```
+
+::: {.callout-note icon="false"}
+Indeed, low dispersion of R².
+:::
+
+## Spatial block CV only
+
+Spatial cross validation based on block.
+
+### Prepare data
+
+```{r sbcv_dat}
+# Spatial cross-validation, 10 folds
+df_sf <- st_as_sf(df, coords = c("lon", "lat"), crs = 4326)
+df_folds <- spatial_block_cv(df_sf, v = n_folds, repeats = n_reps)
+autoplot(df_folds)
+
+# Check POC distribution across folds
+dist_folds <- lapply(1:nrow(df_folds), function(i){
+  x <- df_folds$splits[[i]]
+  
+  if (ncol(df_folds) == 2){
+    fold <- df_folds$id[[i]]
+  } else {
+    rep <- df_folds$id[[i]]
+    fold <- df_folds$id2[[i]]
+    fold <- paste(rep, fold)
+  }
+  
+  bind_rows(
+    analysis(x) %>% mutate(split = "analysis"),
+    assessment(x) %>% mutate(split = "assessment")
+  ) %>% 
+  mutate(fold = fold)
+})
+dist_folds <- do.call(bind_rows, dist_folds)
+
+ggplot(dist_folds) + 
+  geom_density(aes(x = poc_log, colour = fold, linetype = split), show.legend = FALSE) +
+  facet_wrap(~fold)
+
+ggplot(dist_folds) + 
+  geom_density(aes(x = poc_log, colour = fold, linetype = split)) + 
+  facet_wrap(~split, nrow = 2)
+```
+
+Analysis distributions are very coherent but assessment distributions vary a lot. We can expect higher dispersion of R².
+
+### Train model
+
+```{r sbcv_mod}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  tree_depth = tune(),
+  min_n = tune(),
+  learn_rate = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost", num.threads = n_cores)
+
+
+## Recipe & Workflow
+# Generate formula from list of explanatory variables
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", exp_vars), collapse = " + "), sep = ""))
+xgb_rec <- recipe(xgb_form, data = df) %>%
+  update_role(poc, new_role = "untransformed outcome")
+
+xgb_wflow <- workflow() %>%
+  add_recipe(xgb_rec) %>%
+  add_model(xgb_spec)
+
+
+## Gridsearch
+xgb_grid <- grid_latin_hypercube(
+  trees(),
+  learn_rate(),
+  tree_depth(),
+  min_n(),
+  size = 30
+)
+doParallel::registerDoParallel()
+xgb_res <- tune_grid(
+  xgb_wflow,
+  resamples = df_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+best_xgb <- select_best(xgb_res, metric = "rmse")  
+```
+
+### Evaluate model
+
+```{r sbcv_eval}
+## Finalize
+final_xgb <- finalize_workflow(
+  xgb_wflow,
+  best_xgb
+)
+
+## Evaluate
+final_res_scv <- fit_resamples(final_xgb, df_folds)
+collect_metrics(final_res_scv)
+collect_metrics(final_res_scv, summarize = F) %>% 
+  filter(.metric == "rsq") %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = .metric, y = .estimate, group = .metric)) +
+  geom_jitter(aes(x = .metric, y = .estimate, colour = id))
+```
+
+::: {.callout-note icon="false"}
+Indeed, higher dispersion.
+:::
+
+## Spatial cluster CV only
+
+Spatial cross validation based on spatial clusters.
+
+### Prepare data
+
+```{r sccv_dat}
+# Spatial cross-validation, 10 folds
+df_sf <- st_as_sf(df, coords = c("lon", "lat"), crs = 4326)
+df_folds <- spatial_clustering_cv(df_sf, v = n_folds, repeats = n_reps)
+autoplot(df_folds)
+
+# Check POC distribution across folds
+dist_folds <- lapply(1:nrow(df_folds), function(i){
+  x <- df_folds$splits[[i]]
+  
+  if (ncol(df_folds) == 2){
+    fold <- df_folds$id[[i]]
+  } else {
+    rep <- df_folds$id[[i]]
+    fold <- df_folds$id2[[i]]
+    fold <- paste(rep, fold)
+  }
+  
+  bind_rows(
+    analysis(x) %>% mutate(split = "analysis"),
+    assessment(x) %>% mutate(split = "assessment")
+  ) %>% 
+  mutate(fold = fold)
+})
+dist_folds <- do.call(bind_rows, dist_folds)
+
+ggplot(dist_folds) + 
+  geom_density(aes(x = poc_log, colour = fold, linetype = split), show.legend = FALSE) +
+  facet_wrap(~fold)
+
+ggplot(dist_folds) + 
+  geom_density(aes(x = poc_log, colour = fold, linetype = split)) + 
+  facet_wrap(~split, nrow = 2)
+```
+
+Once again, distribution varies a lot across assessment splits. Here the prediction task should be harder because each assessment fold is not represented at all in its corresponding analysis fold.
+
+### Train model
+
+```{r sccv_mod}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  tree_depth = tune(),
+  min_n = tune(),
+  learn_rate = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost", num.threads = n_cores)
+
+
+## Recipe & Workflow
+# Generate formula from list of explanatory variables
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", exp_vars), collapse = " + "), sep = ""))
+xgb_rec <- recipe(xgb_form, data = df) %>%
+  update_role(poc, new_role = "untransformed outcome")
+
+xgb_wflow <- workflow() %>%
+  add_recipe(xgb_rec) %>%
+  add_model(xgb_spec)
+
+
+## Gridsearch
+xgb_grid <- grid_latin_hypercube(
+  trees(),
+  learn_rate(),
+  tree_depth(),
+  min_n(),
+  size = 30
+)
+doParallel::registerDoParallel()
+xgb_res <- tune_grid(
+  xgb_wflow,
+  resamples = df_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+best_xgb <- select_best(xgb_res, metric = "rmse")  
+```
+
+### Evaluate model
+
+```{r sccv_eval}
+## Finalize
+final_xgb <- finalize_workflow(
+  xgb_wflow,
+  best_xgb
+)
+
+## Evaluate
+final_res_scv <- fit_resamples(final_xgb, df_folds)
+collect_metrics(final_res_scv)
+collect_metrics(final_res_scv, summarize = F) %>% 
+  filter(.metric == "rsq") %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = .metric, y = .estimate, group = .metric)) +
+  geom_jitter(aes(x = .metric, y = .estimate, colour = id))
+```
+
+::: {.callout-note icon="false"}
+Even larger dispersion of R².
+:::
+
+## Train VS test and within train CV
+
+### Prepare data
+
+```{r tt_dat}
+# Train VS test, stratified
+df_split <- initial_split(df, prop = 0.8, strata = poc_log, breaks = 9)
+df_train <- training(df_split)
+df_test <- testing(df_split)
+
+# Cross-validation, 10 folds, stratified
+df_folds <- vfold_cv(df_train, v = n_folds, strata = poc_log, breaks = 9, repeats = n_reps)
+```
+
+### Train model
+
+```{r tt_mod}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  tree_depth = tune(),
+  min_n = tune(),
+  learn_rate = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost", num.threads = n_cores)
+
+
+## Recipe & Workflow
+# Generate formula from list of explanatory variables
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", exp_vars), collapse = " + "), sep = ""))
+xgb_rec <- recipe(xgb_form, data = df_train) %>%
+  update_role(poc, new_role = "untransformed outcome")
+
+xgb_wflow <- workflow() %>%
+  add_recipe(xgb_rec) %>%
+  add_model(xgb_spec)
+
+
+## Gridsearch
+xgb_grid <- grid_latin_hypercube(
+  trees(),
+  learn_rate(),
+  tree_depth(),
+  min_n(),
+  size = 30
+)
+doParallel::registerDoParallel()
+xgb_res <- tune_grid(
+  xgb_wflow,
+  resamples = df_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+best_xgb <- select_best(xgb_res, metric = "rmse")  
+
+
+```
+
+### Evaluate model
+
+```{r tt_test}
+## Final fit
+final_xgb <- finalize_workflow(
+  xgb_wflow,
+  best_xgb
+)
+final_res_tt <- fit(final_xgb, df_train)
+  
+# Predict test data
+test_preds_tt <- augment(final_res_tt, new_data = df_test) %>%
+  mutate(split = "test", .before = lon) %>% # tag split
+  rename(.pred_logged = .pred) %>% # prediction is actually log of prediction
+  mutate(.pred = exp(.pred_logged)) %>% # apply exp to prediction
+  mutate(residuals = .pred_logged - poc_log) # compute residuals
+
+# Predicton metrics
+rsq(test_preds_tt, truth = poc_log, estimate = .pred_logged)
+```
+
+## Spatial Train VS test and within train spatial CV
+
+### Prepare data
+
+```{r sbtt_dat}
+# Spatial train VS test, 10 folds
+df_sf <- st_as_sf(df, coords = c("lon", "lat"), crs = 4326)
+df_folds <- spatial_block_cv(df_sf, v = n_folds, repeats = n_reps)
+
+autoplot(df_folds)
+
+# Train VS test, stratified
+df_split <- initial_split(df, prop = 0.8, strata = poc_log, breaks = 9)
+df_train <- training(df_split)
+df_test <- testing(df_split)
+
+# Cross-validation, 10 folds, stratified
+df_folds <- vfold_cv(df_train, v = n_folds, strata = poc_log, breaks = 9, repeats = n_reps)
+```
+
+### Train model
+
+```{r sbtt_mod}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  tree_depth = tune(),
+  min_n = tune(),
+  learn_rate = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost", num.threads = n_cores)
+
+
+## Recipe & Workflow
+# Generate formula from list of explanatory variables
+xgb_form <- as.formula(paste("poc_log ~ ", paste(c("poc", exp_vars), collapse = " + "), sep = ""))
+xgb_rec <- recipe(xgb_form, data = df_train) %>%
+  update_role(poc, new_role = "untransformed outcome")
+
+xgb_wflow <- workflow() %>%
+  add_recipe(xgb_rec) %>%
+  add_model(xgb_spec)
+
+
+## Gridsearch
+xgb_grid <- grid_latin_hypercube(
+  trees(),
+  learn_rate(),
+  tree_depth(),
+  min_n(),
+  size = 30
+)
+doParallel::registerDoParallel()
+xgb_res <- tune_grid(
+  xgb_wflow,
+  resamples = df_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+best_xgb <- select_best(xgb_res, metric = "rmse")  
+
+
+```
+
+### Evaluate model
+
+```{r sbtt_test}
+## Final fit
+final_xgb <- finalize_workflow(
+  xgb_wflow,
+  best_xgb
+)
+final_res_tt <- fit(final_xgb, df_train)
+  
+# Predict test data
+test_preds_tt <- augment(final_res_tt, new_data = df_test) %>%
+  mutate(split = "test", .before = lon) %>% # tag split
+  rename(.pred_logged = .pred) %>% # prediction is actually log of prediction
+  mutate(.pred = exp(.pred_logged)) %>% # apply exp to prediction
+  mutate(residuals = .pred_logged - poc_log) # compute residuals
+
+# Predicton metrics
+rsq(test_preds_tt, truth = poc_log, estimate = .pred_logged)
+```
