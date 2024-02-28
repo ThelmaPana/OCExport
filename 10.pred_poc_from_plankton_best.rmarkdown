@@ -12,7 +12,9 @@ execute:
   warning: false
 ---
 
+
 ## Set-up and load data
+
 
 ```{r set_up}
 #| output: false
@@ -25,22 +27,27 @@ rm(all_preds, xgb_explain)
 output_filename <- "data/10.all_preds_poc_from_plankton_best.Rdata"
 ```
 
+
 ## Data inspection
 
 ### Response variable
 
 Let’s have a look at our response variable: POC value. We do not need to inspect response variables as the model we are going to use are robust to non-normal distributions.
 
+
 ```{r poc_hist}
 df %>% ggplot() + geom_histogram(aes(x = poc), bins = 100)
 ```
 
+
 The distribution is not normal, this is problematic. Let’s try a log-transformation.
+
 
 ```{r poc_log_hist}
 df <- df %>% mutate(poc_log = log(poc))
 df %>% ggplot() + geom_histogram(aes(x = poc_log), bins = 100)
 ```
+
 
 This is much better. We’ll then try to predict `log(poc)`.
 
@@ -48,16 +55,19 @@ This is much better. We’ll then try to predict `log(poc)`.
 
 Select explanatory variables.
 
+
 ```{r sel_var}
 # Explanatory variables
 exp_vars <- df %>% select(all_of(best_vars)) %>% colnames()
-#exp_vars <- c("mo_ric")
+#exp_vars <- c("ta_ric_3", "mo_ric")
 #exp_vars <- c("mo_ric", "ta_mast", "ta_ric_3")
 # Metadata variables
 meta_vars <- df %>% select(lon, lat, datetime) %>% colnames()
 ```
 
+
 Let’s run a quick PCA. This allows us to have at correlations within our datasets as well as the main axes of variance.
+
 
 ```{r pca_exp}
 # Need to remove lon and lat and to scale because units differ between variables
@@ -65,7 +75,9 @@ df_pca <- df %>% select(poc, poc_log, all_of(exp_vars))
 pca_all <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, scale.unit = TRUE, graph = FALSE)
 ```
 
+
 Plot eigenvalues.
+
 
 ```{r pca_eig}
 eig <- pca_all$eig %>%
@@ -87,7 +99,9 @@ eig %>%
   labs(x = "PC", y = "Explained variance")
 ```
 
+
 Plot first plane.
+
 
 ```{r pca_plot_var}
 #| fig-column: body-outset
@@ -95,7 +109,9 @@ Plot first plane.
 plot(pca_all, choix="var", axes = c(1, 2))
 ```
 
+
 Extract coordinates in the PCA space.
+
 
 ```{r pca_ind}
 ## Get coordinates of individuals
@@ -107,7 +123,9 @@ inds <- df %>%
   bind_cols(inds)
 ```
 
+
 Plot maps of profiles.
+
 
 ```{r pca_map_1}
 #| fig-column: body-outset
@@ -121,31 +139,28 @@ ggmap(inds, "dim1", type = "point", palette = div_pal)
 ggmap(inds, "dim2", type = "point", palette = div_pal)
 ```
 
+
 ## Data split
 
 Let’s take 80% of the data to fit the model, and keep 20% to test the model at the very end. We stratify our split by `poc_log`, the response value, so that both training and testing sets are representative of the whole range of values.
 
+
 ```{r data_split}
 # Train VS test, stratified
-set.seed(11)
-df_split <- initial_split(df, prop = 0.8, strata = poc_log, breaks = 6)
+df_split <- initial_split(df, prop = 0.8, strata = poc_log)
 df_train <- training(df_split)
 df_test <- testing(df_split)
-
-bind_rows(
-  df_train %>% mutate(split = "train"),
-  df_test %>% mutate(split = "test")
-) %>% 
-  ggplot() +
-  geom_density(aes(x = poc_log, colour = split))
 ```
+
 
 To evaluate model performance during training, we’ll use cross-validation on the training set, with 10 folds, again stratified by `poc_log`.
 
+
 ```{r data_cv}
 # Cross-validation, 10 folds, stratified
-df_folds <- vfold_cv(df_train, v = 10, strata = poc_log, breaks = 6)
+df_folds <- vfold_cv(df_train, v = 10, strata = poc_log)
 ```
+
 
 ## Model definition
 
@@ -158,6 +173,7 @@ Let’s define a XGBoost regression model, with tunable hyperparameters:
 -   `min_n`: minimum number of objects in a node to split further
 
 -   `learn_rate`
+
 
 ```{r def_mod}
 # Define a xgboost model with hyperparameters to tune
@@ -175,11 +191,13 @@ xgb_spec <- boost_tree(
 extract_parameter_set_dials(xgb_spec)
 ```
 
+
 The model will be run on `r n_cores` cores in parallel.
 
 ## Recipe
 
 Let’s use a recipe to define the model formula and assign roles to variables. We want to predict `poc_log` from all other variables expect `lon`, `lat` and original `poc` values, yet it is convenient to keep these in the dataset.
+
 
 ```{r def_recipe}
 # Generate formula from list of explanatory variables
@@ -192,9 +210,11 @@ xgb_rec <- recipe(xgb_form, data = df_train) %>%
 summary(xgb_rec)
 ```
 
+
 ## Workflow
 
 Set-up the workflow with the recipe and the model.
+
 
 ```{r def_workflow}
 xgb_wflow <- workflow() %>%
@@ -202,9 +222,11 @@ xgb_wflow <- workflow() %>%
   add_model(xgb_spec)
 ```
 
+
 ## Gridsearch
 
 It is now time to perform the gridsearch to find the best hyperparameters for our model. We first need to define a grid with the hyperparameters we want to try. We use `grid_latin_hypercube` to generate a space-filling grid of size `30`.
+
 
 ```{r def_grid}
 xgb_grid <- grid_latin_hypercube(
@@ -220,7 +242,9 @@ xgb_grid <- grid_latin_hypercube(
 xgb_grid
 ```
 
+
 Tune the grid to find the best hyperparameters, in parallel. This is done on our cross-validation folds: for each fold, a model is fitted on training data and evaluated on validation data.
+
 
 ```{r gridsearch}
 doParallel::registerDoParallel()
@@ -233,16 +257,20 @@ xgb_res <- tune_grid(
 autoplot(xgb_res)
 ```
 
+
 Select the best set of hyperparameters based on `rmse` value.
+
 
 ```{r sel_best}
 show_best(xgb_res, metric = "rmse")
 best_xgb <- select_best(xgb_res, metric = "rmse")
 ```
 
+
 ## Finalize
 
 Let’s now finalize our model with the selected set of hyperparameters.
+
 
 ```{r final_mod}
 final_xgb <- finalize_workflow(
@@ -251,13 +279,17 @@ final_xgb <- finalize_workflow(
 )
 ```
 
+
 Fit the model on training data.
+
 
 ```{r final_fit}
 final_res <- fit(final_xgb, df_train)
 ```
 
+
 Predict test data, and apply `exp` transformation as we predict the `log` of `poc` values. Still, we will evaluate model performances with predictions of `poc_log` as it is closer to a normal distribution.
+
 
 ```{r pred_test}
 test_preds <- augment(final_res, new_data = df_test) %>%
@@ -267,20 +299,24 @@ test_preds <- augment(final_res, new_data = df_test) %>%
   mutate(residuals = .pred_logged - poc_log) # compute residuals
 ```
 
+
 ## Model evaluation
 
 ### Prediction metrics
 
 Let’s have a look at prediction metrics on the test set.
 
+
 ```{r eval_test}
 rmse(test_preds, truth = poc_log, estimate = .pred_logged)
 rsq(test_preds, truth = poc_log, estimate = .pred_logged)
 ```
 
+
 ### Prediction VS truth
 
 Plot predictions VS truth, both in the log-transformed space and in the non log-transformed space.
+
 
 ```{r pred_vs_truth}
 test_preds %>%
@@ -296,9 +332,11 @@ test_preds %>%
   labs(title = "Pred VS truth")
 ```
 
+
 ### Residuals
 
 Finally, let’s have a look at residuals.
+
 
 ```{r residuals}
 ggplot(test_preds) +
@@ -306,7 +344,9 @@ ggplot(test_preds) +
   labs(x = "Residuals")
 ```
 
+
 ## All predictions
+
 
 ```{r pred_all}
 # Predict training set
@@ -320,9 +360,11 @@ train_preds <- augment(final_res, new_data = df_train) %>%
 all_preds <- bind_rows(test_preds, train_preds)
 ```
 
+
 ## Model interpretation
 
 Let’s feed our model to `explain_tidymodel`, but first we need to select predictors only.
+
 
 ```{r mod_explainer}
 # Select only predictors
@@ -338,7 +380,9 @@ xgb_explain <-
   )
 ```
 
+
 ### Variable importance
+
 
 ```{r var_imp}
 xgb_var_imp <- model_parts(xgb_explain)
@@ -357,7 +401,9 @@ vars_pdp <- xgb_var_imp %>%
   pull(variable)
 ```
 
+
 ### Partial dependence plots
+
 
 ```{r pdp}
 n_pdp <- min(n_pdp, length(exp_vars))
@@ -369,9 +415,11 @@ for (i in 1:n_pdp){
 plots
 ```
 
+
 ## Conclusion
 
 Using only `r length(exp_vars)` variables describing plankton diversity, we can explain `r percent(round(rsq(test_preds, truth = poc_log, estimate = .pred_logged)$.estimate, digits = 2))` of POC variance.
+
 
 ```{r save}
 # Save all predictions, explainer and most important variables
@@ -379,15 +427,8 @@ save(all_preds, xgb_explain, vars_pdp, file = output_filename)
 ```
 
 ```{r}
-#ggplot(df_test) + geom_histogram(aes(x = poc_log))
-#ggplot(titi) + geom_histogram(aes(x = poc_log))
-rsq(data = train_preds, truth = poc_log, estimate = .pred_logged)
-rsq(data = test_preds, truth = poc_log, estimate = .pred_logged)
+ggplot(test_preds, aes(x = ta_mast, y = poc_log)) +
+  geom_point() +
+  geom_smooth()
 ```
 
-```{r}
-ggplot(all_preds) + 
-  geom_point(aes(x = poc_log, y = .pred_logged)) + 
-  geom_abline(slope = 1, intercept = 0, colour = "red") +
-  facet_wrap(~split)
-```
