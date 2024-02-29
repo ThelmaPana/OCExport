@@ -119,6 +119,7 @@ ranges %>%
 Let’s use a depth range of `r (W = 200)` meters. Look at the distribution of POC values (transformed and logged).
 
 ```{r poc_dist}
+W <-  200
 df <- df %>% 
   filter(between(depth, hor - W, hor + W)) %>% 
   mutate(poc_log = log(poc))
@@ -232,10 +233,12 @@ Let’s still plot modeled VS observations, both in untransformed and log-transf
 
 ```{r poc_fin_cloud}
 ggplot(df_pix) +
-  geom_point(aes(x = poc_mean, y = poc_mod))
+  geom_point(aes(x = poc_mean, y = poc_mod)) +
+  geom_abline(intercept = 0, slope = 1, colour = "red")
 
 ggplot(df_pix) +
   geom_point(aes(x = poc_mean, y = poc_mod)) +
+  geom_abline(intercept = 0, slope = 1, colour = "red") +
   scale_x_log10() + 
   scale_y_log10()
 
@@ -245,23 +248,41 @@ ggplot(df_pix) +
 Correlation is pretty bad. Will be hard to predict modeled value from observation values. Moreover, modeled poc values at 1000 m are very high compared to those at 100 m presented in Wang et al., 2023.
 :::
 
-![POC values at the basis of the euphotic layer.](images/Screenshot%202024-02-26%20at%2015.36.17.png)
+::: {.callout-important icon="false"}
+Let’s try dividing modeled values by 12.
+:::
 
-Let’s try to predict modeled poc values at the 100 meters horizon.
+```{r poc_fin_cloud_corr}
+ggplot(df_pix) +
+  geom_point(aes(x = poc_mean, y = poc_mod/12)) +
+  geom_abline(intercept = 0, slope = 1, colour = "red")
+
+ggplot(df_pix) +
+  geom_point(aes(x = poc_mean, y = poc_mod/12)) +
+  geom_abline(intercept = 0, slope = 1, colour = "red") +
+  scale_x_log10() + 
+  scale_y_log10()
+```
+
+## Comparison between maps and data from Wang et al.
 
 <https://zenodo.org/records/8253973>
 
-## 100 m horizon
+### POC at euphotic depth
+
+![Contour plot of non-advective-diffusive vertical flux (mg C m⁻² day⁻¹) exiting the base of the euphotic zone. The results of a are based on the CbPM NPP product and and e-folding remineralization time of 12h for labile DOC. ](images/Screenshot%202024-02-26%20at%2015.36.17.png){alt="Contour plot of non-advective-diffusive vertical flux (mg C m⁻² day⁻¹) exiting the base of the euphotic zone."}
 
 ```{r}
 ## Read data as matrix 
-#d_mat <- readMat("data/raw/Cexp_CAFE_kl24h.mat")$EXP[,,1]$POCexp
-d_mat <- readMat("data/raw/Cexp_CAFE_kl12h.mat")$EXP[,,1]$POCexp
+d_mat <- readMat("data/raw/Cexp_CbPM_kl12h.mat")$EXP[,,1]$POCexp
+#d_mat <- readMat("data/raw/Cexp_CAFE_kl12h.mat")$EXP[,,1]$POCexp
 
 # Generate colnames as longitudes and rownames as latitudes
 colnames(d_mat) <- (c(0.5:179.5) * 2)
 rownames(d_mat) <- (c(0:90) * 2) - 90
 
+#d_mat[d_mat == 0] <- NA
+#median(d_mat, na.rm = TRUE)
 
 ## Convert to dataframe
 df_c <- d_mat %>%
@@ -271,17 +292,74 @@ df_c <- d_mat %>%
   pivot_longer(cols = -lat, names_to = "lon", values_to = "poc") %>%
   mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
   mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
-  mutate(poc = ifelse(poc == 0, NA, poc)) %>%
-  arrange(lon, lat)
+  mutate(poc = ifelse(poc == 0, NA, poc)) %>% # TODO cleaner way to remove lands
+  mutate(poc = poc/12) %>% 
+  arrange(lon, lat) 
+summary(df_c)
 
+#ggmap(df_c, var = "poc", type = "raster") + labs(fill = "POCexp")
 
-ggmap(df_c, var = "poc", type = "raster")
+df_c %>% 
+  ggplot() + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_raster(aes(x = lon, y = lat, fill = poc)) +
+  scale_fill_distiller(palette = "Greens", na.value = NA, direction = 1) +
+  coord_quickmap(expand = 0) +
+  labs(title = "POCexp / 12")
 
-toto <- d_mat %>% 
-  t() %>% 
-  as_tibble()
+df_c %>% 
+  ggplot() + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_raster(aes(x = lon, y = lat, fill = poc)) +
+  scale_fill_fermenter(palette = "Greens", na.value = NA, breaks = seq(from = 25, to = 200, by = 25), direction = 1) +
+  coord_quickmap(expand = 0) +
+  labs(title = "POCexp / 12")
+```
 
-toto %>% 
-  pivot_longer(everything()) %>% 
-  summary()
+### TOC at euphotic depth / 110 m
+
+![Distribution of TOC (non-advective-diffusive + advective-diffusive) flux (mg C m−2 day−1) at the base of the euphotic zone](images/clipboard-929766156.png)
+
+```{r}
+## Read data as matrix 
+d_mat <- readMat("data/raw/Cexp_CbPM_kl12h.mat")$EXP[,,1]$TOC110
+#d_mat <- readMat("data/raw/Cexp_CAFE_kl12h.mat")$EXP[,,1]$POCexp
+
+# Generate colnames as longitudes and rownames as latitudes
+colnames(d_mat) <- (c(0.5:179.5) * 2)
+rownames(d_mat) <- (c(0:90) * 2) - 90
+
+#d_mat[d_mat == 0] <- NA
+#median(d_mat, na.rm = TRUE)
+
+## Convert to dataframe
+df_c <- d_mat %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "lat") %>%
+  as_tibble() %>%
+  pivot_longer(cols = -lat, names_to = "lon", values_to = "toc") %>%
+  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
+  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
+  mutate(toc = ifelse(toc == 0, NA, toc)) %>% # TODO cleaner way to remove lands
+  mutate(toc = toc/12) %>% 
+  arrange(lon, lat) 
+summary(df_c)
+
+#ggmap(df_c, var = "toc", type = "raster") + labs(fill = "POCexp")
+
+df_c %>% 
+  ggplot() + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_raster(aes(x = lon, y = lat, fill = toc)) +
+  scale_fill_distiller(palette = "Greens", na.value = NA, direction = 1) +
+  coord_quickmap(expand = 0) +
+  labs(title = "TOC110 / 12")
+
+df_c %>% 
+  ggplot() + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_raster(aes(x = lon, y = lat, fill = toc)) +
+  scale_fill_fermenter(palette = "Greens", na.value = NA, breaks = seq(from = 25, to = 200, by = 25), direction = 1) +
+  coord_quickmap(expand = 0) +
+  labs(title = "TOC110 / 12")
 ```
