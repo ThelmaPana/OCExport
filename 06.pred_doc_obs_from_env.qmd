@@ -175,7 +175,10 @@ all <- env %>%
   left_join(df_doc, by = join_by(lon, lat)) %>% 
   drop_na(doc_mean) # drop missing doc data
 
-ggmap(env, var = "npp", type = "raster") +
+ggmap(env, var = "phosphate", type = "raster") +
+  geom_point(data = all, aes(x = lon, y = lat), size = 0.5)
+
+ggmap(env, var = "alkalinity", type = "raster") +
   geom_point(data = all, aes(x = lon, y = lat), size = 0.5)
 ```
 
@@ -319,7 +322,9 @@ rsq(test_preds, truth = doc_mean_log, estimate = .pred_logged)
 ```
 
 #### Pred VS truth
+::: panel-tabset
 
+##### BW
 ```{r pred_vs_truth}
 test_preds %>%
   ggplot() +
@@ -333,6 +338,38 @@ test_preds %>%
   geom_abline(slope = 1, color = "red") +
   labs(title = "Pred VS truth")
 ```
+
+##### Colour
+
+```{r pred_vs_truth_col}
+test_preds %>%
+  ggplot() +
+  geom_point(aes(x = doc_mean_log, y = .pred_logged, colour = abs(lat))) +
+  scale_colour_viridis_c() +
+  geom_abline(slope = 1, color = "red") +
+  labs(title = "Pred VS truth in log-transformed space")
+
+test_preds %>%
+  ggplot() +
+  geom_point(aes(x = doc_mean, y = .pred, colour = abs(lat))) +
+  scale_colour_viridis_c() +
+  geom_abline(slope = 1, color = "red") +
+  labs(title = "Pred VS truth")
+
+test_preds %>% 
+  ggplot() +
+  geom_point(aes(x = alkalinity, y = doc_mean, colour = abs(lat))) +
+  scale_colour_viridis_c() +
+  labs(title = "Truth VS alkalinity")
+
+test_preds %>% 
+  ggplot() +
+  geom_point(aes(x = alkalinity, y = .pred_logged, colour = abs(lat))) +
+  scale_colour_viridis_c() +
+  labs(title = "Pred VS alkalinity")
+```
+
+:::
 
 ### Interpret model
 
