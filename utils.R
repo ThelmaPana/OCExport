@@ -382,14 +382,19 @@ ggplot_pdp <- function(obj, x, unlog = FALSE) {
     df <- df %>% mutate(`_yhat_` = exp(`_yhat_`))
   }
 
-  # Compute mean and sd across cp profiles for each x value
+  # Compute mean across cp profiles for each x value
+  # Compute sd across centered cp profiles
   df <- df %>%
+    group_by(`_ids_`) %>%
+    mutate(yhat_cent = `_yhat_` - mean(`_yhat_`)) %>% # center cp profiles
+    ungroup() %>%
     group_by(across(all_of(x))) %>%
     summarise(
-      yhat_loc = mean(`_yhat_`),
-      yhat_spr = sd(`_yhat_`)
+      yhat_loc = mean(`_yhat_`), # compute mean of profiles
+      yhat_spr = sd(yhat_cent) # compute sd of cp profiles
     ) %>%
     ungroup() %>%
+    arrange(all_of(x)) %>%
     setNames(c("x", "yhat_loc", "yhat_spr"))
 
 
