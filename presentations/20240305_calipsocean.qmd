@@ -32,7 +32,7 @@ load(here("data/04.all_data.Rdata"))
 rm(coast)
 
 # Model outputs
-load(here("data/06.all_preds_poc_from_env.Rdata"))
+load(here("data/08.all_preds_poc_from_env.Rdata"))
 
 ```
 
@@ -77,7 +77,6 @@ Can we improve the representation of zooplankton diversity in ESM?
 ::: {.fragment .fade-in-then-semi-out}
 -   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
 :::
-
 
 # Data
 
@@ -286,10 +285,13 @@ all_preds %>%
 ::: {.fragment .fade-in}
 ::: goals
 ::: goals-header
+TODOs
 :::
 
 ::: goals-container
-TODO: Account for spatial & temporal autocorrelation
+-   Account for spatial autocorrelation (spatial CV)
+
+-   Get more robust estimates of R² (nested CV)
 :::
 :::
 :::
@@ -363,7 +365,7 @@ Good prediction!
 ::: {.column width="70%"}
 ::: {.fragment .fade-in}
 ```{r poc_from_plankton}
-load(here("data/07.all_preds_poc_from_plankton.Rdata"))
+load(here("data/09.all_preds_poc_from_plankton.Rdata"))
 
 all_preds %>% 
   filter(split == "test") %>% 
@@ -417,7 +419,7 @@ Best predictors:
 ::: {.column width="70%"}
 ::: {.fragment .fade-in}
 ```{r poc_from_plankton_best}
-load(here("data/08.all_preds_poc_from_plankton_best.Rdata"))
+load(here("data/10.all_preds_poc_from_plankton_best.Rdata"))
 
 all_preds %>% 
   filter(split == "test") %>% 
@@ -468,7 +470,6 @@ plot_pdp(xgb_explain, vars_pdp[1]) + theme(text = element_text(size = 20))
 ::: r-stack
 ::: columns
 ::: {.column width="50%"}
-
 ```{r poc_from_plankton_best_var_imp_1}
 #| fig-height: 7
 #| warning: false
@@ -484,7 +485,7 @@ plot_pdp(xgb_explain, vars_pdp[2]) + theme(text = element_text(size = 20))
 :::
 :::
 
-::: {.fragment .fade-in .absolute bottom=80}
+::: {.fragment .fade-in .absolute bottom="80"}
 POC response to plankton descriptors.
 :::
 
@@ -500,7 +501,6 @@ POC response to plankton descriptors.
 :::
 :::
 
-
 ## [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} best predictors from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}
 
 [`ta_ric_3 + ta_mast + mo_ric ~ temperature + silicate + phosphate + oxygen + NPP + alkalinity + DIC`]{style="font-size: 50%;"}
@@ -509,7 +509,7 @@ POC response to plankton descriptors.
 ::: {.column width="70%"}
 ::: {.fragment .fade-in}
 ```{r plankton_from_env}
-load(here("data/10.all_preds_plankton_best_from_env.Rdata"))
+load(here("data/12.all_preds_plankton_best_from_env.Rdata"))
 
 all_preds %>% 
   filter(split == "test") %>% 
@@ -565,7 +565,6 @@ OK prediction!
 [Performances computed on **test** set.]{style="color: gray;font-size: 20px;"}
 :::
 
-
 # Conclusion
 
 ## Conclusion
@@ -581,7 +580,6 @@ OK prediction!
 ::: {.fragment .fade-in}
 -   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
 :::
-
 
 ## Take-home messages
 
