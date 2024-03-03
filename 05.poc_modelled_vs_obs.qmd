@@ -270,8 +270,6 @@ ggplot(df_pix) +
 
 ### POC at euphotic depth
 
-![Contour plot of non-advective-diffusive vertical flux (mg C m⁻² day⁻¹) exiting the base of the euphotic zone. The results of a are based on the CbPM NPP product and and e-folding remineralization time of 12h for labile DOC. ](images/Screenshot%202024-02-26%20at%2015.36.17.png){alt="Contour plot of non-advective-diffusive vertical flux (mg C m⁻² day⁻¹) exiting the base of the euphotic zone."}
-
 ```{r}
 ## Read data as matrix 
 d_mat <- readMat("data/raw/Cexp_CbPM_kl12h.mat")$EXP[,,1]$POCexp
@@ -293,7 +291,7 @@ df_c <- d_mat %>%
   mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
   mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
   mutate(poc = ifelse(poc == 0, NA, poc)) %>% # TODO cleaner way to remove lands
-  mutate(poc = poc/12) %>% 
+  mutate(poc = (poc*12)/365.25) %>% 
   arrange(lon, lat) 
 summary(df_c)
 
@@ -317,8 +315,6 @@ df_c %>%
 ```
 
 ### TOC at euphotic depth / 110 m
-
-![Distribution of TOC (non-advective-diffusive + advective-diffusive) flux (mg C m−2 day−1) at the base of the euphotic zone](images/clipboard-929766156.png)
 
 ```{r}
 ## Read data as matrix 

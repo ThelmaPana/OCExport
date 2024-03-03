@@ -21,6 +21,8 @@ suppressWarnings(library(vegan))
 suppressWarnings(library(morphr))
 suppressWarnings(library(mFD))
 suppressWarnings(library(tabula))
+suppressWarnings(library(sf))
+suppressWarnings(library(spatialsample))
 
 # Plots
 suppressWarnings(library(cmocean))
