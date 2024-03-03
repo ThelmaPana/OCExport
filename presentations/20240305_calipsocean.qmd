@@ -38,9 +38,29 @@ load(here("data/08.all_preds_poc_from_env.Rdata"))
 
 # Aim
 
-## Environment, plankton and carbon
+## Plankton & carbon
 
-::: {.absolute top="5"}
+-   Role of plankton in C cycle
+
+-   C export mostly estimated through modeling
+
+-   Limited representation of zooplankton diversity
+
+::: {.fragment .fade-in}
+::: goals
+::: goals-header
+:::
+
+::: goals-container
+Can we use observations to improve the representation of zooplankton diversity in ESM?
+:::
+:::
+:::
+
+
+## Questions
+
+::: {.absolute bottom="250"}
 ```{dot diagram}
 digraph {
   rankdir="LR"
@@ -54,29 +74,24 @@ digraph {
 ```
 :::
 
-::: {.absolute .fragment top="400"}
-Can we improve the representation of zooplankton diversity in ESM?
-:::
-
-::: aside
-[\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
-
-[\*\*Here, we will use POC as a proxy for carbon export.]{style="color: gray;font-size: 20px;"}
-:::
-
-## Questions
-
-::: {.fragment .fade-in-then-semi-out}
+::: {.fragment .fade-in-then-semi-out .absolute top="350"}
 -   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
 :::
 
-::: {.fragment .fade-in-then-semi-out}
+::: {.fragment .fade-in-then-semi-out .absolute top="450"}
 -   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}?
 :::
 
-::: {.fragment .fade-in-then-semi-out}
+::: {.fragment .fade-in-then-semi-out .absolute top="550"}
 -   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
 :::
+
+
+::: {.absolute top="650"}
+[\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
+[\*\*Here, we will use POC 1000 m as a proxy for carbon export.]{style="color: gray;font-size: 20px;"}
+:::
+
 
 # Data
 
@@ -269,16 +284,16 @@ Learning\* VS test set, stratified by [POC]{style="color: black;background-color
 ```{r split_map}
 all_preds %>% 
   select(split, lon, lat) %>% 
-  mutate(split = ifelse(split == "train", "learn", "test")) %>% 
+  #mutate(split = ifelse(split == "train", "test")) %>% 
   ggplot() +
   geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
   geom_point(aes(x = lon, y = lat, colour = split), size = 0.5) +
-  scale_colour_manual(values = c("learn" = "#004c96", "test" = "#ff8700")) +
+  scale_colour_manual(values = c("train" = "#004c96", "test" = "#ff8700")) +
   coord_quickmap(expand = FALSE)
 ```
 
 ::: aside
-[\*learning = training + validation, cross-validated]{style="color: gray;font-size: 20px;"}
+[\*training = learning + validation, cross-validated]{style="color: gray;font-size: 20px;"}
 :::
 :::
 
@@ -567,7 +582,7 @@ OK prediction!
 
 # Conclusion
 
-## Conclusion
+## Answers
 
 ::: {.fragment .fade-in}
 -   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
