@@ -52,11 +52,10 @@ load(here("data/08.all_preds_poc_from_env.Rdata"))
 :::
 
 ::: goals-container
-Can we use observations to improve the representation of zooplankton diversity in ESM?
+Can we use observations and machine learning to improve the representation of zooplankton diversity in ESM?
 :::
 :::
 :::
-
 
 ## Questions
 
@@ -79,19 +78,16 @@ digraph {
 :::
 
 ::: {.fragment .fade-in-then-semi-out .absolute top="450"}
--   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}?
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} diversity?
 :::
 
 ::: {.fragment .fade-in-then-semi-out .absolute top="550"}
--   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
+-   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} diversity be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}?
 :::
-
 
 ::: {.absolute top="650"}
-[\*plankton = zooplankton]{style="color: gray;font-size: 20px;"}
-[\*\*Here, we will use POC 1000 m as a proxy for carbon export.]{style="color: gray;font-size: 20px;"}
+[\*plankton = zooplankton]{style="color: gray;font-size: 20px;"} [\*\*Here, we will use POC 1000 m as a proxy for carbon export.]{style="color: gray;font-size: 20px;"}
 :::
-
 
 # Data
 
@@ -107,7 +103,7 @@ digraph {
 POC export at 1000 m
 
 ```{r poc_map}
-ggmap(df = df_c, var = "poc", type = "raster")
+ggmap(df = df_c, var = "poc", type = "raster") + labs(fill = "POC flux 1000m\n(mmolC m⁻² y⁻¹)")
 ```
 :::
 
@@ -155,6 +151,10 @@ ggplot(profiles, aes(x = lon, y = lat)) +
   theme_minimal()
 ```
 
+::: aside
+[*In situ* imaging, coherent dataset with \~30 taxa.]{style="color: gray;font-size: 20px;"}
+:::
+
 ## Plankton - Taxonomy
 
 ::: panel-tabset
@@ -179,7 +179,7 @@ ggmap(profiles, var = "ta_ric_1", type = "point") + labs(colour = "Taxo.\nRichne
 ### Variables
 
 ::: {.fragment .semi-fade-out fragment-index="1"}
-Function diversity metrics [(Magneville et al. 2022)](https://nsojournals.onlinelibrary.wiley.com/doi/10.1111/ecog.05904)
+Functional diversity metrics [(Magneville et al. 2022)](https://nsojournals.onlinelibrary.wiley.com/doi/10.1111/ecog.05904)
 :::
 
 ::: {.fragment .fade-in fragment-index="1"}
@@ -205,7 +205,9 @@ ggmap(profiles, var = "mo_ric", type = "point") + labs(colour = "Morpho\nRichnes
 
 ### The problem(s)
 
+::: {.fragment .fade-in}
 -   low taxonomic resolution of the UVP5 dataset
+:::
 
 ::: {.fragment .fade-in}
 -   trophic status of a chaetognath
@@ -277,7 +279,7 @@ ggmap(df, var = "poc", type = "point")
 
 ## Final dataset -- Splits
 
-Learning\* VS test set, stratified by [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}.
+Training\* VS test set, stratified by [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"}.
 
 ::: r-stack
 ::: fragment
@@ -412,9 +414,7 @@ OK prediction!
 ::: {.fragment .fade-in}
 Best predictors:
 
--   [ta. evenness]{style="font-size: 30px;"}
-
--   [ta. diversity]{style="font-size: 30px;"}
+-   [ta. richness ×2]{style="font-size: 30px;"}
 
 -   [mo. richness]{style="font-size: 30px;"}
 :::
@@ -504,6 +504,10 @@ plot_pdp(xgb_explain, vars_pdp[2]) + theme(text = element_text(size = 20))
 POC response to plankton descriptors.
 :::
 
+::: aside
+[Grey ribbon = sd across *cp* profiles.]{style="color: gray;font-size: 20px;"}
+:::
+
 ::: {.fragment .fade-in}
 ::: goals
 ::: goals-header
@@ -589,11 +593,11 @@ OK prediction!
 :::
 
 ::: {.fragment .fade-in}
--   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"}? [→ **Yes**]{.fragment}
+-   Can [POC]{style="color: black;background-color: #00b5ff;border-radius: 10px"} be predicted from [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} diversity? [→ **Yes**]{.fragment}
 :::
 
 ::: {.fragment .fade-in}
--   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
+-   Can [plankton]{style="color: black;background-color: #5ed496;border-radius: 10px"} diversity be predicted from [env]{style="color: black;background-color: #ffe50a;border-radius: 10px"}? [→ **Yes**]{.fragment}
 :::
 
 ## Take-home messages
