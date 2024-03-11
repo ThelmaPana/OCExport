@@ -1,39 +1,40 @@
 ## Packages ----
 #--------------------------------------------------------------------------#
-suppressWarnings(library(tidyverse))
-suppressWarnings(library(parallel))
-suppressWarnings(library(here))
-suppressWarnings(library(reticulate))
+library(tidyverse)
+library(parallel)
+library(here)
+library(reticulate)
 
 # Reading & downloading
-suppressWarnings(library(ncdf4))
-suppressWarnings(library(R.matlab))
-suppressWarnings(library(ecotaxarapi))
-suppressWarnings(library(readxl))
+library(ncdf4)
+library(R.matlab)
+library(ecotaxarapi)
+library(readxl)
 
 # Processing
-suppressWarnings(library(glue))
-suppressWarnings(library(castr))
-suppressWarnings(library(fields))
-suppressWarnings(library(abind))
-suppressWarnings(library(oce))
-suppressWarnings(library(vegan))
-suppressWarnings(library(morphr))
-suppressWarnings(library(mFD))
-suppressWarnings(library(tabula))
-suppressWarnings(library(sf))
-suppressWarnings(library(spatialsample))
+library(glue)
+library(castr)
+library(fields)
+library(abind)
+library(oce)
+library(vegan)
+library(morphr)
+library(mFD)
+library(tabula)
+library(sf)
+library(spatialsample)
+library(Hmisc)
 
 # Plots
-suppressWarnings(library(cmocean))
-suppressWarnings(library(chroma))
-suppressWarnings(library(ggrepel))
+library(cmocean)
+library(chroma)
+library(ggrepel)
 
 # Modeling
-suppressWarnings(library(tidymodels))
-suppressWarnings(library(rpart.plot))
-suppressWarnings(library(vip))
-suppressWarnings(library(DALEXtra))
+library(tidymodels)
+library(rpart.plot)
+library(vip)
+library(DALEXtra)
 
 
 
