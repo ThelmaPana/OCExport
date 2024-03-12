@@ -47,10 +47,6 @@ df <- df_raw %>%
   filter(type == "sediment_trap")
 ```
 
-::: {.callout-important appearance="minimal" icon="false"}
-TODO: file header mentions 198,789 data points but file only has `r nrow(df_raw)` rows.
-:::
-
 ### Distribution in space and time
 
 Number of observations at each location.
@@ -119,7 +115,7 @@ ranges %>%
 Let’s use a depth range of `r (W = 200)` meters. Look at the distribution of POC values (transformed and logged).
 
 ```{r poc_dist}
-W <-  200
+W <-  500
 df <- df %>% 
   filter(between(depth, hor - W, hor + W)) %>% 
   mutate(poc_log = log(poc))
@@ -192,7 +188,11 @@ What do we do with these timeseries?
 
 ```{r load_modeled}
 load("data/00.carbon_data.Rdata")
-df_c <- df_c %>% rename(poc_mod = poc)
+df_c <- df_c %>% 
+  # Rename poc
+  rename(poc_mod = poc) %>% 
+  # Convert from mmol C m-2 year-1 to mg C m-2 day-1 (divide by 365.25 and multiply by 12)
+  mutate(poc_mod = (poc_mod / 365.25)*12)
 
 ggmap(df_c, var = "poc_mod", type = "raster") +
   scale_fill_cmocean(name = "matter", na.value = NA) +
@@ -225,10 +225,6 @@ ggplot(df_pix) + geom_histogram(aes(x = poc_mean))
 ggplot(df_pix) + geom_histogram(aes(x = poc_mod))
 ```
 
-::: {.callout-warning appearance="simple" icon="false"}
-Modeled poc values seem much higher than observed data.
-:::
-
 Let’s still plot modeled VS observations, both in untransformed and log-transformed spaces.
 
 ```{r poc_fin_cloud}
@@ -244,118 +240,18 @@ ggplot(df_pix) +
 
 ```
 
+Let’s compute the correlation.
+
+```{r corr}
+# Untransformed
+cor(df_pix$poc_mean, df_pix$poc_mod)
+
+# Log-transformed
+cor(log(df_pix$poc_mean), log(df_pix$poc_mod))
+```
+
 ::: {.callout-note appearance="simple" icon="false"}
-Correlation is pretty bad. Will be hard to predict modeled value from observation values. Moreover, modeled poc values at 1000 m are very high compared to those at 100 m presented in Wang et al., 2023.
+Correlation is pretty bad. Will be hard to predict modeled value from observation values.
 :::
 
-::: {.callout-important icon="false"}
-Let’s try dividing modeled values by 12.
-:::
-
-```{r poc_fin_cloud_corr}
-ggplot(df_pix) +
-  geom_point(aes(x = poc_mean, y = poc_mod/12)) +
-  geom_abline(intercept = 0, slope = 1, colour = "red")
-
-ggplot(df_pix) +
-  geom_point(aes(x = poc_mean, y = poc_mod/12)) +
-  geom_abline(intercept = 0, slope = 1, colour = "red") +
-  scale_x_log10() + 
-  scale_y_log10()
-```
-
-## Comparison between maps and data from Wang et al.
-
-<https://zenodo.org/records/8253973>
-
-### POC at euphotic depth
-
-```{r}
-## Read data as matrix 
-d_mat <- readMat("data/raw/Cexp_CbPM_kl12h.mat")$EXP[,,1]$POCexp
-#d_mat <- readMat("data/raw/Cexp_CAFE_kl12h.mat")$EXP[,,1]$POCexp
-
-# Generate colnames as longitudes and rownames as latitudes
-colnames(d_mat) <- (c(0.5:179.5) * 2)
-rownames(d_mat) <- (c(0:90) * 2) - 90
-
-#d_mat[d_mat == 0] <- NA
-#median(d_mat, na.rm = TRUE)
-
-## Convert to dataframe
-df_c <- d_mat %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "lat") %>%
-  as_tibble() %>%
-  pivot_longer(cols = -lat, names_to = "lon", values_to = "poc") %>%
-  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
-  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
-  mutate(poc = ifelse(poc == 0, NA, poc)) %>% # TODO cleaner way to remove lands
-  mutate(poc = (poc*12)/365.25) %>% 
-  arrange(lon, lat) 
-summary(df_c)
-
-#ggmap(df_c, var = "poc", type = "raster") + labs(fill = "POCexp")
-
-df_c %>% 
-  ggplot() + 
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
-  geom_raster(aes(x = lon, y = lat, fill = poc)) +
-  scale_fill_distiller(palette = "Greens", na.value = NA, direction = 1) +
-  coord_quickmap(expand = 0) +
-  labs(title = "POCexp / 12")
-
-df_c %>% 
-  ggplot() + 
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
-  geom_raster(aes(x = lon, y = lat, fill = poc)) +
-  scale_fill_fermenter(palette = "Greens", na.value = NA, breaks = seq(from = 25, to = 200, by = 25), direction = 1) +
-  coord_quickmap(expand = 0) +
-  labs(title = "POCexp / 12")
-```
-
-### TOC at euphotic depth / 110 m
-
-```{r}
-## Read data as matrix 
-d_mat <- readMat("data/raw/Cexp_CbPM_kl12h.mat")$EXP[,,1]$TOC110
-#d_mat <- readMat("data/raw/Cexp_CAFE_kl12h.mat")$EXP[,,1]$POCexp
-
-# Generate colnames as longitudes and rownames as latitudes
-colnames(d_mat) <- (c(0.5:179.5) * 2)
-rownames(d_mat) <- (c(0:90) * 2) - 90
-
-#d_mat[d_mat == 0] <- NA
-#median(d_mat, na.rm = TRUE)
-
-## Convert to dataframe
-df_c <- d_mat %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "lat") %>%
-  as_tibble() %>%
-  pivot_longer(cols = -lat, names_to = "lon", values_to = "toc") %>%
-  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
-  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
-  mutate(toc = ifelse(toc == 0, NA, toc)) %>% # TODO cleaner way to remove lands
-  mutate(toc = toc/12) %>% 
-  arrange(lon, lat) 
-summary(df_c)
-
-#ggmap(df_c, var = "toc", type = "raster") + labs(fill = "POCexp")
-
-df_c %>% 
-  ggplot() + 
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
-  geom_raster(aes(x = lon, y = lat, fill = toc)) +
-  scale_fill_distiller(palette = "Greens", na.value = NA, direction = 1) +
-  coord_quickmap(expand = 0) +
-  labs(title = "TOC110 / 12")
-
-df_c %>% 
-  ggplot() + 
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
-  geom_raster(aes(x = lon, y = lat, fill = toc)) +
-  scale_fill_fermenter(palette = "Greens", na.value = NA, breaks = seq(from = 25, to = 200, by = 25), direction = 1) +
-  coord_quickmap(expand = 0) +
-  labs(title = "TOC110 / 12")
-```
+## 
