@@ -227,6 +227,17 @@ res <- mclapply(1:nrow(folds), function(i){
   bind_rows()
 ```
 
+```{r}
+model_parts(xgb_explain, loss_function = loss_yardstick(yardstick::rsq), type = "raw") %>%
+    bind_rows() #%>%
+    #filter(variable != "_baseline_")
+model_parts(xgb_explain, loss_function = loss_yardstick(yardstick::rsq), type = "ratio") %>%
+    bind_rows() #%>%
+
+loss_yardstick(rsq)
+
+```
+
 ## Save results
 
 ```{r save}

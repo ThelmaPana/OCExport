@@ -1,6 +1,5 @@
 ---
 title: "Prediction assessment of POC values from best plankton predictors"
-subtitle: "Train a XGBoost model to predict POC values from environmental data used in Wang et al., 2023."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -248,4 +247,8 @@ ggplot(mean_pdp) +
   geom_path(aes(x = x, y = yhat_loc, colour = cv_type)) +
   geom_ribbon(aes(x = x, ymin = yhat_loc - yhat_spr, ymax = yhat_loc + yhat_spr, fill = cv_type), alpha = 0.2) +
   facet_wrap(~var_name, scales = "free_x")
+```
+
+```{r}
+
 ```
