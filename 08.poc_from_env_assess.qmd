@@ -16,6 +16,7 @@ execute:
 
 ```{r set-up}
 #|output: false
+#|cache: false
 source("utils.R")
 load("data/07.poc_from_env_fit.Rdata")
 ```
@@ -114,23 +115,72 @@ full_vip %>%
 Now let’s take the mean across folds of each CV type.
 
 ```{r var_imp_mean}
-full_vip %>%
+vip_mean <- full_vip %>%
   filter(variable != "_full_model_") %>%
   group_by(cv_type, fold, variable) %>%
-  summarise(dropout_loss = mean(dropout_loss), .groups = "drop") %>%
-  ggplot() +
+  summarise(dropout_loss = mean(dropout_loss), .groups = "drop")
+
+ggplot(vip_mean) +
   geom_vline(data = full_vip %>% filter(variable == "_full_model_"), aes(xintercept = mean(dropout_loss)), colour = "grey", linewidth = 2) +
   geom_boxplot(aes(x = dropout_loss, y = variable, colour = cv_type)) +
   labs(x = "Mean RMSE after permutations across CV folds")
 ```
 
+We can alto take an average weighted by R².
+
+```{r w_rsq_var_imp_mean}
+vip_mean_rsq <- full_vip %>% 
+  left_join(rsquares %>% select(cv_type, fold, rsq = .estimate), by = join_by(cv_type, fold)) %>% 
+  filter(variable != "_full_model_") %>%
+  group_by(cv_type, fold, variable) %>% 
+  summarise(dropout_loss = wtd.mean(dropout_loss, weights = rsq, na.rm = TRUE))
+
+ggplot(vip_mean_rsq) +
+  geom_vline(data = full_vip %>% filter(variable == "_full_model_"), aes(xintercept = mean(dropout_loss)), colour = "grey", linewidth = 2) +
+  geom_boxplot(aes(x = dropout_loss, y = variable, colour = cv_type)) +
+  labs(x = "Weighted (R²) mean RMSE after permutations across CV folds")
+```
+
+Or we can also compute a weighted average with 1/var as weights.
+
+```{r w_var_var_imp_mean}
+vip_mean_var <- full_vip %>% 
+  filter(variable != "_full_model_") %>%
+  group_by(cv_type, fold, variable) %>% 
+  mutate(var_d_loss = var(dropout_loss)) %>% 
+  summarise(
+    dropout_loss = wtd.mean(dropout_loss, weights = 1/var_d_loss, na.rm = TRUE)
+  )
+
+ggplot(vip_mean_var) +
+  geom_vline(data = full_vip %>% filter(variable == "_full_model_"), aes(xintercept = mean(dropout_loss)), colour = "grey", linewidth = 2) +
+  geom_boxplot(aes(x = dropout_loss, y = variable, colour = cv_type)) +
+  labs(x = "Weighted (R²) mean RMSE after permutations across CV folds")
+```
+
+::: callout-note
+## TODO
+
+How do we average variable importance across folds?
+
+-   simple average
+
+-   weighted average by R²
+
+-   weighted average by 1/sd
+
+All are very similar but actually different (values were checked!).
+:::
+
 ## Partial dependence plots
 
 Finally, let’s have a look at partial dependence plots.
 
--   blue line: prediction mean across *cp* profiles
+PDP are averaged across folds:
 
--   grey ribbon: prediction sd across centered *cp* profiles
+-   compute the mean and spread (centered cp profiles) of cp profiles within each fold
+
+-   perform a weighted average across folds, using 1/var as weights
 
 ```{r pdp}
 #| fig-column: body-outset
