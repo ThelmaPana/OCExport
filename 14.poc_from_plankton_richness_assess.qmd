@@ -17,7 +17,7 @@ execute:
 #|output: false
 #|cache: false
 source("utils.R")
-load("data/11.poc_from_plankton_best_fit.Rdata")
+load("data/13.poc_from_plankton_richness_fit.Rdata")
 ```
 
 ## Rsquares
@@ -261,4 +261,3 @@ ggplot(mean_pdp) +
   geom_ribbon(aes(x = x, ymin = yhat_loc - yhat_spr, ymax = yhat_loc + yhat_spr, fill = cv_type), alpha = 0.2) +
   facet_wrap(~var_name, scales = "free_x")
 ```
-

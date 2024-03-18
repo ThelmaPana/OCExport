@@ -128,9 +128,11 @@ full_vip %>%
 
 Finally, let’s have a look at partial dependence plots.
 
--   blue line: prediction mean across *cp* profiles
+PDP are averaged across folds:
 
--   grey ribbon: prediction sd across centered *cp* profiles
+-   compute the mean and spread (centered cp profiles) of cp profiles within each fold
+
+-   perform a weighted average across folds, using 1/var as weights
 
 ```{r pdp}
 #| fig-column: body-outset
@@ -249,3 +251,4 @@ ggplot(mean_pdp) +
   geom_ribbon(aes(x = x, ymin = yhat_loc - yhat_spr, ymax = yhat_loc + yhat_spr, fill = cv_type), alpha = 0.2) +
   facet_wrap(~var_name, scales = "free_x")
 ```
+

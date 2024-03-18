@@ -2546,6 +2546,17 @@
       ],
       "Hash": "3b5b99f4d3f067bb9c1d59317d071370"
     },
+    "pbmcapply": {
+      "Package": "pbmcapply",
+      "Version": "1.5.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "parallel",
+        "utils"
+      ],
+      "Hash": "bf173fb42b60f8f404f7a9f9c3f95d0d"
+    },
     "permute": {
       "Package": "permute",
       "Version": "0.9-7",

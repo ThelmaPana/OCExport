@@ -19,7 +19,7 @@ execute:
 #| cache: false
 source("utils.R")
 load("data/04.all_data.Rdata")
-output_filename <- "data/11.poc_from_plankton_best_fit.Rdata"
+output_filename <- "data/13.poc_from_plankton_richness_fit.Rdata"
 ```
 
 ## Data preparation
@@ -41,13 +41,56 @@ df %>% ggplot() + geom_histogram(aes(x = poc_log), bins = 100)
 
 This is much better. We’ll then try to predict `log(poc)`.
 
+### Merge predictors
+
+-   `ta_ric_3 = specnumber(cont)/sqrt(rowSums(cont))`: number of species / sqrt(number of organisms) (Menhinick)
+
+-   `ta_mast = specnumber(cont)/rowSums(cont)`: number of species / number of organisms
+
+```{r}
+df_pca <- df %>% select(c("poc_log", "poc"), c("mo_ric", "ta_mast", "ta_ric_3"))
+pca_res <- FactoMineR::PCA(df_pca, quanti.sup = 1:2, graph = FALSE)
+plot(pca_res, choix = "var")
+```
+
+We note that:
+
+-   both descriptors of taxonomic richness are correlated (positive on axis 1)
+
+-   morphological richness is \~negatively correlated to taxonomic richness
+
+-   poc is positively correlated with morphological richness and negatively correlated with taxonomic richness
+
+### Links between response variables
+
+```{r}
+ggplot(df, aes(x = ta_ric_3, y = ta_mast)) + geom_point() + geom_smooth()
+ggplot(df) + geom_point(aes(x = ta_ric_3, y = mo_ric))
+ggplot(df) + geom_point(aes(x = ta_mast, y = mo_ric))
+```
+
+### POC vs response variables
+
+```{r}
+ggplot(df) + geom_point(aes(x = poc_log, y = ta_ric_3))
+ggplot(df) + geom_point(aes(x = poc_log, y = ta_mast))
+ggplot(df) + geom_point(aes(x = poc_log, y = mo_ric))
+```
+
+### Compute mean between taxonomic richness indices
+
+```{r new_ric}
+df <- df %>% 
+  mutate(ta_ric_mean = (ta_ric_3 + ta_mast) / 2)
+```
+
 ### Variable roles
 
 ```{r roles}
 # Response variable
 resp_var <- c("poc_log", "poc") # keep both untransformed and transformed predictor
 # Explanatory variables
-exp_vars <- c("mo_ric", "ta_mast", "ta_ric_3")
+exp_vars <- c("mo_ric", "ta_mast")
 # Metadata
 meta_vars <- c("lon", "lat")
 ```
@@ -149,7 +192,6 @@ xgb_grid <- grid_latin_hypercube(
 Let’s loop on cv folds. For each fold, a gridsearch is performed using nested CV on training data, and performance are assessed on the test data. This is run in parallel on `r n_cores` cores.
 
 ```{r gridsearch}
-#| output: false
 res <- mclapply(1:nrow(folds), function(i){
   
   ## Get fold
@@ -212,9 +254,6 @@ res <- mclapply(1:nrow(folds), function(i){
     filter(variable != "_baseline_")
 
   # CP profiles for all variables
-  #selected_points <- ingredients::select_sample(df_train, n = 100, seed = seed)
-  #cp_profiles <- ingredients::ceteris_paribus(xgb_explain, selected_points) %>% as_tibble()
-  # CP profiles
   cp_profiles <- lapply(exp_vars, function(my_var){
     model_profile(explainer = xgb_explain, variables = my_var)$cp_profiles %>% as_tibble()
   }) %>%
@@ -230,17 +269,6 @@ res <- mclapply(1:nrow(folds), function(i){
     ))
 }, mc.cores = 10) %>%
   bind_rows()
-```
-
-```{r}
-model_parts(xgb_explain, loss_function = loss_yardstick(yardstick::rsq), type = "raw") %>%
-    bind_rows() #%>%
-    #filter(variable != "_baseline_")
-model_parts(xgb_explain, loss_function = loss_yardstick(yardstick::rsq), type = "ratio") %>%
-    bind_rows() #%>%
-
-loss_yardstick(rsq)
-
 ```
 
 ## Save results
