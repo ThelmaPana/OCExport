@@ -251,4 +251,3 @@ ggplot(mean_pdp) +
   geom_ribbon(aes(x = x, ymin = yhat_loc - yhat_spr, ymax = yhat_loc + yhat_spr, fill = cv_type), alpha = 0.2) +
   facet_wrap(~var_name, scales = "free_x")
 ```
-
