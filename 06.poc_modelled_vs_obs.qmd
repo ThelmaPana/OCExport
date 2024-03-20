@@ -188,10 +188,13 @@ What do we do with these timeseries?
 
 ```{r load_modeled}
 d_mat <- readMat("data/raw/Cexp_CAFE_kl24h.mat")$EXP[,,1]
+poc_exp <- d_mat$POCexp # POC at base of euphotic layer (73 m)
 poc_100 <- d_mat$POC100 # POC at 100 m
 poc_1000 <- d_mat$POC1000 # POC at 1000 m
 
 # Generate colnames as longitudes and rownames as latitudes
+colnames(poc_exp) <- (c(0.5:179.5) * 2)
+rownames(poc_exp) <- (c(0:90) * 2) - 90
 colnames(poc_100) <- (c(0.5:179.5) * 2)
 rownames(poc_100) <- (c(0:90) * 2) - 90
 colnames(poc_1000) <- (c(0.5:179.5) * 2)
@@ -199,6 +202,16 @@ rownames(poc_1000) <- (c(0:90) * 2) - 90
 
 
 ## Convert to dataframe 
+df_exp <- poc_exp %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "lat") %>%
+  as_tibble() %>%
+  pivot_longer(cols = -lat, names_to = "lon", values_to = "poc_exp") %>%
+  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
+  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
+  mutate(poc_exp = ifelse(poc_exp == 0, NA, poc_exp)) %>%
+  arrange(lon, lat)
+
 df_100 <- poc_100 %>%
   as.data.frame() %>%
   rownames_to_column(var = "lat") %>%
@@ -220,16 +233,21 @@ df_1000 <- poc_1000 %>%
   arrange(lon, lat)
 
 # Join together
-df_mod <- df_100 %>% left_join(df_1000, by = join_by(lat, lon))
+df_mod <- df_exp %>% left_join(df_100, by = join_by(lat, lon)) %>% left_join(df_1000, by = join_by(lat, lon))
 
 # Convert from mmol C m-2 year-1 to mg C m-2 day-1 (divide by 365.25 and multiply by 12)
 df_mod <- df_mod %>% 
   mutate(
+    poc_exp = (poc_exp / 365.25)*12,
     poc_100 = (poc_100 / 365.25)*12,
     poc_1000 = (poc_1000 / 365.25)*12
   )
 
 # Plot maps 
+ggmap(df_mod, var = "poc_exp", type = "raster") +
+  scale_fill_cmocean(name = "matter", na.value = NA) +
+  geom_point(data = df_trap_pix, aes(x = lon, y = lat), size = 0.5)
+
 ggmap(df_mod, var = "poc_100", type = "raster") +
   scale_fill_cmocean(name = "matter", na.value = NA) +
   geom_point(data = df_trap_pix, aes(x = lon, y = lat), size = 0.5)
@@ -343,7 +361,8 @@ df_argo$depth <- rep(depths, each = length(lons) * length(lats))
 # Reorder and compute total poc
 df_argo <- df_argo %>% 
   mutate(poc_tot = poc_s + poc_l) %>% 
-  select(lon, lat, depth, everything())
+  select(lon, lat, depth, everything()) %>% 
+  as_tibble()
 ```
 
 Explore data, surface data.
@@ -353,11 +372,74 @@ df_argo_sl <- df_argo %>% filter(depth == 5)
 ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = "matter", na.value = NA)
 ```
 
+Explore data at the base of euphotic layer, using depth bin `75.0`.
+
+```{r}
+t_depth <- 75 # target depth
+df_argo_sl <- df_argo %>% filter(depth == t_depth)
+ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = "matter", na.value = NA)
+
+df_join <- df_mod %>% 
+  mutate(
+    lon = roundp(lon, precision = 8, f = round),
+    lat = roundp(lat, precision = 4, f = round),
+  ) %>% 
+  group_by(lon, lat) %>% 
+  summarise(poc_exp = mean(poc_exp), .groups = "drop") %>% 
+  left_join(df_argo_sl %>% filter(depth == t_depth), by = join_by(lon, lat)) %>% 
+  select(-depth) %>% 
+  rename(poc_mod = poc_exp) %>% 
+  pivot_longer(poc_l:poc_tot, names_to = "size_range", values_to = "poc_obs")
+  
+ggplot(df_join) + 
+  geom_abline(slope = 1, intercept = 0, colour = "red") +
+  geom_point(aes(x = poc_obs, y = poc_mod, colour = abs(lat)), size = 0.5) + 
+  scale_colour_viridis_c() +
+  facet_wrap(~size_range, scales = "free", ncol = 3)
+
+## Compute correlations per group
+df_join %>% 
+  select(size_range, poc_mod, poc_obs) %>% 
+  nest(data = c(poc_mod, poc_obs)) %>% 
+  mutate(
+    corr = map(data, ~cor(.$poc_mod, .$poc_obs, use = "pairwise.complete.obs"))  
+  ) %>% 
+  unnest(corr)
+```
+
 Explore data, using depth bin `937.5`, the closest to 1000 m.
 
 ```{r}
-df_argo_sl <- df_argo %>% filter(depth == 937.5)
+t_depth <- 937.5 # target depth
+df_argo_sl <- df_argo %>% filter(depth == t_depth)
 ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = "matter", na.value = NA)
+
+df_join <- df_mod %>% 
+  mutate(
+    lon = roundp(lon, precision = 8, f = round),
+    lat = roundp(lat, precision = 4, f = round),
+  ) %>% 
+  group_by(lon, lat) %>% 
+  summarise(poc_exp = mean(poc_exp), .groups = "drop") %>% 
+  left_join(df_argo_sl %>% filter(depth == t_depth), by = join_by(lon, lat)) %>% 
+  select(-depth) %>% 
+  rename(poc_mod = poc_exp) %>% 
+  pivot_longer(poc_l:poc_tot, names_to = "size_range", values_to = "poc_obs")
+  
+ggplot(df_join) + 
+  geom_abline(slope = 1, intercept = 0, colour = "red") +
+  geom_point(aes(x = poc_obs, y = poc_mod, colour = abs(lat)), size = 0.5) + 
+  scale_colour_viridis_c() +
+  facet_wrap(~size_range, scales = "free", ncol = 3)
+
+## Compute correlations per group
+df_join %>% 
+  select(size_range, poc_mod, poc_obs) %>% 
+  nest(data = c(poc_mod, poc_obs)) %>% 
+  mutate(
+    corr = map(data, ~cor(.$poc_mod, .$poc_obs, use = "pairwise.complete.obs"))  
+  ) %>% 
+  unnest(corr)
 ```
 
 See how these values compare to outputs from Wang. First, we need to round coordinates from Wang data to match output data that uses bins of:
