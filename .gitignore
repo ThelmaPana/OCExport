@@ -40,3 +40,5 @@ data/
 draft*
 # Quarto files
 *_files/
+# Notes
+notes/
