@@ -374,6 +374,12 @@ ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = 
 
 Explore data at the base of euphotic layer, using depth bin `75.0`.
 
+See how these values compare to outputs from Wang. First, we need to round coordinates from Wang data to match output data that uses bins of:
+
+-   8° in longitude
+
+-   4° in latitude
+
 ```{r}
 t_depth <- 75 # target depth
 df_argo_sl <- df_argo %>% filter(depth == t_depth)
@@ -442,25 +448,30 @@ df_join %>%
   unnest(corr)
 ```
 
-See how these values compare to outputs from Wang. First, we need to round coordinates from Wang data to match output data that uses bins of:
+## POC attenuation
 
--   8° in longitude
+Between \~100 and \~1000 m.
 
--   4° in latitude
+### Wang
 
 ```{r}
-df_mod
-unique(df_argo_sl$lon)
-unique(df_argo_sl$lat)
-
-toto <- df_mod %>% 
-  mutate(
-    lon = roundp(lon, precision = 8, f = round),
-    lat = roundp(lat, precision = 4, f = round),
-  ) %>% 
-  group_by(lon, lat) %>% 
-  summarise(poc_mod = mean(poc_mod), .groups = "drop")
-unique(toto$lon_r)
-unique(toto$lat_r)
-ggmap(toto, var = "poc_mod", type = "raster")
+df_mod <- df_mod %>% mutate(att = poc_1000 / poc_100)
+ggmap(df_mod, var = "att", type = "raster") + labs(fill = "POC\natten.")
 ```
+
+### ARGO
+
+```{r}
+df_argo_att <- df_argo %>% 
+  select(lon, lat, depth, poc_tot) %>% 
+  filter(depth == 75 | depth == 937.5) %>% 
+  mutate(layer = ifelse(depth == 75, "shallow", "deep")) %>% 
+  select(-depth) %>% 
+  pivot_wider(names_from = "layer", values_from = "poc_tot") %>% 
+  mutate(att = deep / shallow) 
+
+ggmap(df_argo_att, var = "att", type = "raster")
+# Attenuation should be < 1
+ggmap(df_argo_att %>% filter(att <= 1), var = "att", type = "raster")
+```
+
