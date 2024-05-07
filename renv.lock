@@ -1607,6 +1607,20 @@
       ],
       "Hash": "455e00c16ec193c8edcf1b2b522b3288"
     },
+    "gam": {
+      "Package": "gam",
+      "Version": "1.22-3",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "foreach",
+        "methods",
+        "splines",
+        "stats"
+      ],
+      "Hash": "3ff819acc26930ea8d4ebc743ca63618"
+    },
     "gargle": {
       "Package": "gargle",
       "Version": "1.5.2",
@@ -2610,6 +2624,21 @@
         "stats"
       ],
       "Hash": "17e96668f44a28aef0981d9e17c49b59"
+    },
+    "nbssr": {
+      "Package": "nbssr",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "nbssr",
+      "RemoteUsername": "jiho",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "838ddfe8829829aed2a0023d63798d377e5090b1",
+      "Requirements": [
+        "MASS"
+      ],
+      "Hash": "a9780709efc15b6d72e8052135d5026e"
     },
     "ncdf4": {
       "Package": "ncdf4",
