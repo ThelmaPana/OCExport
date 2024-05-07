@@ -33,7 +33,8 @@ load("data/02.all_uvp.Rdata")
 Keep only organisms above the depth at which we want to predict poc export, i.e. 1000 m.
 
 ```{r uvp_max_depth}
-o <- o %>% filter(depth < max_depth_uvp)
+o <- o %>% filter(between(depth, min_depth_uvp, max_depth_uvp))
+#o <- o %>% filter(between(depth, 0, max_depth_uvp))
 ```
 
 ### Taxa
@@ -60,10 +61,6 @@ taxa
 ### Profiles
 
 Compute the number of objects per profile and keep only profiles that have more than `r n_min_uvp` objects.
-
-::: callout-caution
-TODO: minimum number of objects to keep in a profiles.
-:::
 
 ```{r uvp_min_nb}
 profiles <- o %>% 
@@ -100,6 +97,62 @@ o <- o %>% filter(profile_id %in% profiles$profile_id)
 
 We have `r nrow(o)` objects belonging to `r nrow(profiles)` profiles.
 
+## Proportions of large taxonomic groups
+
+Compute proportions of large taxonomic groups.
+
+```{r large_prop}
+#| fig-column: body-outset
+#| out-width: 100%
+props <- o %>% 
+  select(lon, lat, profile_id, taxon, large_group) %>% 
+  count(lon, lat, profile_id, large_group) %>% 
+  group_by(lon, lat, profile_id) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  ungroup() %>% 
+  select(lon, lat, profile_id, large_group, prop) 
+
+# Plot a map
+ggplot(props) + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = prop), size = 0.5) +
+  scale_colour_viridis_c() +
+  coord_quickmap(expand = 0) +
+  facet_wrap(~large_group, ncol = 2)
+
+# Reformat
+props <- props %>% 
+  mutate(large_group = paste0("prop_", str_to_lower(large_group))) %>% 
+  pivot_wider(names_from = "large_group", values_from = "prop", values_fill = 0)
+
+# Add to profile table
+profiles <- profiles %>% 
+  left_join(props, by = join_by(profile_id, lon, lat))
+```
+
+## Abundance and biovolume
+
+Compute overall abundance and biovolume for each profiles.
+
+```{r abund}
+# For abundance, just count objects per profile
+profiles <- profiles %>% 
+  left_join(o %>% count(profile_id, name = "abund"), by = join_by(profile_id))
+
+# For biovolume, compute biovolume for each object and sum per profile
+biov <- o %>% 
+  select(object_id:taxon, esd) %>% 
+  mutate(biovol = (4/3) * pi * esd^3) %>% 
+  group_by(profile_id) %>% 
+  summarise(biovol = sum(biovol))
+# add to profiles
+profiles <- profiles %>% left_join(biov, by = join_by(profile_id))
+
+## Plot maps
+ggmap(profiles, var = "abund", type = "point", palette = scale_colour_viridis_c(trans = "log1p")) 
+ggmap(profiles, var = "biovol", type = "point", palette = scale_colour_viridis_c(trans = "log1p")) 
+```
+
 ## Taxonomic diversity
 
 Tabula package for diversity indices: <https://cran.r-project.org/web/packages/tabula/vignettes/diversity.html>
@@ -120,7 +173,7 @@ Diversity / evenness indices
 
 -   Simpson
 
-```{r tabula indices}
+```{r tabula_indices}
 # Generate a contingency table as a matrix to compute indices
 cont <- o %>%
   count(profile_id, taxon) %>%
@@ -153,45 +206,49 @@ ta_div_prof <- tibble(
   # Master predictor
   ta_mast = specnumber(cont)/rowSums(cont)
 ) %>%
-  left_join(profiles, by = join_by(profile_id)) %>%
-  select(profile_id, lon, lat, everything())
+  left_join(profiles %>% select(profile_id, lon, lat), by = join_by(profile_id)) %>%
+  select(profile_id, lon, lat, contains("ta_"))
 
 # Quick PCA to see correlations
-ta_pca <- FactoMineR::PCA(ta_div_prof %>% select(-c(profile_id, lon, lat, datetime)), graph = FALSE)
+ta_pca <- FactoMineR::PCA(ta_div_prof %>% select(-c(profile_id, lon, lat)), graph = FALSE)
 plot(ta_pca, choix = "var")
 
 # ta_eve_1 and ta_eve_2 are strongly correlated, ignore one
 ta_div_prof <- ta_div_prof %>% select(-ta_eve_2)
 
 # Store results with table of profiles
-profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat, datetime))
+profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat))
+
+# ta_eve_1 could not be computed for 9 profiles
+# replace by mean value
+profiles <- profiles %>% mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))  
 ```
 
 ```{r ta_div}
 #| echo: False
 #| eval: False
-# Old version
-# Generate a contingency table as a matrix to feed to vegan
-cont <- o %>%
-  count(profile_id, taxon) %>%
-  pivot_wider(names_from = "taxon", values_from = "n", values_fill = 0) %>%
-  as.data.frame() %>%
-  column_to_rownames(var = "profile_id") %>%
-  as.matrix()
-
-# Compute diversity metrics
-ta_div_prof <- tibble(
-  profile_id = rownames(cont),
-  ta_ric = specnumber(cont),
-  ta_div = diversity(cont, index = "shannon"),
-  ta_eve = ta_div/log(ta_ric)
-) %>%
-  left_join(profiles, by = join_by(profile_id)) %>%
-  select(profile_id, lon, lat, everything())
-
-
-# Store results with table of profiles
-profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat, datetime))
+## Old version
+## Generate a contingency table as a matrix to feed to vegan
+#cont <- o %>%
+#  count(profile_id, taxon) %>%
+#  pivot_wider(names_from = "taxon", values_from = "n", values_fill = 0) %>%
+#  as.data.frame() %>%
+#  column_to_rownames(var = "profile_id") %>%
+#  as.matrix()
+#
+## Compute diversity metrics
+#ta_div_prof <- tibble(
+#  profile_id = rownames(cont),
+#  ta_ric = specnumber(cont),
+#  ta_div = diversity(cont, index = "shannon"),
+#  ta_eve = ta_div/log(ta_ric)
+#) %>%
+#  left_join(profiles, by = join_by(profile_id)) %>%
+#  select(profile_id, lon, lat, everything())
+#
+#
+## Store results with table of profiles
+#profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat, datetime))
 ```
 
 Plot taxonomic diversity metrics.
@@ -218,7 +275,117 @@ ggmap(
   )
 ```
 
-## Trophic diversity
+## Size spectra
+
+### Compute SS
+
+Compute ss for each profiles.
+
+```{r comp_ss}
+# Compute SS
+# Also compute mean ESD per profile and retain it
+ss <- o %>%
+  arrange(profile_id) %>%
+  group_by(profile_id) %>%
+  mutate(mean_esd = mean(esd)) %>%
+  ungroup() %>%
+  group_by(profile_id, mean_esd) %>%
+  reframe(nbss(esd, type = "abundance", base = 10, binwidth = 0.1))
+
+# Plot a few SS, in a log-transformed space
+sam_profiles <- profiles %>% slice_sample(n = 12) %>% pull(profile_id)
+ss %>% 
+  filter(profile_id %in% sam_profiles) %>% 
+  ggplot() +
+  geom_point(aes(x = bin, y = norm_y)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap(~profile_id)
+```
+
+### Clean SS
+
+We need to remove the part left of the peak and keep only profiles that have at least 5 points to fit the SS.
+
+```{r clean_ss}
+# Use a cumulative sum to remove the part left of the peak
+ss <- ss %>%
+  group_by(profile_id, mean_esd) %>%
+  # Cut the left part of the SS
+  filter(cumsum(norm_y == max(norm_y)) > 0) %>%
+  ungroup()
+
+# Keep only profiles with at least 5 points to fit SS
+ss <- ss %>% add_count(profile_id) %>% filter(n >= 5)
+```
+
+### Fit SS
+
+```{r fit_ss}
+## Fit size spectra
+# Log-transform the y value
+# NB: not necessary to log-transform x value because already present in the data
+ss <- ss %>% mutate(norm_y = log10(norm_y))
+
+# Fit lm
+ss_regs <- ss %>% 
+  select(profile_id, bin_log, norm_y) %>%
+  nest(data = c(bin_log, norm_y)) %>%
+  mutate(
+    fit = map(data, ~lm(norm_y ~ bin_log, data = .x)), # run lm's
+    glance = map(fit, glance),                         # summary of fit
+    tidied = map(fit, tidy)                            # extract coefficients
+  )
+
+
+# glance contains all summary of fits
+ss_summ <- ss_regs %>%   
+  select(profile_id, glance) %>%
+  unnest(glance)
+summary(ss_summ)
+
+
+# tidied contains coefficients
+ss_coef <- ss_regs %>%
+  select(profile_id, tidied) %>%
+  unnest(tidied) %>%
+  # keep only estimates of slope and intercept
+  select(-c(std.error, statistic, p.value)) %>%
+  mutate(term = ifelse(term == "bin_log", "b1", "b0")) %>%
+  # 2 lines (intercept + slope) for each profile, reshape to make it one line
+  pivot_wider(names_from = term, values_from = estimate) #%>% 
+  # b0 is intercept, b1 is slope
+  #select(profile_id, b1, b0)
+summary(ss_coef)
+
+# Let’s join both together
+ss_coef <- ss_coef %>% left_join(ss_summ, by = join_by(profile_id))
+
+# Plot a few fits
+ss %>% 
+  filter(profile_id %in% sam_profiles) %>% 
+  ggplot() +
+  geom_point(aes(x = bin_log, y = norm_y)) +
+  geom_abline(
+    data = ss_coef %>% filter(profile_id %in% sam_profiles), 
+    aes(slope = b1, intercept = b0, colour = adj.r.squared)
+  ) +
+  labs(x = "bin (log)", y = "norm_y (log)", colour = "adj R²") +
+  scale_colour_viridis_c() +
+  facet_wrap(~profile_id)
+```
+
+### Save SS
+
+Join ss outputs with profile data. For profiles for which SS could not be computed (not enough points), replace slope and intercept by the mean value.
+
+```{r join_ss}
+profiles <- profiles %>% 
+  # join slope and intercept data
+  left_join(ss_coef %>% select(profile_id, ss_slope = b1, ss_inter = b0), by = join_by(profile_id)) %>% 
+  # replace by the mean value for missing profiles
+  mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))  
+```
 
 ## Morphological diversity
 
@@ -247,10 +414,6 @@ feats <- x %>%
   pivot_longer(cols = everything()) %>%
   filter(value > 0) %>%
   pull(name)
-
-# Remove additional features that are relative to position within image
-feats <- feats[!feats %in% c("angle", "tag", "centroids", "xmg5", "ymg5")]
-
 x <- x %>% select(all_of(feats))
 ```
 
@@ -350,7 +513,7 @@ eig %>%
   ggplot() +
   geom_path(aes(x = as.numeric(comp), y = eigenvalue)) +
   geom_point(aes(x = as.numeric(comp), y = eigenvalue)) +
-  geom_vline(xintercept = 5, colour = "red") +
+  geom_vline(xintercept = 4, colour = "red") +
   theme_classic() +
   scale_x_log10() +
   scale_y_log10() +
@@ -391,7 +554,7 @@ Let’s extract the coordinates of individuals in the morphospace.
 
 ```{r mspace_get_ind}
 ## Get coordinates of individuals
-inds <- mo_space$ind$coord %>% as_tibble()
+inds <- mo_space$ind$coord %>% as_tibble() %>% select(-Dim.5)
 # Set nice names for columns
 colnames(inds) <- str_c("mo_dim", paste(c(1:ncol(inds))))
 # And join with initial dataframe of objects
@@ -520,8 +683,6 @@ p34 +
 -   PC3 = elongation
 
 -   PC4 = heterogeneity of grey levels
-
-[TODO: Look for missing files.]{style="color: red;"}
 
 ### Diversity
 
@@ -748,11 +909,11 @@ count_p <- count_p_m %>% count(profile_id) %>% arrange(n)
 
 count_p %>% 
   ggplot() +
-  geom_histogram(aes(x = n, fill = n >= 6 ), bins = 50) +
-  geom_vline(xintercept = 6, colour = "red")
+  geom_histogram(aes(x = n, fill = n >= 5 ), bins = 50) +
+  geom_vline(xintercept = 5, colour = "red")
 ```
 
-The red line shows the minimum number of morphs that must be present in each profile in order to compute morphological diversity metrics using 5 morphospace axes.
+The red line shows the minimum number of morphs that must be present in each profile in order to compute morphological diversity metrics using 4 morphospace axes.
 
 Plot clusters
 
@@ -861,7 +1022,8 @@ profiles <- profiles %>%
     mo_grey_sd = mo_dim2_sd,
     mo_elon_sd = mo_dim3_sd,
     mo_ghet_sd  = mo_dim4_sd,
-  )
+  ) %>% 
+  select(-contains("mo_ide"))
 ```
 
 ```{r save_final}

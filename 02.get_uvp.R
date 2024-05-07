@@ -154,9 +154,10 @@ sel_taxa <- read_tsv("data/raw/uvp/selected_taxa.tsv") %>% select(-lineage)
 
 # Drop unwanted taxa
 o <- o %>%
-  left_join(sel_taxa) %>%
+  left_join(sel_taxa, by = join_by(taxon)) %>%
   filter(!is.na(use_as)) %>%
   mutate(taxon = use_as) %>%
+  relocate(large_group, .after = taxon) %>%
   select(-use_as)
 
 
@@ -164,13 +165,47 @@ o <- o %>%
 #--------------------------------------------------------------------------#
 # Read samples
 s <- read_tsv("data/raw/uvp/samples.tsv.gz") %>%
-  select(profile_id, lon, lat, datetime) %>%
+  select(profile_id, lon, lat, datetime, pixel_size) %>%
   mutate(profile_id = as.character(profile_id))
 
 # Join with profiles info
 o <- o %>%
   left_join(s, by = join_by(profile_id)) %>%
-  select(object_id, profile_id, lon, lat, datetime, depth, taxon, everything())
+  select(object_id, profile_id, lon, lat, datetime, depth, taxon, large_group, pixel_size, everything())
+
+
+## Process descriptors ----
+#--------------------------------------------------------------------------#
+# Convert px to mm for size descriptors
+# Compute esd
+# Remove non meaningful descriptors
+o <- o %>%
+  # px to mm
+  mutate(
+    # length²
+    area     = area     * pixel_size^2,
+    area_exc = area_exc * pixel_size^2,
+    skelarea = skelarea * pixel_size^2,
+    convarea = convarea * pixel_size^2,
+    # length
+    perim.    = perim.    * pixel_size,
+    width     = width     * pixel_size,
+    height    = height    * pixel_size,
+    major     = major     * pixel_size,
+    minor     = minor     * pixel_size,
+    feret     = feret     * pixel_size,
+    convperim = convperim * pixel_size,
+    # 1 / length²
+    symetrieh_area = symetrieh_area / pixel_size^2,
+    symetriev_area = symetriev_area / pixel_size^2,
+    nb1_area       = nb1_area       / pixel_size^2,
+    nb2_area       = nb2_area       / pixel_size^2,
+    nb3_area       = nb3_area       / pixel_size^2
+  ) %>%
+  # compute esd
+  mutate(esd = sqrt(area/pi), .after = area) %>%
+  # remove meaningless for morphology
+  select(-c(xmg5, ymg5, centroids, angle, areai, tag, pixel_size))
 
 
 ## Save ----

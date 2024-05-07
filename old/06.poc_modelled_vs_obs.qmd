@@ -1,0 +1,584 @@
+---
+title: "POC modeled VS POC observed"
+subtitle: "Investigate whether modeled POC is representative of POC observations."
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    embed-resources: true
+editor: visual
+execute:
+  cache: true
+  warning: false
+---
+
+```{r set_up}
+#| output: false
+#| cache: false
+source("utils.R")
+
+```
+
+## POC observation data / sediment traps
+
+### Read data
+
+Read data, keep columns of interest, rename, drop observations where `poc` is missing, and keep only sediment traps.
+
+```{r read}
+df_trap_raw <- read_delim("data/raw/GO_flux.tab", delim = "\t", escape_double = FALSE, trim_ws = TRUE, skip = 87, show_col_types = FALSE)
+# Select columns of interest and rename
+df_trap <- df_trap_raw %>%
+  select(
+    id_ref = `ID (Reference identifier)`,
+    id_loc = `ID (Unique location identifier)`,
+    type = `Type (Data type)`,
+    lon = Longitude,
+    lat = Latitude,
+    depth = `Depth water [m] (Sediment trap deployment depth)`,
+    start_date = `Date/Time (Deployed)`,
+    end_date = `Date/time end (Retrieved)`,
+    duration = `Duration [days]`,
+    poc = `POC flux [mg/m**2/day]`
+  ) %>%
+  # drop observations where poc is missing
+  drop_na(poc) %>% 
+  # only sediment traps
+  filter(type == "sediment_trap")
+```
+
+### Distribution in space and time
+
+Number of observations at each location.
+
+```{r map}
+df_trap %>%
+  add_count(lon, lat) %>% 
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = n)) +
+  #scale_colour_cmocean(name = "deep") +
+  scale_colour_viridis_c(trans = "log10") +
+  coord_quickmap(expand = 0)
+```
+
+Depth distribution
+
+```{r depth_dist}
+ggplot(df_trap) + geom_histogram(aes(x = depth), binwidth = 100)
+```
+
+Time distribution
+
+```{r time_dist}
+ggplot(df_trap) + geom_histogram(aes(x = start_date))
+ggplot(df_trap) + geom_histogram(aes(x = duration)) + scale_x_log10()
+```
+
+### Data points around the 1000 m horizon
+
+Let’s focus on the data around 1000 m depth. For a set of depth range between `50` and `500` m, compute number and map observations.
+
+```{r depth_ranges}
+hor <- 1000
+ranges <- lapply(seq(from = 100, to = 500, by = 50), function(W){
+  d <- df_trap %>%
+    filter(between(depth, hor - W, hor + W)) %>% # keep points within the depth range
+    mutate(W = W)
+  return(d)
+})
+ranges <- do.call(bind_rows, ranges)
+
+ranges %>%
+  count(W) %>%
+  ggplot() +
+  geom_col(aes(x = W, y = n)) +
+  ggtitle("Number of data points within 1000 ± W depth range")
+```
+
+```{r depth_ranges_map}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 15
+#| fig-height: 8
+ranges %>%
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = depth)) +
+  scale_colour_cmocean(name = "deep") +
+  coord_quickmap(expand = 0) +
+  facet_wrap(~W)
+```
+
+### Fixed depth range
+
+Let’s use a depth range of `r (W = 200)` meters. Look at the distribution of POC values (transformed and logged).
+
+```{r poc_dist}
+W <-  500
+df_trap <- df_trap %>% 
+  filter(between(depth, hor - W, hor + W)) %>% 
+  mutate(poc_log = log(poc))
+ggplot(df_trap) + geom_histogram(aes(x = poc))
+ggplot(df_trap) + geom_histogram(aes(x = poc_log)) # yay
+```
+
+Log-transformed poc is closer to a normal distribution, but if we want to predict modeled poc from observed poc, depending on the prediction model, the distribution of the predictor may not be important.
+
+Let’s now round coordinates to match with Wang et al., 2023 which uses a grid of 2°×2°.
+
+```{r round_coord}
+# average by pixel
+df_trap_pix <- df_trap %>%
+  mutate(
+    # floor longitude and add 1 because carbon longitudes are odd
+    lon = roundp(lon, precision = 2, f = floor) + 1,
+    # round latitude because carbon latitudes are even
+    lat = roundp(lat, precision = 2, f = round)
+  ) %>%
+  group_by(lon, lat) %>%
+  summarise(
+    poc_mean = mean(poc),
+    poc_sd = sd(poc)
+  ) %>%
+  ungroup()
+
+df_trap_pix %>%
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = poc_mean)) +
+  scale_colour_cmocean(name = "matter") +
+  coord_quickmap(expand = 0)
+
+df_trap_pix %>%
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = poc_sd)) +
+  scale_colour_viridis_c() +
+  coord_quickmap(expand = 0)
+```
+
+Let’s check the number of observations per pixel.
+
+```{r count_obs}
+df_trap %>%
+  mutate(
+    # floor longitude and add 1 because carbon longitudes are odd
+    lon = roundp(lon, precision = 2, f = floor) + 1,
+    # round latitude because carbon latitudes are even
+    lat = roundp(lat, precision = 2, f = round)
+  ) %>% 
+  count(lon, lat) %>% 
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = n)) +
+  scale_colour_viridis_c(trans = "log10") +
+  coord_quickmap(expand = 0)
+```
+
+Looks like we have 2 timeseries with \> 300 observations.
+
+::: {.callout-caution appearance="simple" icon="false"}
+What do we do with these timeseries?
+:::
+
+## Match with POC modeled data
+
+### Read modeled data
+
+```{r load_modeled}
+d_mat <- readMat("data/raw/Cexp_CAFE_kl24h.mat")$EXP[,,1]
+poc_exp <- d_mat$POCexp # POC at base of euphotic layer (73 m)
+poc_100 <- d_mat$POC100 # POC at 100 m
+poc_1000 <- d_mat$POC1000 # POC at 1000 m
+
+# Generate colnames as longitudes and rownames as latitudes
+colnames(poc_exp) <- (c(0.5:179.5) * 2)
+rownames(poc_exp) <- (c(0:90) * 2) - 90
+colnames(poc_100) <- (c(0.5:179.5) * 2)
+rownames(poc_100) <- (c(0:90) * 2) - 90
+colnames(poc_1000) <- (c(0.5:179.5) * 2)
+rownames(poc_1000) <- (c(0:90) * 2) - 90
+
+
+## Convert to dataframe 
+df_exp <- poc_exp %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "lat") %>%
+  as_tibble() %>%
+  pivot_longer(cols = -lat, names_to = "lon", values_to = "poc_exp") %>%
+  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
+  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
+  mutate(poc_exp = ifelse(poc_exp == 0, NA, poc_exp)) %>%
+  arrange(lon, lat)
+
+df_100 <- poc_100 %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "lat") %>%
+  as_tibble() %>%
+  pivot_longer(cols = -lat, names_to = "lon", values_to = "poc_100") %>%
+  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
+  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
+  mutate(poc_100 = ifelse(poc_100 == 0, NA, poc_100)) %>%
+  arrange(lon, lat)
+
+df_1000 <- poc_1000 %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "lat") %>%
+  as_tibble() %>%
+  pivot_longer(cols = -lat, names_to = "lon", values_to = "poc_1000") %>%
+  mutate(lat = as.numeric(lat), lon = as.numeric(lon)) %>%
+  mutate(lon = ifelse(lon > 180, lon - 360, lon)) %>%
+  mutate(poc_1000 = ifelse(poc_1000 == 0, NA, poc_1000)) %>%
+  arrange(lon, lat)
+
+# Join together
+df_mod <- df_exp %>% left_join(df_100, by = join_by(lat, lon)) %>% left_join(df_1000, by = join_by(lat, lon))
+
+# Convert from mmol C m-2 year-1 to mg C m-2 day-1 (divide by 365.25 and multiply by 12)
+df_mod <- df_mod %>% 
+  mutate(
+    poc_exp = (poc_exp / 365.25)*12,
+    poc_100 = (poc_100 / 365.25)*12,
+    poc_1000 = (poc_1000 / 365.25)*12
+  )
+
+# Plot maps 
+ggmap(df_mod, var = "poc_exp", type = "raster") +
+  scale_fill_cmocean(name = "matter", na.value = NA) +
+  geom_point(data = df_trap_pix, aes(x = lon, y = lat), size = 0.5)
+
+ggmap(df_mod, var = "poc_100", type = "raster") +
+  scale_fill_cmocean(name = "matter", na.value = NA) +
+  geom_point(data = df_trap_pix, aes(x = lon, y = lat), size = 0.5)
+
+ggmap(df_mod, var = "poc_1000", type = "raster") +
+  scale_fill_cmocean(name = "matter", na.value = NA) +
+  geom_point(data = df_trap_pix, aes(x = lon, y = lat), size = 0.5)
+```
+
+### Join
+
+Join by coordinates, drop observations where modeled poc is not available.
+
+```{r join}
+df_all <- df_trap_pix %>% 
+  left_join(df_mod, by = join_by(lon, lat)) %>% 
+  drop_na(poc_100, poc_1000)
+```
+
+Let’s plot a map of our final dataset.
+
+```{r map_fin}
+ggplot(df_all) + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat)) +
+  coord_quickmap(expand = 0)
+```
+
+Let’s also have a look at the data distribution.
+
+```{r poc_fin_dist}
+ggplot(df_all) + geom_histogram(aes(x = poc_mean))
+ggplot(df_all) + geom_histogram(aes(x = poc_1000))
+```
+
+Let’s still plot modeled VS observations, both in untransformed and log-transformed spaces.
+
+```{r poc_fin_cloud}
+ggplot(df_all) +
+  geom_point(aes(x = poc_mean, y = poc_1000)) +
+  geom_abline(intercept = 0, slope = 1, colour = "red")
+
+ggplot(df_all) +
+  geom_point(aes(x = poc_mean, y = poc_1000)) +
+  geom_abline(intercept = 0, slope = 1, colour = "red") +
+  scale_x_log10() + 
+  scale_y_log10()
+
+```
+
+Let’s compute the correlation.
+
+```{r corr}
+# Untransformed
+cor(df_all$poc_mean, df_all$poc_1000)
+
+# Log-transformed
+cor(log(df_all$poc_mean), log(df_all$poc_1000))
+```
+
+::: {.callout-note appearance="simple" icon="false"}
+Correlation is pretty bad. Will be hard to predict modeled value from observation values.
+:::
+
+## POC observation data / ARGO
+
+```{r}
+library(raveio)
+# Open mat file
+globe <- read_mat("data/raw/BGC_Argo_monthly_maps_GLOBESINK_global_beta20240212auto_baseline_QC_only_fluxes.mat")
+
+
+# Read POC data
+# NB: these are mg C m-2 day-1, same as Wang
+poc_l <- globe$`monthly_maps/flux/POC_l`
+poc_s <- globe$`monthly_maps/flux/POC_s`
+
+# Read coordinates
+#  compute bin centres from edges
+depths <- globe$zbin_edges[1,]
+depths <- head(depths, -1) + (diff(depths) / 2)
+lats <- globe$lat_edges[1,]
+lats <- head(lats, -1) + (diff(lats))/2
+lons <- globe$lon_edges[1,]
+lons <- head(lons, -1) + (diff(lons))/2
+
+# Reorder POC dimensions to lon, lat, depth, month
+poc_l <- aperm(poc_l, c(3, 2, 1, 4))
+poc_s <- aperm(poc_s, c(3, 2, 1, 4))
+
+# Compute annual mean at all depth
+poc_l <- apply(poc_l, c(1, 2, 3), mean, na.rm = TRUE)
+poc_s <- apply(poc_s, c(1, 2, 3), mean, na.rm = TRUE)
+
+## Convert to dataframe
+# store matrices into a single object
+poc <- c()
+poc$poc_l <- poc_l
+poc$poc_s <- poc_s
+
+# unroll each matrix
+poc_v <- lapply(poc, function(e) { as.vector(e) })
+# combine as columns
+df_argo <- do.call(cbind, poc_v) %>% as.data.frame() %>% setNames(names(poc_v))
+
+# add coordinates (NB: shorter elements are recycled automatically)
+df_argo$lon <- lons
+df_argo$lat <- rep(lats, each = length(lons))
+df_argo$depth <- rep(depths, each = length(lons) * length(lats))
+
+# Reorder and compute total poc
+df_argo <- df_argo %>% 
+  mutate(poc_tot = poc_s + poc_l) %>% 
+  select(lon, lat, depth, everything()) %>% 
+  as_tibble()
+```
+
+Explore data, surface data.
+
+```{r}
+df_argo_sl <- df_argo %>% filter(depth == 5)
+ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = "matter", na.value = NA)
+```
+
+Explore data at the base of euphotic layer, using depth bin `75.0`.
+
+See how these values compare to outputs from Wang. First, we need to round coordinates from Wang data to match output data that uses bins of:
+
+-   8° in longitude
+
+-   4° in latitude
+
+```{r}
+t_depth <- 75 # target depth
+df_argo_sl <- df_argo %>% filter(depth == t_depth)
+ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = "matter", na.value = NA)
+
+df_join <- df_mod %>% 
+  mutate(
+    lon = roundp(lon, precision = 8, f = round),
+    lat = roundp(lat, precision = 4, f = round),
+  ) %>% 
+  group_by(lon, lat) %>% 
+  summarise(poc_exp = mean(poc_exp), .groups = "drop") %>% 
+  left_join(df_argo_sl %>% filter(depth == t_depth), by = join_by(lon, lat)) %>% 
+  select(-depth) %>% 
+  rename(poc_mod = poc_exp) %>% 
+  pivot_longer(poc_l:poc_tot, names_to = "size_range", values_to = "poc_obs")
+  
+ggplot(df_join) + 
+  geom_abline(slope = 1, intercept = 0, colour = "red") +
+  geom_point(aes(x = poc_obs, y = poc_mod, colour = abs(lat)), size = 0.5) + 
+  scale_colour_viridis_c() +
+  facet_wrap(~size_range, scales = "free", ncol = 3)
+
+## Compute correlations per group
+df_join %>% 
+  select(size_range, poc_mod, poc_obs) %>% 
+  nest(data = c(poc_mod, poc_obs)) %>% 
+  mutate(
+    corr = map(data, ~cor(.$poc_mod, .$poc_obs, use = "pairwise.complete.obs"))  
+  ) %>% 
+  unnest(corr)
+```
+
+Explore data, using depth bin `937.5`, the closest to 1000 m.
+
+```{r}
+t_depth <- 937.5 # target depth
+df_argo_sl <- df_argo %>% filter(depth == t_depth)
+ggmap(df_argo_sl, var = "poc_tot", type = "raster") + scale_fill_cmocean(name = "matter", na.value = NA)
+
+df_join <- df_mod %>% 
+  mutate(
+    lon = roundp(lon, precision = 8, f = round),
+    lat = roundp(lat, precision = 4, f = round),
+  ) %>% 
+  group_by(lon, lat) %>% 
+  summarise(poc_exp = mean(poc_exp), .groups = "drop") %>% 
+  left_join(df_argo_sl %>% filter(depth == t_depth), by = join_by(lon, lat)) %>% 
+  select(-depth) %>% 
+  rename(poc_mod = poc_exp) %>% 
+  pivot_longer(poc_l:poc_tot, names_to = "size_range", values_to = "poc_obs")
+  
+ggplot(df_join) + 
+  geom_abline(slope = 1, intercept = 0, colour = "red") +
+  geom_point(aes(x = poc_obs, y = poc_mod, colour = abs(lat)), size = 0.5) + 
+  scale_colour_viridis_c() +
+  facet_wrap(~size_range, scales = "free", ncol = 3)
+
+## Compute correlations per group
+df_join %>% 
+  select(size_range, poc_mod, poc_obs) %>% 
+  nest(data = c(poc_mod, poc_obs)) %>% 
+  mutate(
+    corr = map(data, ~cor(.$poc_mod, .$poc_obs, use = "pairwise.complete.obs"))  
+  ) %>% 
+  unnest(corr)
+```
+
+## POC attenuation
+
+Between \~100 and \~1000 m.
+
+### Wang
+
+```{r}
+df_mod <- df_mod %>% mutate(att = poc_1000 / poc_100)
+ggmap(df_mod, var = "att", type = "raster") + labs(fill = "POC\natten.")
+```
+
+### ARGO
+
+```{r}
+df_argo_att <- df_argo %>% 
+  select(lon, lat, depth, poc_tot) %>% 
+  filter(depth == 175 | depth == 475) %>% 
+  mutate(layer = ifelse(depth == 175, "shallow", "deep")) %>% 
+  select(-depth) %>% 
+  pivot_wider(names_from = "layer", values_from = "poc_tot") %>% 
+  mutate(att = deep / shallow) 
+
+ggmap(df_argo_att, var = "att", type = "raster")
+# Attenuation should be < 1
+ggmap(df_argo_att %>% filter(att <= 1), var = "att", type = "raster")
+```
+
+b-value for F~z~ = F~z0~(z/z0)^b^
+
+```{r}
+# Reference depth 75 m
+z0 <- 75
+
+# Unique identifier for pixels
+df_argo <- df_argo %>% 
+  select(lon, lat, depth, poc_tot) %>% 
+  mutate(pix_id = paste0("lon ", lon, " lat ", lat), .before = lon) %>% 
+  filter(depth >= z0)
+
+## At least 5 obs to fit an attenuation
+# Drop pixels with no data
+df_argo <- df_argo %>% 
+  group_by(pix_id, lon, lat) %>% 
+  mutate(n_obs = sum(!is.na(poc_tot))) %>% 
+  ungroup() %>% 
+  filter(n_obs >=5) %>% 
+  select(-n_obs) %>% 
+  rename(z = depth, poc = poc_tot)
+
+# Select a few pixels for plots
+set.seed(1)
+pix_plot <- df_argo %>% select(pix_id) %>% unique() %>% slice_sample(n = 16) %>% pull(pix_id)
+
+df_argo %>% 
+  filter(pix_id %in% pix_plot) %>% 
+  #filter(lon == -128) %>% 
+  ggplot() + 
+  geom_point(aes(x = poc, y = -z)) +
+  facet_wrap(~pix_id)
+
+```
+
+```{r}
+argo_regs <- df_argo %>% 
+  nest(data = c(poc, z)) %>% 
+  mutate(
+    fit = map(data, ~lm(log(poc) ~ log(z/z0), data = .x)),
+    glance = map(fit, glance),                         # summary of fit
+    tidied = map(fit, tidy)    
+  )
+
+# glance contains all summary of fits
+argo_summ <- argo_regs %>%   
+  select(pix_id, lon, lat, glance) %>%
+  unnest(glance)
+summary(argo_summ)
+
+# tidied contains coefficients
+argo_coef <- argo_regs %>%
+  select(pix_id, lon, lat, tidied) %>%
+  unnest(tidied) %>%
+  # keep only estimates of slope and intercept
+  select(-c(std.error, statistic, p.value)) %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "intercept",
+      .default = "b"
+  )) %>% 
+  # 2 lines (intercept + slope) for each profile, reshape to make it one line
+  pivot_wider(names_from = term, values_from = estimate)
+summary(argo_coef)
+
+
+# Let’s join both together
+argo_coef <- argo_coef %>% left_join(argo_summ, by = join_by(pix_id, lon, lat))
+
+## TODO eliminate bad fits?
+ggplot(argo_coef) + geom_histogram(aes(x = adj.r.squared))
+ggplot(argo_coef) + geom_point(aes(x = adj.r.squared, y = r.squared), alpha = 0.2)
+
+# Plot a few fits
+b_curve <- crossing(
+  pix_id = unique(df_argo$pix_id),
+  z = seq(from = 75, to = 2000, by = 5)
+  ) %>% 
+  left_join(argo_coef %>% select(pix_id, intercept, b, adj.r.squared), by = join_by(pix_id)) %>% 
+  mutate(poc = exp(b * log(z/z0) + intercept))
+
+ggplot(df_argo %>% filter(pix_id %in% pix_plot)) +
+  geom_path(data = b_curve  %>% filter(pix_id %in% pix_plot), aes(x = poc, y = -z, colour = adj.r.squared), linewidth = 1) +
+  geom_point(aes(x = poc, y = -z), size = 0.5) +
+  scale_colour_viridis_c() +
+  facet_wrap(~pix_id)
+
+ggplot(df_argo %>% filter(pix_id %in% pix_plot)) +
+  geom_path(data = b_curve  %>% filter(pix_id %in% pix_plot), aes(x = poc, y = -z, colour = adj.r.squared), linewidth = 1) +
+  geom_point(aes(x = poc, y = -z), size = 0.5) +
+  scale_colour_viridis_c() +
+  facet_wrap(~pix_id)
+
+
+ggmap(argo_coef, var = "b", type = "raster")
+ggmap(argo_coef, var = "adj.r.squared", type = "raster")
+
+thr <- 0.1
+df_argo %>% 
+  left_join(argo_coef) %>% 
+  filter(adj.r.squared < thr) %>% 
+  ggplot() +
+  geom_path(data = b_curve  %>% filter(adj.r.squared < thr), aes(x = poc, y = -z, colour = adj.r.squared), linewidth = 1) +
+  geom_point(aes(x = poc, y = -z), size = 0.5) +
+  scale_colour_viridis_c() +
+  facet_wrap(~pix_id)
+```

@@ -25,6 +25,7 @@ library(tabula)
 library(sf)
 library(spatialsample)
 library(Hmisc)
+library(nbssr)
 
 # Plots
 library(cmocean)
@@ -75,7 +76,8 @@ max_depth_woa <- 500
 layer_bottom <- 10
 
 ## UVP
-# Depth above which to keep UVP objects
+# Depth below and above which to keep UVP objects
+min_depth_uvp <- 75 # euphotic depth in Wang
 max_depth_uvp <- 1000
 
 # Minimum number of objects in a UVP profile to consider it
