@@ -18,9 +18,9 @@ execute:
 #| output: false
 source("utils.R")
 
-load("data/00.carbon_data.Rdata")
-load("data/01.all_env.Rdata")
-load("data/03.uvp_profiles.Rdata")
+load("data/01.uvp_profiles.Rdata")
+load("data/02.carbon_data.Rdata")
+load("data/03.all_env.Rdata")
 rm(coast)
 ```
 
@@ -34,43 +34,61 @@ Carbon data is given on a 2°×2° grid, so we need to round env and UVP coordin
 
 Carbon data is given on a 8°×4° grid, so we need to round env and UVP coordinates to match the same grid. Carbon longitudes are even so we need to round longitude with `precision = 8`. Carbon latitudes are even so we can just round with `precision = 4`.
 
+-   **Case 3: carbon data from Sauzède**
+
+Carbon data is given on a 0.25°×0.25° grid, so we need to round UVP coordinates to match the same grid. We need to floor longitude with `precision = 0.25` and then add 0.125 to the result. We need to floor latitude with `precision = 0.25` and then add 0.125 to the result.
+
 ```{r choose_c}
 # Choose C data source
-c_data <- "wang"
+#c_data <- "wang"
 #c_data <- "argo"
+c_data <- "canyon"
 if (c_data == "wang") {
   df_c <- df_c_mod
-} else {
+} else  if (c_data == "argo"){
   df_c <- df_c_argo
+} else {
+  df_c <- df_c_can
 }
 ```
 
 ### Env data
 
+Ignore env data if using POC from Sauzède because it is computed from the environment.
+
 ```{r round_env_coord}
-env <- env %>%
-  arrange(lon, lat) %>%
-  rowwise() %>% 
-  mutate(
-    lon = ifelse(
-      c_data == "wang",
+if (c_data == "wang") {
+  
+  env <- env %>%
+    arrange(lon, lat) %>%
+    rowwise() %>% 
+    mutate(
       # for wang, floor longitude and add 1 because carbon longitudes are odd
-      roundp(lon, precision = 2, f = floor) + 1,
-      # for argo, round to 8°
-      roundp(lon, precision = 8, f = round)
-    ),
-    lat = ifelse(
-      c_data == "wang",
+      lon = roundp(lon, precision = 2, f = floor) + 1,
       # for wang, round latitude because carbon latitudes are even
-      roundp(lat, precision = 2, f = round),
+      lat = roundp(lat, precision = 2, f = round)
+    ) %>%
+    # Average all values on carbon pixels
+    group_by(lon, lat) %>%
+    summarise_all(mean, na.rm = TRUE) %>%
+    ungroup()
+  
+} else  if (c_data == "argo"){
+  
+  env <- env %>%
+    arrange(lon, lat) %>%
+    rowwise() %>% 
+    mutate(
+      # for argo, round to 8°
+      lon = roundp(lon, precision = 8, f = round),
       # for argo, round to 4°
-      roundp(lat, precision = 8, f = round)
-    )
-  ) %>%
-  # Average all values on carbon pixels
-  group_by(lon, lat) %>%
-  summarise_all(mean, na.rm = TRUE) %>%
-  ungroup()
+      lat = roundp(lat, precision = 8, f = round)
+    ) %>%
+    # Average all values on carbon pixels
+    group_by(lon, lat) %>%
+    summarise_all(mean, na.rm = TRUE) %>%
+    ungroup()
+}
 ```
 
 ### UVP data
@@ -92,26 +110,60 @@ Now let’s round the coordinates and replot the map. We also need to average UV
 ```{r round_uvp_coord}
 #| fig-column: body-outset
 #| out-width: 100%
-profiles_r <- profiles %>%
-  # Drop profile identification
-  select(-profile_id) %>% 
-  rowwise() %>% 
-  mutate(
-    lon = ifelse(
-      c_data == "wang",
+if (c_data == "wang") {
+  
+  profiles_r <- profiles %>%
+    # Drop profile identification
+    select(-profile_id) %>% 
+    arrange(lon, lat) %>%
+    rowwise() %>% 
+    mutate(
       # for wang, floor longitude and add 1 because carbon longitudes are odd
-      roundp(lon, precision = 2, f = floor) + 1,
-      # for argo, round to 8°
-      roundp(lon, precision = 8, f = round)
-    ),
-    lat = ifelse(
-      c_data == "wang",
+      lon = roundp(lon, precision = 2, f = floor) + 1,
       # for wang, round latitude because carbon latitudes are even
-      roundp(lat, precision = 2, f = round),
+      lat = roundp(lat, precision = 2, f = round)
+    ) %>%
+    # Average all values on carbon pixels
+    group_by(lon, lat) %>%
+    summarise_all(mean, na.rm = TRUE) %>%
+    ungroup()
+  
+} else  if (c_data == "argo"){
+  
+  profiles_r <- profiles %>%
+    # Drop profile identification
+    select(-profile_id) %>% 
+    arrange(lon, lat) %>%
+    rowwise() %>% 
+    mutate(
+      # for argo, round to 8°
+      lon = roundp(lon, precision = 8, f = round),
       # for argo, round to 4°
-      roundp(lat, precision = 8, f = round)
-    )
-  )
+      lat = roundp(lat, precision = 8, f = round)
+    ) %>%
+    # Average all values on carbon pixels
+    group_by(lon, lat) %>%
+    summarise_all(mean, na.rm = TRUE) %>%
+    ungroup()
+  
+} else {
+  
+  profiles_r <- profiles %>%
+    # Drop profile identification
+    select(-profile_id) %>% 
+    arrange(lon, lat) %>%
+    rowwise() %>% 
+    mutate(
+      # for canyon, floor longitude at 0.25 and add 0.125
+      lon = roundp(lon, precision = 0.25, f = floor) + 0.125,
+      # for canyon, floor latitude at 0.25 and add 0.125
+      lat = roundp(lat, precision = 0.25, f = floor) + 0.125
+    ) %>%
+    # Average all values on carbon pixels
+    group_by(lon, lat) %>%
+    summarise_all(mean, na.rm = TRUE) %>%
+    ungroup()
+}
 
 n_profiles <- profiles_r %>% count(lon, lat)
 
@@ -128,7 +180,7 @@ profiles_r %>%
   coord_quickmap()
 ```
 
-UVP profiles are now aligned on the 2°×2° grid. We can also plot the number of UVP profiles per pixel.
+UVP profiles are now aligned on the carbon grid. We can also plot the number of UVP profiles per pixel.
 
 ```{r map_uvp_gridded}
 #| fig-column: body-outset
@@ -139,8 +191,6 @@ n_profiles %>%
   geom_point(aes(x = lon, y = lat, alpha = n), size = 0.5) + 
   coord_quickmap()
 ```
-
-We can notice a strong sampling in the California current and in the Peruvian upwelling.
 
 Let’s have a quick look at Shannon diversity on this new grid.
 
@@ -155,10 +205,18 @@ ggmap(profiles_r, "ta_ric_1", type = "point")
 Since all three datasets use the same round coordinates, we can join them together. As a result, we will only get env and carbon data where UVP data is available.
 
 ```{r assemple}
-df <- profiles_r %>%
-  left_join(env,  by = join_by(lon, lat)) %>%
-  left_join(df_c, by = join_by(lon, lat)) %>% 
-  select(lon, lat, everything())
+if (c_data == "canyon"){
+  # If we use C data from Sauzède, do not include env
+  df <- profiles_r %>%
+    left_join(df_c, by = join_by(lon, lat)) %>% 
+    select(lon, lat, everything())
+} else {
+  # Otherwise, include env
+  df <- profiles_r %>%
+    left_join(env,  by = join_by(lon, lat)) %>%
+    left_join(df_c, by = join_by(lon, lat)) %>% 
+    select(lon, lat, everything())
+}
 ```
 
 Our dataset contains `r nrow(df)` points.
@@ -168,7 +226,7 @@ Now, we can plot POC data at locations of UVP profiles.
 ```{r map_poc_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(df, "poc_1000", type = "point", palette = scale_colour_cmocean(name = "matter"))
+ggmap(df, "att", type = "point")
 ```
 
 Or temperature.
@@ -176,7 +234,7 @@ Or temperature.
 ```{r map_temp_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(df, "temperature", type = "point", palette = scale_colour_cmocean(name = "thermal"))
+#ggmap(df, "temperature", type = "point", palette = scale_colour_cmocean(name = "thermal"))
 ```
 
 In both cases, we notice that some POC and temperature data is not available at some UVP locations.
@@ -198,116 +256,11 @@ Let’s redraw our POC map.
 ```{r map_poc_uvp_no_na}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(df, "poc_1000", type = "point", palette = scale_colour_cmocean(name = "matter"))
-```
-
-## Compute Wang "remains" residuals from temp + oxygen
-
-```{r plot_att_temp_o2}
-ggplot(df) + 
-  geom_point(aes(x = temperature, y = remain, colour = oxygen)) +
-  scale_colour_viridis_c()
-
-ggplot(df) + 
-  geom_point(aes(x = oxygen, y = remain)) 
-```
-
-Effects of both temperature and oxygen: try to fit a GAM.
-
-```{r fit_att_temp_o2}
-library(gam)
-# ggeffects
-# gratia
-
-remain_gam <- gam(remain ~ s(temperature) + s(oxygen), data = df)
-summary(remain_gam) # quite good fit
-plot(remain_gam)
-
-df_remain_gam <- df %>% 
-  mutate(
-  pred_remain = as.numeric(predict(remain_gam)),
-  #pred_remain = exp(pred_log_remain),
-  resid_remain = remain - pred_remain
-  )
-
-# Plot residuals
-ggplot(df_remain_gam) + geom_histogram(aes(x = resid_remain))
-ggplot(df_remain_gam) + geom_point(aes(x = temperature, y = resid_remain))
-ggplot(df_remain_gam) + geom_point(aes(x = oxygen, y = resid_remain))
-ggmap(
-  df_remain_gam, 
-  var = "resid_remain", 
-  type = "point", 
-  palette = scale_colour_gradient2(low = "#4575b4", mid = "#ffffbf", high = "#d73027")
-)
+ggmap(df, "att", type = "point")
 ```
 
 ## Save the resulting dataset
 
 ```{r save}
-df <- df_remain_gam
 save(df, file = file.path(data_dir, "04.all_data.Rdata"))
-```
-
-## Plots for presentation
-
-```{r}
-#ggplot() + 
-#  geom_raster(data = df_c, aes(x = lon, y = lat, fill = poc_1000)) +
-#  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-#  #geom_point(data = profiles, aes(x = lon, y = lat), size = 0.5) +
-#  scale_fill_cmocean(name = "matter", na.value = NA) +
-#  labs(
-#    fill = "POC flux at 1000 m<br>(mmolC m<sup>-2</sup> y<sup>-1</sup>)",
-#    title = "POC flux at 1000 m"
-#    ) +
-#  coord_quickmap(expand = 0) +
-#  theme(legend.title = element_markdown())
-#
-#ggplot() + 
-#  geom_raster(data = df_c, aes(x = lon, y = lat, fill = poc_1000)) +
-#  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-#  geom_point(data = profiles, aes(x = lon, y = lat), size = 0.5) +
-#  scale_fill_cmocean(name = "matter", na.value = NA) +
-#  coord_quickmap(expand = 0)
-#
-#ggplot() + 
-#  geom_raster(data = df_c, aes(x = lon, y = lat, fill = poc_1000)) +
-#  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-#  geom_point(data = df, aes(x = lon, y = lat), size = 0.5) +
-#  scale_fill_cmocean(name = "matter", na.value = NA) +
-#  coord_quickmap(expand = 0)
-#
-#ggplot() + 
-#  #geom_raster(data = df_c, aes(x = lon, y = lat, fill = poc_1000)) +
-#  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-#  geom_point(data = df, aes(x = lon, y = lat, colour = poc_1000), size = 0.5) +
-#  scale_colour_cmocean(name = "matter", na.value = NA) +
-#  coord_quickmap(expand = 0)
-#
-#ggplot() + 
-#  geom_raster(data = env, aes(x = lon, y = lat, fill = temperature)) +
-#  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-#  #geom_point(data = df, aes(x = lon, y = lat, colour = poc_1000), size = 0.5) +
-#  scale_fill_cmocean(name = "thermal", na.value = NA) +
-#  coord_quickmap(expand = 0)
-#
-#ggplot(df, aes(y = poc_1000, x = lat)) + 
-#  geom_point() +
-#  geom_smooth() +
-#  coord_flip()
-#
-#ggplot(df, aes(y = ta_mast, x = lat)) + 
-#  geom_point() +
-#  geom_smooth() +
-#  coord_flip()
-#
-#
-#ggplot() + 
-#  geom_raster(data = df_c, aes(x = lon, y = lat, fill = att)) +
-#  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-#  #geom_point(data = df, aes(x = lon, y = lat, colour = poc_1000), size = 0.5) +
-#  ggplot2::scale_fill_viridis_c(na.value = NA, option = "mako") +
-#  labs(fill = "POC \nattenuation") +
-#  coord_quickmap(expand = 0)
 ```
