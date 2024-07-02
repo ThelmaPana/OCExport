@@ -1191,20 +1191,6 @@
       ],
       "Hash": "641f05fa41d9ac97f38741360d9d10ab"
     },
-    "doParallel": {
-      "Package": "doParallel",
-      "Version": "1.0.17",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "foreach",
-        "iterators",
-        "parallel",
-        "utils"
-      ],
-      "Hash": "451e5edf411987991ab6a5410c45011f"
-    },
     "doSNOW": {
       "Package": "doSNOW",
       "Version": "1.0.20",
@@ -1607,20 +1593,6 @@
       ],
       "Hash": "455e00c16ec193c8edcf1b2b522b3288"
     },
-    "gam": {
-      "Package": "gam",
-      "Version": "1.22-3",
-      "Source": "Repository",
-      "Repository": "RSPM",
-      "Requirements": [
-        "R",
-        "foreach",
-        "methods",
-        "splines",
-        "stats"
-      ],
-      "Hash": "3ff819acc26930ea8d4ebc743ca63618"
-    },
     "gargle": {
       "Package": "gargle",
       "Version": "1.5.2",
@@ -1720,6 +1692,21 @@
         "withr"
       ],
       "Hash": "e9839af82cc43fda486a638b68b439b2"
+    },
+    "ggtext": {
+      "Package": "ggtext",
+      "Version": "0.1.2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "ggplot2",
+        "grid",
+        "gridtext",
+        "rlang",
+        "scales"
+      ],
+      "Hash": "c5ba8f5056487403a299b91984be86ca"
     },
     "gifti": {
       "Package": "gifti",
@@ -1830,6 +1817,26 @@
         "utils"
       ],
       "Hash": "7d7f283939f563670a697165b2cf5560"
+    },
+    "gridtext": {
+      "Package": "gridtext",
+      "Version": "0.1.5",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "curl",
+        "grDevices",
+        "grid",
+        "jpeg",
+        "markdown",
+        "png",
+        "rlang",
+        "stringr",
+        "xml2"
+      ],
+      "Hash": "05e4f5fffb1eecfeaac9ea0b7f255fef"
     },
     "gsw": {
       "Package": "gsw",
@@ -2468,6 +2475,19 @@
       ],
       "Hash": "5f7886e53a3b39d4a110c7bd7fce9164"
     },
+    "markdown": {
+      "Package": "markdown",
+      "Version": "1.12",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "commonmark",
+        "utils",
+        "xfun"
+      ],
+      "Hash": "765cf53992401b3b6c297b69e1edb8bd"
+    },
     "memoise": {
       "Package": "memoise",
       "Version": "2.0.1",
@@ -2783,6 +2803,21 @@
         "withr"
       ],
       "Hash": "cbb49c720a5e4bf1fe36a870b07d1a0c"
+    },
+    "pastecs": {
+      "Package": "pastecs",
+      "Version": "1.4.2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "boot",
+        "grDevices",
+        "graphics",
+        "stats",
+        "utils"
+      ],
+      "Hash": "56e66b7bf898437aac44f7e4b088affb"
     },
     "patchwork": {
       "Package": "patchwork",
