@@ -1,6 +1,6 @@
 ---
-title: "Predict POC remaining values from plankton"
-subtitle: "Train a XGBoost model to predict POC remaining values from plankton diversity data."
+title: "Predict POC attenuation from plankton"
+subtitle: "Train a XGBoost model to predict POC attenuation from plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -29,27 +29,18 @@ output_filename <- "data/06.att_from_plankton_fit.Rdata"
 Let’s have a look at our response variable: POC value. We do not need to inspect response variables as the model we are going to use are robust to non-normal distributions.
 
 ```{r poc_hist}
-df %>% ggplot() + geom_histogram(aes(x = remain), bins = 100)
+df %>% ggplot() + geom_histogram(aes(x = att), bins = 100)
 ```
 
-The distribution is not normal, this is problematic. Let’s try a log-transformation.
-
-```{r log_remain_log_hist}
-df <- df %>% mutate(log_remain = log(remain))
-df %>% ggplot() + geom_histogram(aes(x = log_remain), bins = 100)
-```
-
-This is much better. We’ll then try to predict `log(remain)`.
+The distribution is \~ normal, let’s keep it this way.
 
 ### Variable roles
 
 ```{r roles}
 # Response variable
-resp_var <- c("remain", "log_remain") # keep both untransformed and transformed predictor
+resp_var <- c("att") # keep both untransformed and transformed predictor
 # Explanatory variables
-#exp_vars <- df %>% select(contains("mo")) %>% colnames()
 exp_vars <- df %>% select(prop_crustacea:mo_spe) %>% colnames()
-#exp_vars <- df %>% select(abund, ta_ric_1, ta_eve_1, ta_div_1, ss_slope, mo_ric, mo_eve, mo_div, mo_size_mean, mo_grey_mean) %>% colnames()
 # Metadata
 meta_vars <- c("lon", "lat")
 ```
@@ -99,8 +90,6 @@ df %>%
   geom_smooth() +
   coord_flip() +
   facet_wrap(~name, nrow = 1)
-
-#exp_vars <- df %>% select(contains("dim_")) %>% colnames()
 ```
 
 ## Data split
@@ -121,40 +110,33 @@ We use 10-fold cross-validation:
 
 Two different methods for data splitting are used:
 
--   stratified on deciles of the response variable (`log_remain_log`)
+-   stratified on deciles of the response variable
 
 -   spatial cross-validation using blocks
 
 ```{r split}
 # Number of folds
-n_folds <- 5
+n_folds <- 10
 
 # Transform dataframe to sf object for spatial CV.
 df_sf <- st_as_sf(df, coords = c("lon", "lat"), crs = 4326)
 
-#set.seed(seed)
+set.seed(seed)
 ## Bind together folds of both nested_cv
-#folds <- bind_rows(
-#  # Stratified CV on deciles of response variable
-#  nested_cv(
-#    df,
-#    outside = vfold_cv(v = n_folds, strata = poc_log, breaks = 9),
-#    inside = vfold_cv(v = n_folds, strata = poc_log, breaks = 9)) %>%
-#    mutate(cv_type = "stratified"),
-#  # Spatial CV
-#  nested_cv(
-#    df_sf,
-#    outside = spatial_block_cv(v = n_folds),
-#    inside = spatial_block_cv(v = n_folds)) %>%
-#    mutate(cv_type = "spatial")
-#)
-
-#set.seed(seed)
-folds <- nested_cv(
-  df,
-  outside = vfold_cv(v = n_folds, strata = log_remain, breaks = 4),
-  inside = vfold_cv(v = n_folds, strata = log_remain, breaks = 4)) %>%
-  mutate(cv_type = "stratified")
+folds <- bind_rows(
+  # Stratified CV on deciles of response variable
+  nested_cv(
+    df,
+    outside = vfold_cv(v = n_folds, strata = att, breaks = 9),
+    inside = vfold_cv(v = n_folds, strata = att, breaks = 9)) %>%
+    mutate(cv_type = "stratified"),
+  # Spatial CV
+  nested_cv(
+    df_sf,
+    outside = spatial_block_cv(v = n_folds),
+    inside = spatial_block_cv(v = n_folds)) %>%
+    mutate(cv_type = "spatial")
+)
 ```
 
 ## Model definition
@@ -173,9 +155,11 @@ Let’s define a XGBoost regression model, with tunable hyperparameters:
 # Define a xgboost model with hyperparameters to tune
 xgb_spec <- boost_tree(
   trees = tune(),
+  learn_rate = tune(),
   tree_depth = tune(),
-  min_n = tune(),
-  learn_rate = tune()
+  #min_n = tune(),
+  sample_size = 0.5,
+  mtry = tune()
 ) %>%
   set_mode("regression") %>%
   set_engine("xgboost")
@@ -185,19 +169,20 @@ We also generate the formula from the explanatory variables. We also keep poc fo
 
 ```{r def_form}
 # Generate formula from list of explanatory variables
-xgb_form <- as.formula(paste("log_remain ~ ", paste(c("remain", exp_vars), collapse = " + "), sep = ""))
+xgb_form <- as.formula(paste("att ~ ", paste(exp_vars, collapse = " + "), sep = ""))
 ```
 
 Finally, let’s define the grid for the gridsearch (only one grid is used for all folds).
 
 ```{r def_grid}
 # Define one grid for all folds
-#set.seed(seed)
+set.seed(seed)
 xgb_grid <- grid_latin_hypercube(
-  trees(),
-  learn_rate(),
-  tree_depth(),
-  min_n(),
+  trees(range = c(300, 3000)),
+  learn_rate(range = c(-6, -1), trans = log10_trans()),
+  tree_depth(range = c(1, 10)),
+  mtry(c(1, length(exp_vars))),
+  #sample_size(c(0, 1)),
   size = 30
 )
 ```
@@ -217,8 +202,7 @@ res <- mclapply(1:nrow(folds), function(i){
   df_test <- assessment(x$splits[[1]]) %>% as_tibble()
 
   ## Recipe
-  xgb_rec <- recipe(xgb_form, data = df_train) %>%
-    update_role(remain, new_role = "untransformed outcome")
+  xgb_rec <- recipe(xgb_form, data = df_train)
 
   ## Workflow
   xgb_wflow <- workflow() %>%
@@ -245,7 +229,7 @@ res <- mclapply(1:nrow(folds), function(i){
 
   ## Prediction on outer folds
   preds <- predict(final_res, new_data = df_test) %>%
-    bind_cols(df_test %>% select(log_remain))
+    bind_cols(df_test %>% select(att))
 
   ## Model explainer
   # Select only predictors
@@ -255,7 +239,7 @@ res <- mclapply(1:nrow(folds), function(i){
   xgb_explain <- explain_tidymodels(
       model = extract_fit_parsnip(final_res),
       data = vip_train,
-      y = df_train %>%  pull(log_remain),
+      y = df_train %>%  pull(att),
       verbose = FALSE
     )
 
