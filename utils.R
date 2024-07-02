@@ -26,6 +26,7 @@ library(sf)
 library(spatialsample)
 library(Hmisc)
 library(nbssr)
+library(pastecs)
 
 # Plots
 library(cmocean)
