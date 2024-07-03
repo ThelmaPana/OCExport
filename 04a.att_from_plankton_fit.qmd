@@ -1,0 +1,226 @@
+---
+title: "Predict POC attenuation from plankton"
+subtitle: "Train a XGBoost model to predict POC attenuation from plankton diversity data."
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    embed-resources: true
+editor: visual
+execute:
+  cache: true
+  warning: false
+---
+
+## Set-up and load data
+
+```{r set_up}
+#| output: false
+#| cache: false
+source("utils.R")
+load("data/03.all_data.Rdata")
+output_filename <- "data/04.att_from_plankton_all_fit.Rdata"
+```
+
+## Data preparation
+
+### Response variable
+
+Let’s have a look at our response variable: POC value. We do not need to inspect response variables as the model we are going to use are robust to non-normal distributions.
+
+```{r poc_hist}
+df %>% ggplot() + geom_histogram(aes(x = att), bins = 100)
+```
+
+The distribution is \~ normal, let’s keep it this way.
+
+### Variable roles
+
+```{r roles}
+# Response variable
+resp_var <- c("att") # keep both untransformed and transformed predictor
+# Explanatory variables
+exp_vars <- df %>% select(prop_crustacea:mo_spe) %>% colnames()
+# Metadata
+meta_vars <- c("lon", "lat")
+```
+
+## Data split
+
+To better assess the performance of our model and get a distribution of R² instead of a single value, we will use nested cross-validation.
+
+Instead of splitting the data into train and test sets and get a single estimate of R² on the test set, we will use nested cross-validation so that we have several repeats of train/test splits and thus a distribution of R² values. For each fold, a second cross-validation is performed within the training set in order to tune the hyperparameters.
+
+We use 10-fold cross-validation:
+
+-   10% of data for testing
+
+-   90% of data for training. This subset is used for nested cross-validation with:
+
+    -   10% of data for validation
+
+    -   90% of data for learning
+
+Two different methods for data splitting are used:
+
+-   stratified on deciles of the response variable
+
+-   spatial cross-validation using blocks
+
+```{r split}
+# Number of folds
+n_folds <- 10
+
+# Transform dataframe to sf object for spatial CV.
+df_sf <- st_as_sf(df, coords = c("lon", "lat"), crs = 4326)
+
+set.seed(seed)
+## Bind together folds of both nested_cv
+folds <- bind_rows(
+  # Stratified CV on deciles of response variable
+  nested_cv(
+    df,
+    outside = vfold_cv(v = n_folds, strata = att, breaks = 9),
+    inside = vfold_cv(v = n_folds, strata = att, breaks = 9)) %>%
+    mutate(cv_type = "stratified"),
+  # Spatial CV
+  nested_cv(
+    df_sf,
+    outside = spatial_block_cv(v = n_folds),
+    inside = spatial_block_cv(v = n_folds)) %>%
+    mutate(cv_type = "spatial")
+)
+```
+
+## Model definition
+
+Let’s define a XGBoost regression model, with tunable hyperparameters:
+
+-   `trees`: number of trees
+
+-   `tree_depth`: maximum depth (i.e. number of splits) in a tree
+
+-   `min_n`: minimum number of objects in a node to split further
+
+-   `learn_rate`
+
+```{r def_mod}
+# Define a xgboost model with hyperparameters to tune
+xgb_spec <- boost_tree(
+  trees = tune(),
+  learn_rate = tune(),
+  tree_depth = tune(),
+  sample_size = 0.5,
+  mtry = tune()
+) %>%
+  set_mode("regression") %>%
+  set_engine("xgboost")
+```
+
+We also generate the formula from the explanatory variables. We also keep poc for now, but it will be removed from predictors when generating the recipe within the gridsearch.
+
+```{r def_form}
+# Generate formula from list of explanatory variables
+xgb_form <- as.formula(paste("att ~ ", paste(exp_vars, collapse = " + "), sep = ""))
+```
+
+Finally, let’s define the grid for the gridsearch (only one grid is used for all folds).
+
+```{r def_grid}
+# Define one grid for all folds
+set.seed(seed)
+xgb_grid <- grid_latin_hypercube(
+  trees(range = c(300, 3000)),
+  learn_rate(range = c(-6, -1), trans = log10_trans()),
+  tree_depth(range = c(1, 10)),
+  mtry(c(1, length(exp_vars))),
+  size = 30
+)
+```
+
+## Models fitting
+
+Let’s loop on cv folds. For each fold, a gridsearch is performed using nested CV on training data, and performance are assessed on the test data. This is run in parallel on `r n_cores` cores.
+
+```{r gridsearch}
+res <- mclapply(1:nrow(folds), function(i){
+  
+  ## Get fold
+  x <- folds[i,]
+
+  ## Train and test sets
+  df_train <- analysis(x$splits[[1]]) %>% as_tibble()
+  df_test <- assessment(x$splits[[1]]) %>% as_tibble()
+
+  ## Recipe
+  xgb_rec <- recipe(xgb_form, data = df_train)
+
+  ## Workflow
+  xgb_wflow <- workflow() %>%
+    add_recipe(xgb_rec) %>%
+    add_model(xgb_spec)
+
+  ## Gridsearch
+  set.seed(seed)
+  xgb_res <- tune_grid(
+    xgb_wflow,
+    resamples = x$inner_resamples[[1]],
+    grid = xgb_grid,
+    metrics = metric_set(rmse),
+    control = control_grid(save_pred = TRUE)
+  )
+  best_params <- select_best(xgb_res)
+
+  ## Final fit
+  final_xgb <- finalize_workflow(
+    xgb_wflow,
+    best_params
+  )
+  final_res <- fit(final_xgb, df_train)
+
+  ## Prediction on outer folds
+  preds <- predict(final_res, new_data = df_test) %>%
+    bind_cols(df_test %>% select(att))
+
+  ## Model explainer
+  # Select only predictors
+  vip_train <- xgb_rec %>% prep() %>% bake(new_data = NULL, all_predictors())
+
+  # Explainer
+  xgb_explain <- explain_tidymodels(
+      model = extract_fit_parsnip(final_res),
+      data = vip_train,
+      y = df_train %>%  pull(att),
+      verbose = FALSE
+    )
+
+  # Variable importance
+  full_vip <- model_parts(xgb_explain) %>%
+    bind_rows() %>%
+    filter(variable != "_baseline_")
+
+  # CP profiles for all variables
+  cp_profiles <- lapply(exp_vars, function(my_var){
+    model_profile(explainer = xgb_explain, variables = my_var)$cp_profiles %>% as_tibble()
+  }) %>%
+    bind_rows()
+  
+  ## Return results
+  return(tibble(
+      preds = list(preds),
+      importance = list(full_vip),
+      cp_profiles = list(cp_profiles),
+      fold = x$id,
+      cv_type = x$cv_type
+    ))
+}, mc.cores = min(nrow(folds), 10)) %>%
+  bind_rows()
+```
+
+## Save results
+
+```{r save}
+save(res, file = output_filename)
+```
+
+\
