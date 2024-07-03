@@ -1,33 +1,16 @@
 # OCExport
 
-Predict ocean carbon export
+Predict particulate organic carbon (POC) attenuation from zooplankton diversity.
 
 ## Goals
 
--   predict carbon export from a bunch of environmental data
--   investigate if various proxis of zooplankton diversity are important for predicting carbon export
+1.  Compute POC attenuation from POC concentration data by Sauzède et al., 2020
 
-## TODOs
+2.  Generate metrics of zooplankton diversity from UVP5 data
 
--   investigate BARTs (<https://cran.r-project.org/web/packages/BART/vignettes/the-BART-R-package.pdf>)
+3.  Predict POC attenuation from various metrics of zooplankton diversity
 
--   generate proxis of diversity for zooplankton (taxonomic, trophic & morphologic)
-
--   can we predict POC values from a few plankton variables? -> Yes!
-
--   can these plankton variables be predicted from the environment?
-
--   can we isolate the effect of plankton on POC:
-    
-    - compute POC residuals from env
-    
-    - compute plankton residuals from env (plankton is multivariate, use MBTR)
-    
-    - predict POC residuals from plankton residuals
-
-
-
-
+4.  Investigate which descriptors of zooplankton diversity are important to predict POC attenuation
 
 ## Repo organisation
 
@@ -37,41 +20,20 @@ Contains data
 
 ### Scripts
 
--   `utils.R`: useful stuffs for all the projects: loading packages, default values, functions…
+-   `utils.R`: useful stuff for the project: loading packages, default values, functions…
 
--   `00.get_carbon.R`: download POC data
+-   `00.get_uvp`: download UVP data from Ecotaxa
 
--   `01.get_env.qmd`: download and process environmental data
+-   `01.uvp_diversity`: compute taxonomic/morphological/trophic diversity metrics for UVP data
 
--   `02.get_uvp.R`: download UVP data from Ecotaxa
+-   `02.get_carbon`: process POC data and compute attenuation
 
--   `03.uvp_diversity.qmd`: compute taxonomic/morphological/trophic diversity metrics for UVP data
+-   `03.assemble`: assemble POC and plankton data
 
--   `04.assemble.qmd`: assemble poc, env and plankton data
+-   `04.pred_poc_from_plankton`: fit a XGBoost model to predict POC attenuation from all plankton data
 
--   `05.pred_poc_from_all.qmd`: fit a XGBoost model to predict poc from env + plankton data
-
--   `06.pred_poc_from_env.qmd`: fit a XGBoost model to predict poc from env as in Wang et al., 2023
-
--   `07.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from all plankton data
-
--   `08.pred_poc_from_plankton.qmd`: fit a XGBoost model to predict poc from a few plankton variables, identified as the best predictors in `06.pred_poc_from_plankton.qmd`
-
--   `09.pred_poc_from_pca.qmd`: fit a XGBoost model to predict poc from PCA outputs on all plankton data
-
--   `10.pred_plankton_from_env.qmd`: fit a XGBoost model to predict best plankton predictors (from `06.pred_poc_from_plankton.qmd`) from env variables
-
-
-### Notes
-
-Ideas in development / reports. 
-
+-   `05.pred_poc_from_plankton`: fit a XGBoost model to predict POC attenuation from a few plankton variables
 
 ### Presentations
 
 Quarto presentations for meetings.
-
-
-### Old
-
-Old stuff. 
