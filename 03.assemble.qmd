@@ -98,45 +98,45 @@ ggmap(profiles_r, "ta_ric_1", type = "point")
 Since all three datasets use the same round coordinates, we can join them together. As a result, we will only get env and carbon data where UVP data is available.
 
 ```{r assemple}
-df <- profiles_r %>%
+df_all <- profiles_r %>%
   left_join(df_c, by = join_by(lon, lat)) %>% 
   select(lon, lat, everything())
 ```
 
-Our dataset contains `r nrow(df)` points.
+Our dataset contains `r nrow(df_all)` points.
 
 Now, we can plot POC attenuation data at locations of UVP profiles.
 
 ```{r map_poc_uvp}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(df, "att", type = "point") + scale_colour_viridis_c()
+ggmap(df_all, "att", type = "point") + scale_colour_viridis_c()
 ```
 
 We notice that some POC attenuation is not available at some UVP locations.
 
 ```{r summary}
-summary(df)
+summary(df_all)
 ```
 
 Let’s get rid of these points.
 
 ```{r drop_na}
-df <- df %>% drop_na()
+df_all <- df_all %>% drop_na()
 ```
 
-We still have `r nrow(df)` points in our dataset.
+We still have `r nrow(df_all)` points in our dataset.
 
 Let’s redraw our POC map.
 
 ```{r map_poc_uvp_no_na}
 #| fig-column: body-outset
 #| out-width: 100%
-ggmap(df, "att", type = "point")
+ggmap(df_all, "att", type = "point")
 ```
 
 ## Save the resulting dataset
 
 ```{r save}
-save(df, file = file.path(data_dir, "03.all_data.Rdata"))
+save(df_all, file = file.path(data_dir, "03.all_data.Rdata"))
 ```
