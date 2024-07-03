@@ -1007,6 +1007,60 @@ ggmap(profiles, var = "mo_mpd", type = "point")
 ggmap(profiles, var = "mo_nnd", type = "point")
 ```
 
+## Explore features
+
+Let’s do a PCA on the features to get the main trends in the dataset.
+
+```{r exp_pca}
+#| fig-column: body-outset
+#| out-width: 100%
+pl_metrics <- profiles %>% select(prop_crustacea:mo_spe)
+pl_pca <- FactoMineR::PCA(pl_metrics, scale.unit = TRUE, graph = FALSE)
+plot(pl_pca, choix = "var")
+
+# Get eigenvalues
+eig <- pl_pca$eig %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "comp") %>%
+  as_tibble() %>%
+  mutate(
+    comp = str_remove(comp, "comp "),
+    comp = as.numeric(comp),
+    comp = as.factor(comp)
+    ) %>% 
+  rename(var = `percentage of variance`, cum_var = `cumulative percentage of variance`)
+
+eig %>%
+  ggplot() +
+  geom_col(aes(x = comp, y = eigenvalue)) +
+  geom_hline(yintercept = 1, col = "red", linewidth = 0.5) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "PC", y = "Eigenvalue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# Get coordinates of individuals
+inds <- pl_pca$ind$coord %>% as_tibble() %>% select(Dim.1:Dim.3)
+# Set nice names for columns
+colnames(inds) <- str_c("dim_", paste(c(1:ncol(inds))))
+df <- profiles %>% 
+  select(profile_id, lon, lat, datetime) %>% 
+  bind_cols(inds)
+
+ggmap(df, var = "dim_1", type = "point", palette = div_pal)
+ggmap(df, var = "dim_2", type = "point", palette = div_pal)
+ggmap(df, var = "dim_3", type = "point", palette = div_pal)
+
+df %>% 
+  select(lon, lat, contains("dim_")) %>% 
+  pivot_longer(contains("dim_")) %>% 
+  ggplot(aes(x = lat, y = value)) +
+  geom_point(size = 0.5) + 
+  geom_smooth() +
+  coord_flip() +
+  facet_wrap(~name, nrow = 1)
+```
+
 ## Save
 
 Let’s rename morphospace axes according to what we found to make them more meaningful.
