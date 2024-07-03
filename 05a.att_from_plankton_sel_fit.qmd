@@ -1,6 +1,6 @@
 ---
 title: "Predict POC attenuation from plankton"
-subtitle: "Train a XGBoost model to predict POC attenuation from plankton diversity data."
+subtitle: "Train a XGBoost model to predict POC attenuation from selected plankton diversity data."
 author: "Thelma Panaïotis"
 format:
   html:
@@ -19,7 +19,7 @@ execute:
 #| cache: false
 source("utils.R")
 load("data/03.all_data.Rdata")
-output_filename <- "data/04.att_from_plankton_all_fit.Rdata"
+output_filename <- "data/05.att_from_plankton_sel_fit.Rdata"
 ```
 
 ## Data preparation
@@ -39,10 +39,21 @@ The distribution is \~ normal, let’s keep it this way.
 ```{r roles}
 # Response variable
 resp_var <- c("att") # keep both untransformed and transformed predictor
-# Explanatory variables
+# Explanatory variables (keep all initially, then select)
 exp_vars <- df_all %>% select(prop_crustacea:mo_spe) %>% colnames()
 # Metadata
 meta_vars <- c("lon", "lat")
+```
+
+### Predictors selection
+
+Use Escoufier’s equivalent vectors to select a few predictors that are representative of the entire plankton dataset.
+
+```{r pred_sel}
+e <- escouf(df_all %>% select(all_of(exp_vars)), verbose = FALSE)
+plot(e, main = "Escoufier's equivalent vectors for plankton descriptors")
+var_thr <- 0.8 # proportion of variance to retain from the original dataset
+exp_vars <- extract(e, level = var_thr) %>% colnames()
 ```
 
 ## Data split
