@@ -1,0 +1,142 @@
+---
+title: "Assemble POC and UVP data"
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    embed-resources: true
+editor: visual
+execute:
+  cache: false
+  warning: false
+---
+
+## Load data
+
+```{r load_data}
+#| label: load data
+#| output: false
+source("utils.R")
+
+load("data/01.uvp_profiles.Rdata")
+load("data/02.carbon_data.Rdata")
+rm(coast)
+```
+
+## Round coordinates of UVP data to match carbon data
+
+Carbon data is given on a 0.25°×0.25° grid, so we need to round UVP coordinates to match the same grid. We need to floor longitude with `precision = 0.25` and then add 0.125 to the result. We need to floor latitude with `precision = 0.25` and then add 0.125 to the result.
+
+We can start by plotting a map of UVP profiles before rounding coordinates.
+
+```{r map_uvp}
+#| fig-column: body-outset
+#| out-width: 100%
+profiles %>% 
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
+  geom_point(aes(x = lon, y = lat), alpha = 0.5, size = 0.5) +
+  coord_quickmap()
+```
+
+Now let’s round the coordinates and replot the map. We also need to average UVP data on our new grid, but before that let’s also compute the number of UVP profiles per carbon pixel.
+
+```{r round_uvp_coord}
+#| fig-column: body-outset
+#| out-width: 100%
+profiles_r <- profiles %>%
+    # Drop profile identification
+    select(-profile_id) %>% 
+    arrange(lon, lat) %>%
+    rowwise() %>% 
+    mutate(
+      # for canyon, floor longitude at 0.25 and add 0.125
+      lon = roundp(lon, precision = 0.25, f = floor) + 0.125,
+      # for canyon, floor latitude at 0.25 and add 0.125
+      lat = roundp(lat, precision = 0.25, f = floor) + 0.125
+    ) %>% 
+  add_count(lon, lat)
+
+n_profiles <- profiles_r %>% count(lon, lat)
+
+profiles_r <- profiles_r %>% 
+  # Average all values on carbon pixels
+  group_by(lon, lat, n) %>%
+  summarise_all(mean, na.rm = TRUE) %>%
+  ungroup()
+
+profiles_r %>% 
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
+  geom_point(aes(x = lon, y = lat), alpha = 0.2, size = 0.5) +
+  coord_quickmap()
+```
+
+UVP profiles are now aligned on the carbon grid. We can also plot the number of UVP profiles per pixel.
+
+```{r map_uvp_gridded}
+#| fig-column: body-outset
+#| out-width: 100%
+n_profiles %>% 
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
+  geom_point(aes(x = lon, y = lat, colour = n), size = 0.5, alpha = 0.5) + 
+  scale_colour_viridis_c(trans = "log1p") +
+  coord_quickmap()
+```
+
+Let’s have a quick look at Shannon diversity on this new grid.
+
+```{r map_ta_ric}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(profiles_r, "ta_ric_1", type = "point")
+```
+
+## Assemble env, UVP and carbon data
+
+Since all three datasets use the same round coordinates, we can join them together. As a result, we will only get env and carbon data where UVP data is available.
+
+```{r assemple}
+df <- profiles_r %>%
+  left_join(df_c, by = join_by(lon, lat)) %>% 
+  select(lon, lat, everything())
+```
+
+Our dataset contains `r nrow(df)` points.
+
+Now, we can plot POC attenuation data at locations of UVP profiles.
+
+```{r map_poc_uvp}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(df, "att", type = "point") + scale_colour_viridis_c()
+```
+
+We notice that some POC attenuation is not available at some UVP locations.
+
+```{r summary}
+summary(df)
+```
+
+Let’s get rid of these points.
+
+```{r drop_na}
+df <- df %>% drop_na()
+```
+
+We still have `r nrow(df)` points in our dataset.
+
+Let’s redraw our POC map.
+
+```{r map_poc_uvp_no_na}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(df, "att", type = "point")
+```
+
+## Save the resulting dataset
+
+```{r save}
+save(df, file = file.path(data_dir, "03.all_data.Rdata"))
+```
