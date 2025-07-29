@@ -16,7 +16,11 @@ Predict particulate organic carbon (POC) attenuation from zooplankton diversity.
 
 ### Data
 
-Contains data
+Contains data.
+
+### Figures
+
+Contains figures and data to redo figures.
 
 ### Scripts
 
@@ -24,16 +28,15 @@ Contains data
 
 -   `00.get_uvp`: download UVP data from Ecotaxa
 
--   `01.uvp_diversity`: compute taxonomic/morphological/trophic diversity metrics for UVP data
+-   `01.get_carbon`: process POC data and compute attenuation
 
--   `02.get_carbon`: process POC data and compute attenuation
+-   `02.uvp_diversity`: compute taxonomic/morphological/trophic diversity metrics for UVP data
 
 -   `03.assemble`: assemble POC and plankton data
 
--   `04.pred_poc_from_plankton`: fit a XGBoost model to predict POC attenuation from all plankton data
+-   `04a.att_from_plankton_all_fit`: fit a XGBoost model to predict POC attenuation from all plankton data
 
--   `05.pred_poc_from_plankton`: fit a XGBoost model to predict POC attenuation from a few plankton variables
+-   `04b.att_from_plankton_all_assess`: assess the performance of the XGBoost model
 
-### Presentations
+-   `05.figures`: generate figures for the paper
 
-Quarto presentations for meetings.
