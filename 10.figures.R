@@ -267,8 +267,13 @@ ggsave(p3, file = "figures/figure_3.png", width = 180, height = 45, units = "mm"
 # Find profiles to illustrate ta_eve, mo_grey_mean and abund
 
 # Load UVP objects and profiles
-load("data/00.all_uvp.Rdata") # UVP objects and profiles (original coordinates)
+load("data/03.all_data.Rdata")
+load("data/02.uvp_o.Rdata") # UVP objects and profiles (original coordinates)
+load("data/02.uvp_profiles.Rdata") # UVP objects and profiles (original coordinates)
 load("data/01.uvp_poc.Rdata") # Processed data with regridded coordinates
+
+
+
 
 ## Taxonomic evenness patterns
 # Prepare data for analysis
@@ -294,7 +299,10 @@ extract_pixel_objects <- function(pixel_data, case_label) {
     group_by(lon_r, lat_r) |>
     mutate(pixel_id = cur_group_id()) |>
     ungroup() |>
-    mutate(case = case_label)
+    mutate(case = case_label) |>
+    # Some UVP profiles might be joined with coordinates rounding but should be excluded based on filters used in 02.
+    # Drop these
+    drop_na()
 }
 
 # Extract objects for both cases
@@ -434,6 +442,7 @@ create_image_mosaic <- function(object_data, mosaic_size = 10) {
 set.seed(18)
 low_grey_result <- create_image_mosaic(low_grey_objects, mosaic_size = 10)
 p4c <- low_grey_result$plot
+p4c
 low_grey_result$sampled_data |>
   count(taxon)
 
@@ -442,6 +451,7 @@ low_grey_result$sampled_data |>
 set.seed(6)
 high_grey_result <- create_image_mosaic(high_grey_objects, mosaic_size = 10)
 p4d <- high_grey_result$plot
+p4d
 high_grey_result$sampled_data |>
   count(taxon)
 
