@@ -27,11 +27,18 @@ library(spatialsample)
 library(Hmisc)
 library(nbssr)
 library(pastecs)
+library(wkmeans)
 
 # Plots
 library(cmocean)
 library(chroma)
 library(ggrepel)
+library(ggtext)
+library(paletteer)
+library(gridExtra)
+library(grid)
+library(patchwork)
+library(corrplot)
 
 # Modeling
 library(tidymodels)
@@ -41,12 +48,11 @@ library(DALEXtra)
 
 
 
-
 ## Default values ----
 #--------------------------------------------------------------------------#
 # Seed for reproducibility
 seed <- 11
-set.seed(seed)
+#set.seed(seed)
 
 
 # Number of cores for parallel computing

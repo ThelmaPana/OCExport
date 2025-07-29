@@ -1,0 +1,161 @@
+cv_type,fold,variable,diff_loss
+spatial,Fold1,Other,1.1566654628223574e-5
+spatial,Fold1,Other,1.3944482255978663e-4
+spatial,Fold1,Other,2.3172095856329152e-4
+spatial,Fold1,Other,1.8277703485978437e-4
+spatial,Fold1,Other,2.2250310333649293e-4
+spatial,Fold1,Other,3.549461953098408e-4
+spatial,Fold1,Other,1.2811857208445713e-4
+spatial,Fold1,Other,8.430195730253592e-4
+spatial,Fold1,Other,5.102435786601607e-4
+spatial,Fold1,Other,4.3436995706322234e-4
+spatial,Fold1,Other,0.0023419772964845963
+spatial,Fold1,Other,0.0011762310957794642
+spatial,Fold1,Other,4.910081402080407e-4
+spatial,Fold1,Abund.,0.0014378355817358983
+spatial,Fold1,Tax. evenness,0.009088788932939957
+spatial,Fold1,Grey mean,0.007852724086392773
+spatial,Fold2,Other,1.0265243562901372e-5
+spatial,Fold2,Other,2.6174301289079373e-4
+spatial,Fold2,Other,4.3845064359868564e-4
+spatial,Fold2,Other,3.9298468998797044e-4
+spatial,Fold2,Other,7.981574809175028e-5
+spatial,Fold2,Other,2.5274675698318385e-4
+spatial,Fold2,Other,4.184391888281812e-4
+spatial,Fold2,Other,0.002229922880112453
+spatial,Fold2,Other,0.0012735446580294026
+spatial,Fold2,Other,8.103165758343641e-4
+spatial,Fold2,Other,6.83453013988207e-4
+spatial,Fold2,Other,0.001459682490160336
+spatial,Fold2,Other,0.0018264830620815305
+spatial,Fold2,Abund.,0.0023321401544147487
+spatial,Fold2,Tax. evenness,0.006495881241247356
+spatial,Fold2,Grey mean,0.005386737538279055
+spatial,Fold3,Other,6.547611224193788e-6
+spatial,Fold3,Other,1.6467556230757724e-4
+spatial,Fold3,Other,1.1288669946717312e-4
+spatial,Fold3,Other,2.1249605762144376e-4
+spatial,Fold3,Other,2.0493123782463032e-4
+spatial,Fold3,Other,1.922461725509389e-4
+spatial,Fold3,Other,3.719507579512955e-4
+spatial,Fold3,Other,4.049122872115049e-4
+spatial,Fold3,Other,7.10139342791468e-4
+spatial,Fold3,Other,4.048012224917776e-4
+spatial,Fold3,Other,0.0010684714519438184
+spatial,Fold3,Other,7.919712531670926e-4
+spatial,Fold3,Other,3.5583452625505084e-4
+spatial,Fold3,Abund.,0.0032124778575955237
+spatial,Fold3,Tax. evenness,0.01410309131027745
+spatial,Fold3,Grey mean,0.008405660337023295
+spatial,Fold4,Other,4.1003715275133e-5
+spatial,Fold4,Other,2.2695664459903298e-4
+spatial,Fold4,Other,2.3760342098039233e-4
+spatial,Fold4,Other,2.4904663518769373e-4
+spatial,Fold4,Other,2.5446682979846346e-4
+spatial,Fold4,Other,3.401292887620354e-4
+spatial,Fold4,Other,2.193618123680737e-4
+spatial,Fold4,Other,2.5772312747525833e-4
+spatial,Fold4,Other,8.935415255334977e-4
+spatial,Fold4,Other,3.632512022651933e-4
+spatial,Fold4,Other,0.001239563387057792
+spatial,Fold4,Other,8.506222459438565e-4
+spatial,Fold4,Other,6.069982971850852e-4
+spatial,Fold4,Abund.,0.0023526965949661814
+spatial,Fold4,Tax. evenness,0.0038557130758352584
+spatial,Fold4,Grey mean,0.007774309961015245
+spatial,Fold5,Other,3.594626175572135e-5
+spatial,Fold5,Other,6.141440782853752e-5
+spatial,Fold5,Other,2.1328609085001756e-4
+spatial,Fold5,Other,1.2930117351160747e-4
+spatial,Fold5,Other,4.740931293566989e-4
+spatial,Fold5,Other,3.5098328528031366e-4
+spatial,Fold5,Other,3.9332575999290566e-4
+spatial,Fold5,Other,7.611670460289453e-4
+spatial,Fold5,Other,9.965805060418221e-4
+spatial,Fold5,Other,4.4642469073950683e-4
+spatial,Fold5,Other,0.0010420881264081602
+spatial,Fold5,Other,0.0011603028457527148
+spatial,Fold5,Other,3.7603030972779714e-4
+spatial,Fold5,Abund.,0.0015580557334323876
+spatial,Fold5,Tax. evenness,0.017602944376163682
+spatial,Fold5,Grey mean,0.01120326475904637
+stratified,Fold1,Other,0.001004364656861125
+stratified,Fold1,Other,0.003251067065926618
+stratified,Fold1,Other,0.0034796125570098553
+stratified,Fold1,Other,0.003924279954090312
+stratified,Fold1,Other,0.004469295320734256
+stratified,Fold1,Other,0.004677213316486032
+stratified,Fold1,Other,0.005411015521900558
+stratified,Fold1,Other,0.005985680938425987
+stratified,Fold1,Other,0.007039649893683118
+stratified,Fold1,Other,0.006161844308752413
+stratified,Fold1,Other,0.008223924458182796
+stratified,Fold1,Other,0.007879224575979754
+stratified,Fold1,Other,0.009950246614573865
+stratified,Fold1,Abund.,0.01189383752022019
+stratified,Fold1,Tax. evenness,0.01972660155589879
+stratified,Fold1,Grey mean,0.01680157805916081
+stratified,Fold2,Other,0.0011258089939464163
+stratified,Fold2,Other,0.0032713812569640168
+stratified,Fold2,Other,0.0029435553972975283
+stratified,Fold2,Other,0.00463038871724931
+stratified,Fold2,Other,0.004959156920852122
+stratified,Fold2,Other,0.004784885066009197
+stratified,Fold2,Other,0.004735635749227641
+stratified,Fold2,Other,0.006622271868966583
+stratified,Fold2,Other,0.006711982396169399
+stratified,Fold2,Other,0.00664203842524217
+stratified,Fold2,Other,0.008188350870078465
+stratified,Fold2,Other,0.007264738758132159
+stratified,Fold2,Other,0.00795848764371557
+stratified,Fold2,Abund.,0.01397085129915891
+stratified,Fold2,Tax. evenness,0.018176678756167686
+stratified,Fold2,Grey mean,0.020133028609389828
+stratified,Fold3,Other,0.0010431134554869485
+stratified,Fold3,Other,0.003281302631581302
+stratified,Fold3,Other,0.002939086749285826
+stratified,Fold3,Other,0.004817636291951294
+stratified,Fold3,Other,0.003585463677418103
+stratified,Fold3,Other,0.0048329304986263425
+stratified,Fold3,Other,0.004068937108788584
+stratified,Fold3,Other,0.006245848316771004
+stratified,Fold3,Other,0.006802322517791472
+stratified,Fold3,Other,0.007019142548454811
+stratified,Fold3,Other,0.009107277775568788
+stratified,Fold3,Other,0.009562201621004166
+stratified,Fold3,Other,0.006683290181254643
+stratified,Fold3,Abund.,0.01562875625391554
+stratified,Fold3,Tax. evenness,0.017689940913555434
+stratified,Fold3,Grey mean,0.016561965069350097
+stratified,Fold4,Other,0.0010406252029012783
+stratified,Fold4,Other,0.003379396308537424
+stratified,Fold4,Other,0.0038696245069505804
+stratified,Fold4,Other,0.004452155634359036
+stratified,Fold4,Other,0.004209669300660943
+stratified,Fold4,Other,0.0048465192808701115
+stratified,Fold4,Other,0.0048425695946985965
+stratified,Fold4,Other,0.006992446439859479
+stratified,Fold4,Other,0.0068830335904510875
+stratified,Fold4,Other,0.007213359364172958
+stratified,Fold4,Other,0.008001296642409766
+stratified,Fold4,Other,0.008298056025308368
+stratified,Fold4,Other,0.009949935680481156
+stratified,Fold4,Abund.,0.014979430522279036
+stratified,Fold4,Tax. evenness,0.016331528639855007
+stratified,Fold4,Grey mean,0.01794009190616856
+stratified,Fold5,Other,0.0011107411764527157
+stratified,Fold5,Other,0.00319477600430795
+stratified,Fold5,Other,0.003771765771426908
+stratified,Fold5,Other,0.004061752246505468
+stratified,Fold5,Other,0.0038495845568599332
+stratified,Fold5,Other,0.004055435379437854
+stratified,Fold5,Other,0.0060280783089709964
+stratified,Fold5,Other,0.006126400346722953
+stratified,Fold5,Other,0.005917463491402208
+stratified,Fold5,Other,0.0079114941232389
+stratified,Fold5,Other,0.007787130934132164
+stratified,Fold5,Other,0.007893349184527164
+stratified,Fold5,Other,0.008422328240836656
+stratified,Fold5,Abund.,0.012449470095037494
+stratified,Fold5,Tax. evenness,0.018149062776275548
+stratified,Fold5,Grey mean,0.020422386841602146
