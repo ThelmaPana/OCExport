@@ -1,0 +1,1056 @@
+---
+title: "Compute UVP diversity metrics"
+subtitle: "Compute taxonomic, morphologic and trophic diversity metrics from UVP5 plankton data."
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+editor: visual
+lightbox: true
+execute:
+  cache: true
+  warning: false
+---
+
+```{r set_up}
+#| output: false
+#| warning: false
+#| cache: false
+source("utils.R")
+```
+
+## Read UVP and carbon data
+
+```{r load_uvp}
+load("data/00.all_uvp.Rdata") # UVP objects and profiles
+load("data/01.uvp_poc.Rdata") # UVP profiles associated witht POC data
+```
+
+## Clean data
+
+### Depth
+
+Since we computed POC attenuation between the reference depth z0 (the depth of maximal \[POC\]) and 1000 m, we want to keep organisms detected between these depths.
+
+```{r uvp_max_depth}
+# Get reference depth for each profile
+z0 <- uvp_prof_c %>% 
+  select(profile_id, z0) %>% 
+  drop_na(z0)
+
+# Keep only organsims in the depth range
+uvp_o <- uvp_o %>% 
+  left_join(z0, by = join_by(profile_id)) %>% 
+  drop_na(z0) %>%  # drop objects in profile with no reference depth
+  filter(between(depth, z0, 1000)) %>% # keep only organisms in the depth range
+  select(-z0) # drop reference depth
+```
+
+```{r map_profiles}
+# Plot map of profiles
+ggplot(uvp_prof_c) +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = att), size = 0.5) +
+  scale_colour_viridis_c() +
+  labs(title = "Map of b values for UVP dataset") +
+  coord_quickmap(expand = 0)
+
+```
+
+### Taxa
+
+List taxa, merge contextual observations with regular observations. Remove some unwanted taxa: tentacles of Cnidaria (only part of organisms, not representative of the overall morphology), Trichodesmium, Nostocales and Bacillariophyta (phytoplankton).
+
+```{r uvp_taxa}
+# List of taxa
+taxa <- uvp_o %>% pull(taxon) %>% unique() %>% sort()
+taxa
+
+# Merge contextual
+uvp_o <- uvp_o %>% mutate(taxon = str_remove_all(taxon, " \\(contextual\\)")) # NB need to use \\
+
+# List unwanted taxa
+unwanted <- c("Bacillariophyta", "Nostocales", "tentacle of Cnidaria", "Trichodesmium")
+uvp_o <- uvp_o %>% filter(!taxon %in% unwanted)
+
+# New list of taxa
+taxa <- uvp_o %>% pull(taxon) %>% unique() %>% sort()
+taxa
+```
+
+### Profiles
+
+Compute the number of objects per profile and keep only profiles that have more than `r n_min_uvp` objects.
+
+```{r uvp_min_nb}
+profiles <- uvp_o %>% 
+  group_by(profile_id, lon, lat, datetime) %>% 
+  summarise(n_obj = n()) %>% 
+  ungroup()
+
+profiles %>% 
+  ggplot() +
+  geom_histogram(aes(x = n_obj), bins = 50) +
+  scale_x_continuous(limits = c(0, 50)) #+
+  #scale_y_continuous(trans = "log1p")
+  #scale_y_log10()
+```
+
+```{r uvp_min_nb_map}
+#| fig-column: body-outset
+#| out-width: 100%
+profiles %>%
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
+  geom_point(aes(x = lon, y = lat, colour = n_obj > n_min_uvp), size = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
+  coord_quickmap()
+```
+
+```{r uvp_def_profiles}
+# Keep only profiles with enough objects
+profiles <- profiles %>% filter(n_obj > n_min_uvp) %>% select(-n_obj)
+
+# Drop objects that do not belong to these profiles
+uvp_o <- uvp_o %>% filter(profile_id %in% profiles$profile_id)
+```
+
+We have `r nrow(uvp_o)` objects belonging to `r nrow(profiles)` profiles.
+
+## Proportions of large taxonomic groups
+
+Compute proportions of large taxonomic groups.
+
+```{r large_prop}
+#| fig-column: body-outset
+#| out-width: 100%
+props <- uvp_o %>% 
+  select(lon, lat, profile_id, taxon, large_group) %>% 
+  count(lon, lat, profile_id, large_group) %>% 
+  group_by(lon, lat, profile_id) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  ungroup() %>% 
+  select(lon, lat, profile_id, large_group, prop) 
+
+# Plot a map
+ggplot(props) + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = prop), size = 0.5) +
+  scale_colour_viridis_c() +
+  coord_quickmap(expand = 0) +
+  facet_wrap(~large_group, ncol = 2)
+
+# Reformat
+props <- props %>% 
+  mutate(large_group = paste0("prop_", str_to_lower(large_group))) %>% 
+  pivot_wider(names_from = "large_group", values_from = "prop", values_fill = 0)
+
+# Add to profile table
+profiles <- profiles %>% 
+  left_join(props, by = join_by(profile_id, lon, lat))
+```
+
+## Abundance and biovolume
+
+Compute overall abundance and biovolume for each profiles.
+
+```{r abund}
+# For abundance, just count objects per profile
+profiles <- profiles %>% 
+  left_join(uvp_o %>% count(profile_id, name = "abund"), by = join_by(profile_id))
+
+# For biovolume, compute biovolume for each object and sum per profile
+biov <- uvp_o %>% 
+  select(object_id:taxon, esd) %>% 
+  mutate(biovol = (4/3) * pi * esd^3) %>% 
+  group_by(profile_id) %>% 
+  summarise(biovol = sum(biovol))
+# add to profiles
+profiles <- profiles %>% left_join(biov, by = join_by(profile_id))
+
+## Plot maps
+ggmap(profiles, var = "abund", type = "point", palette = scale_colour_viridis_c(trans = "log1p")) 
+ggmap(profiles, var = "biovol", type = "point", palette = scale_colour_viridis_c(trans = "log1p")) 
+```
+
+## Taxonomic diversity
+
+Tabula package for diversity indices: <https://cran.r-project.org/web/packages/tabula/vignettes/diversity.html>
+
+-   taxonomic richness as number of taxa
+
+-   heterogeneity and evenness according to Brillouin
+
+```{r tabula_indices}
+# Generate a contingency table as a matrix to compute indices
+cont <- uvp_o %>%
+  count(profile_id, taxon) %>%
+  pivot_wider(names_from = "taxon", values_from = "n", values_fill = 0) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "profile_id") %>%
+  as.matrix()
+
+# Compute diversity metrics
+ta_div_prof <- tibble(
+  profile_id = rownames(cont),
+  # Richess
+  ta_ric_1 = specnumber(cont), # species count
+  # Heterogeneity/evenness
+  ta_div_1 = heterogeneity(cont, method = "brillouin"),
+  ta_eve_1 = evenness(cont, method = "brillouin"),
+) %>%
+  left_join(profiles %>% select(profile_id, lon, lat), by = join_by(profile_id)) %>%
+  select(profile_id, lon, lat, contains("ta_"))
+
+# Quick PCA to see correlations
+ta_pca <- FactoMineR::PCA(ta_div_prof %>% select(-c(profile_id, lon, lat)), graph = FALSE)
+plot(ta_pca, choix = "var")
+
+# Store results with table of profiles
+profiles <- profiles %>% left_join(ta_div_prof, by = join_by(profile_id, lon, lat))
+
+# ta_eve_1 could not be computed for some profiles
+# replace by mean value
+profiles <- profiles %>% mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x)) 
+```
+
+Plot taxonomic diversity metrics.
+
+```{r ta_div_plots}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "ta_ric_1", 
+  type = "point"
+  )
+
+ggmap(
+  profiles, 
+  "ta_div_1", 
+  type = "point"
+  )
+
+ggmap(
+  profiles, 
+  "ta_eve_1", 
+  type = "point"
+  )
+```
+
+## Size spectra
+
+### Compute SS
+
+Compute ss for each profiles.
+
+```{r comp_ss}
+# Compute SS
+# Also compute mean ESD per profile and retain it
+ss <- uvp_o %>%
+  arrange(profile_id) %>%
+  group_by(profile_id) %>%
+  mutate(mean_esd = mean(esd)) %>%
+  ungroup() %>%
+  group_by(profile_id, mean_esd) %>%
+  reframe(nbss(esd, type = "abundance", base = 10, binwidth = 0.1))
+
+# Plot a few SS, in a log-transformed space
+sam_profiles <- profiles %>% slice_sample(n = 12) %>% pull(profile_id)
+ss %>% 
+  filter(profile_id %in% sam_profiles) %>% 
+  ggplot() +
+  geom_point(aes(x = bin, y = norm_y)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap(~profile_id)
+```
+
+### Clean SS
+
+We need to remove the part left of the peak and keep only profiles that have at least 5 points to fit the SS.
+
+```{r clean_ss}
+# Use a cumulative sum to remove the part left of the peak
+ss <- ss %>%
+  group_by(profile_id, mean_esd) %>%
+  # Cut the left part of the SS
+  filter(cumsum(norm_y == max(norm_y)) > 0) %>%
+  ungroup()
+
+# Keep only profiles with at least 5 points to fit SS
+ss <- ss %>% add_count(profile_id) %>% filter(n >= 5)
+```
+
+### Fit SS
+
+```{r fit_ss}
+## Fit size spectra
+# Log-transform the y value
+# NB: not necessary to log-transform x value because already present in the data
+ss <- ss %>% mutate(norm_y = log10(norm_y))
+
+# Fit lm
+ss_regs <- ss %>% 
+  select(profile_id, bin_log, norm_y) %>%
+  nest(data = c(bin_log, norm_y)) %>%
+  mutate(
+    fit = map(data, ~lm(norm_y ~ bin_log, data = .x)), # run lm's
+    glance = map(fit, glance),                         # summary of fit
+    tidied = map(fit, tidy)                            # extract coefficients
+  )
+
+
+# glance contains all summary of fits
+ss_summ <- ss_regs %>%   
+  select(profile_id, glance) %>%
+  unnest(glance)
+summary(ss_summ)
+
+
+# tidied contains coefficients
+ss_coef <- ss_regs %>%
+  select(profile_id, tidied) %>%
+  unnest(tidied) %>%
+  # keep only estimates of slope and intercept
+  select(-c(std.error, statistic, p.value)) %>%
+  mutate(term = ifelse(term == "bin_log", "b1", "b0")) %>%
+  # 2 lines (intercept + slope) for each profile, reshape to make it one line
+  pivot_wider(names_from = term, values_from = estimate) #%>% 
+  # b0 is intercept, b1 is slope
+  #select(profile_id, b1, b0)
+summary(ss_coef)
+
+# Let’s join both together
+ss_coef <- ss_coef %>% left_join(ss_summ, by = join_by(profile_id))
+
+# Plot a few fits
+ss %>% 
+  filter(profile_id %in% sam_profiles) %>% 
+  ggplot() +
+  geom_point(aes(x = bin_log, y = norm_y)) +
+  geom_abline(
+    data = ss_coef %>% filter(profile_id %in% sam_profiles), 
+    aes(slope = b1, intercept = b0, colour = adj.r.squared)
+  ) +
+  labs(x = "bin (log)", y = "norm_y (log)", colour = "adj R²") +
+  scale_colour_viridis_c() +
+  facet_wrap(~profile_id)
+```
+
+### Save SS
+
+Join ss outputs with profile data. For profiles for which SS could not be computed (not enough points), replace slope and intercept by the mean value.
+
+```{r join_ss}
+profiles <- profiles %>% 
+  # join slope and intercept data
+  left_join(ss_coef %>% select(profile_id, ss_slope = b1, ss_inter = b0), by = join_by(profile_id)) %>% 
+  # replace by the mean value for missing profiles
+  mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))  
+```
+
+## Morphological diversity
+
+Based on:
+
+-   <https://github.com/jiho/ptb_morphodiv/tree/master>
+
+-   [Magneville et al. 2021](https://nsojournals.onlinelibrary.wiley.com/doi/full/10.1111/ecog.05904)
+
+-   [Beck et al. 2023](https://royalsocietypublishing.org/doi/full/10.1098/rspb.2023.2109)
+
+-   [mFD R package](https://cmlmagneville.github.io/mFD/index.html)
+
+### Features
+
+Some features are not meaningful for the morphology and thus should be removed. Other features have a unique value for all individuals and other are missing for many individuals. Let’s remove them.
+
+```{r select_feat}
+# Select features
+# NB this excludes ratio of features, e.g. kurt_mean which is kurt/mean
+x <- uvp_o %>% select(area:circex)
+
+# Remove variables with zero variance
+feats <- x %>%
+  summarise_all(var, na.rm = TRUE) %>%
+  pivot_longer(cols = everything()) %>%
+  filter(value > 0) %>%
+  pull(name)
+x <- x %>% select(all_of(feats))
+```
+
+Plot features distributions.
+
+```{r plot_feat}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 8
+x %>%
+  pivot_longer(cols = everything()) %>%
+  ggplot() +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(~name, scales = "free")
+```
+
+For a PCA, features should be normally-distributed. Let’s apply some transformation to get closer to normal distribution:
+
+-   mask extreme values
+
+-   normalize using the Yeo-Johnson transformation
+
+-   replace missing values by the mean of each column
+
+```{r normalise_feat}
+x_norm <- x %>%
+  # remove the most extreme high values
+  mutate_all(mask_extreme, percent = c(0, 0.5)) %>%
+  # normalise using the Yeo-Johnson transformation
+  mutate_all(yeo_johnson) %>%
+  mutate_all(as.numeric)
+
+# Replace NA by average of each column
+for (col in names(x_norm)) {
+  x_norm[[col]][is.na(x_norm[[col]])] <- mean(x_norm[[col]], na.rm=TRUE)
+}
+```
+
+Plot "normalized" features.
+
+```{r plot_norm_feat}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 8
+x_norm %>%
+  pivot_longer(cols = everything()) %>%
+  ggplot() +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(~name, scales = "free")
+```
+
+### Morphospace
+
+#### Build
+
+Let’s feed the features to a PCA to build a morphospace.
+
+```{r build_mspace}
+# We need to use "scale.unit = TRUE" to center-scale all feature
+mo_space <- FactoMineR::PCA(x_norm, scale.unit = TRUE, graph = FALSE)
+```
+
+#### Eigenvalues
+
+Plot the eigenvalues.
+
+```{r mspace_eig}
+eig <- mo_space$eig %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "comp") %>%
+  as_tibble() %>%
+  mutate(
+    comp = str_remove(comp, "comp "),
+    comp = as.numeric(comp),
+    comp = as.factor(comp)
+    ) %>% 
+  rename(var = `percentage of variance`, cum_var = `cumulative percentage of variance`)
+
+eig %>%
+  ggplot() +
+  geom_col(aes(x = comp, y = eigenvalue)) +
+  geom_hline(yintercept = 1, col = "red", linewidth = 0.5) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "PC", y = "Eigenvalue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+Most of the variance is captured by the first three axes (`r format(eig$var[1]/100, digits = 2)`, `r format(eig$var[2]/100, digits = 2)` and `r format(eig$var[3]/100, digits = 2)`respectively).
+
+Let’s plot this in log to have a better idea of PCs to select.
+
+```{r mspace_eig_plot}
+eig %>%
+  ggplot() +
+  geom_path(aes(x = as.numeric(comp), y = eigenvalue)) +
+  geom_point(aes(x = as.numeric(comp), y = eigenvalue)) +
+  geom_vline(xintercept = 4, colour = "red") +
+  theme_classic() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "PC", y = "Eigenvalue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+It’s linear until \~5, let’s keep the first 5 PCs.
+
+#### Features and axis definition
+
+Let’s now plot the first two axes.
+
+```{r mspace_12}
+#| fig-column: body-outset
+#| out-width: 100%
+plot(mo_space, choix="var", axes = c(1, 2))
+```
+
+-   PC1: big objects in positive values, small objects in negative values.
+
+-   PC2: clear (i.e. transparent) objects in positive values, dark (i.e. opaque) objects in negative values
+
+As well as axes 3 and 4.
+
+```{r mspace_34}
+#| fig-column: body-outset
+#| out-width: 100%
+plot(mo_space, choix="var", axes = c(3, 4))
+```
+
+-   PC3: elongated objects in positive values, round objects in negative values
+-   PC4: something with grey levels
+
+#### Individuals
+
+Let’s extract the coordinates of individuals in the morphospace.
+
+```{r mspace_get_ind}
+## Get coordinates of individuals
+inds <- mo_space$ind$coord %>% as_tibble() %>% select(-Dim.5)
+# Set nice names for columns
+colnames(inds) <- str_c("mo_dim", paste(c(1:ncol(inds))))
+# And join with initial dataframe of objects
+uvp_o <- uvp_o %>%
+  bind_cols(inds)
+```
+
+We can not plot the position of objects in the morphospace, coloured per profile.
+
+```{r mspace_plot_ind}
+## Plot invidivuals with profile as colour
+uvp_o %>%
+  ggplot(aes(x = mo_dim1, y = mo_dim2, colour = profile_id)) +
+  geom_point(show.legend = FALSE, size = 0.5, alpha = 0.05)
+```
+
+#### Tiling
+
+Let’s now tile morphs within the morphological space.
+
+```{r mspace_tile}
+# Folder containing images
+img_dir <- "~/Documents/Data/UVP5/images/"
+
+# Number of features to select
+n_feat <- 12
+
+# Generate path to image
+uvp_o <- uvp_o %>% mutate(path_to_img = str_c(img_dir, profile_id, "/", object_id, ".jpg"), .before = object_id) 
+
+# Prepare a circle for the plot
+circ <- circleFun(c(0, 0), 2, npoints = 500)
+
+
+# Get variables contributions
+#to select vars based on contribution to each plane
+contribs <- as.data.frame(mo_space$var$contrib) %>% as.data.frame()
+colnames(contribs) <- str_c("mo_dim", paste(c(1:ncol(contribs))))
+contribs <- contribs %>% 
+  rownames_to_column(var = "feature") %>% 
+  as_tibble() %>% 
+  mutate(
+    mo_dim_12 = abs(mo_dim1) + abs(mo_dim2),
+    mo_dim_23 = abs(mo_dim2) + abs(mo_dim3),
+    mo_dim_34 = abs(mo_dim3) + abs(mo_dim4)
+  )
+
+
+# List variables with higher contribution for plane 1:2
+var_contrib_12 <- contribs %>% 
+  arrange(desc(mo_dim_12)) %>% 
+  slice(1:n_feat) %>% 
+  pull(feature)
+
+# and for plane 3:4
+var_contrib_34 <- contribs %>% 
+  arrange(desc(mo_dim_34)) %>% 
+  slice(1:n_feat) %>% 
+  pull(feature)
+
+# Get types of features
+feat_types <- read_csv("data/raw/features_qual.csv", show_col_types = FALSE)
+# Set colour per type of feature, using a named vector
+feat_colours <- brewer_colors(length(unique(feat_types$type)), "Set2") # pick the appropriate number of colours
+names(feat_colours) <- sort(unique(feat_types$type)) # add names to colours
+
+#homogenize scaling between individuals & variables for correct biplot
+# Change scaling of variables/columns from scaling 1 to 2
+var_scores <- as.data.frame(t(t(mo_space$var$coord) / sqrt(mo_space$eig[,1]))) # de-scale
+var_scores_2 <- as.data.frame(t(t(var_scores) * sqrt(nrow(var_scores) * mo_space$eig[,1]))) # re-scale
+# Rename columns
+colnames(var_scores_2) <- str_c("mo_dim", paste(c(1:ncol(var_scores_2))))
+# Add feature names 
+var_scores_2 <- var_scores_2 %>% 
+  rownames_to_column(var = "feature") %>% 
+  as_tibble() %>% 
+  # and types
+  left_join(feat_types, by = join_by(feature))
+
+# Compute length of projection to scale circle
+var_scores_2 <- var_scores_2 %>% 
+  mutate(
+    len_12 = sqrt(mo_dim1^2 + mo_dim2^2),
+    len_34 = sqrt(mo_dim3^2 + mo_dim4^2),
+  )
+```
+
+Objects in morphospace for axes 1:2
+
+```{r mspace_tile_12}
+#| fig-column: body-outset
+#| out-width: 100%
+k <- max(var_scores_2$len_12) # adapt scaling of circle to fit the arrows
+p12 <- ggmorph_tile(mo_space, uvp_o$path_to_img, steps = 10, n_imgs = 3, fun = preprocess, dimensions = c(1,2), scale = 0.02) 
+p12 + 
+  geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
+  geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
+  geom_vline(xintercept = 0, color="grey", alpha = 0.9) +
+  geom_segment(data = var_scores_2 %>% filter(feature %in% var_contrib_12), aes(x = 0, xend = mo_dim1, y = 0, yend = mo_dim2, colour = type), arrow = arrow(length = unit(0.025, "npc"), type = "open")) +
+  geom_text_repel(data = var_scores_2 %>% filter(feature %in% var_contrib_12), aes(x = mo_dim1, y = mo_dim2, label = feature, colour = type), show.legend = FALSE) +
+  scale_colour_manual(values = feat_colours) +
+  labs(colour = "Feature\ntype")
+```
+
+-   PC1 = size
+
+-   PC2 = transparency
+
+Objects in morphospace for axes 2:3
+
+```{r mspace_tile_34}
+#| fig-column: body-outset
+#| out-width: 100%
+k <- max(var_scores_2$len_34) # adapt scaling of circle to fit the arrows
+p34 <- ggmorph_tile(mo_space, uvp_o$path_to_img, steps = 10, n_imgs = 3, fun = preprocess, dimensions = c(3,4), scale = 0.02) 
+p34 + 
+  geom_path(data = circ, aes(x = x*k, y = y*k), lty = 2, color = "grey", alpha = 0.7) + 
+  geom_hline(yintercept = 0, color="grey", alpha = 0.9) +
+  geom_vline(xintercept = 0, color="grey", alpha = 0.9) +
+  geom_segment(data = var_scores_2 %>% filter(feature %in% var_contrib_34), aes(x = 0, xend = mo_dim3, y = 0, yend = mo_dim4, colour = type), arrow = arrow(length = unit(0.025, "npc"), type = "open")) +
+  geom_text_repel(data = var_scores_2 %>% filter(feature %in% var_contrib_34), aes(x = mo_dim3, y = mo_dim4, label = feature, colour = type), show.legend = FALSE) +
+  scale_colour_manual(values = feat_colours) +
+  labs(colour = "Feature\ntype")
+```
+
+-   PC3 = elongation
+
+-   PC4 = heterogeneity of grey levels
+
+### Diversity
+
+#### Morphospace features
+
+We can collect the position of objects in the morphospace to summarise the morphological diversity of each profile.
+
+```{r feat_summ_profiles}
+# Compute mean and sd of dim1, dim2, dim3 and dim4 per profile
+mo_div_prof <- uvp_o %>% 
+  group_by(profile_id, lon, lat) %>% 
+  summarise(across(mo_dim1:mo_dim4, list(mean = mean, sd = sd))) %>% 
+  ungroup()
+
+# And store this with profiles data
+profiles <- profiles %>% left_join(mo_div_prof, by = join_by(profile_id, lon, lat))
+```
+
+And we can plot maps of mean `dim1` and `dim2` values for each profile.
+
+```{r map_dim1_mean}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim1_mean", 
+  type = "point", 
+  palette = div_pal
+  ) +
+  labs(colour = "PC1\nSize")
+```
+
+```{r map_dim2_mean}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim2_mean", 
+  type = "point", 
+  palette = div_pal
+  ) +
+  labs(colour = "PC2\nTransparency")
+```
+
+```{r map_dim3_mean}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim3_mean", 
+  type = "point", 
+  palette = div_pal
+  ) +
+  labs(colour = "PC3\nElongation")
+```
+
+```{r map_dim4_mean}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim4_mean", 
+  type = "point", 
+  palette = div_pal
+  ) +
+  labs(colour = "PC4\nGrey hetero.")
+```
+
+We can also look at variance within profiles.
+
+```{r map_dim1_sd}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim1_sd", 
+  type = "point"
+  ) +
+  labs(colour = "PC1 sd\nSize")
+```
+
+```{r map_dim2_sd}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim2_sd", 
+  type = "point"
+  ) +
+  labs(colour = "PC2 sd\nTransparency")
+```
+
+```{r map_dim3_sd}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim3_sd", 
+  type = "point"
+  ) +
+  labs(colour = "PC3 sd\nElongation")
+```
+
+```{r map_dim4_sd}
+#| fig-column: body-outset
+#| out-width: 100%
+ggmap(
+  profiles, 
+  "mo_dim4_sd", 
+  type = "point"
+  ) +
+  labs(colour = "PC4 sd\nGrey hetero.")
+```
+
+#### Metrics
+
+Multivariate morphological diversity metrics have been defined in [Beck et al. 2023](https://royalsocietypublishing.org/doi/full/10.1098/rspb.2023.2109) following the definition of multivariate functional diversity metrics in [Villeger et al. 2008](https://esajournals.onlinelibrary.wiley.com/doi/full/10.1890/07-1206.1):
+
+-   morphological richness
+
+-   morphological evenness
+
+-   morphological divergence
+
+**Actually there is now a R package to compute these metrics. See [Magneville et al. 2021](https://nsojournals.onlinelibrary.wiley.com/doi/full/10.1111/ecog.05904) as well as [mFD package](https://cmlmagneville.github.io/mFD/). Yay!**
+
+Computing these metrics require defining "morphs" (i.e. morphologically similar organisms) in the morphospace, i.e. using kmeans. These morphs are then used instead of species to compute morphological diversity metrics.
+
+##### Define morphs
+
+Define morphs using kmeans, in parallel.
+
+If we retain `n` morphospace axes, then we need at least `n+1` morphs to be present in each profile (to compute a convex hull in `n` dimensions, we need `n+1` points).
+
+```{r def_morphs}
+# Number of clusters
+n_clust <- 200
+
+# Perform clustering
+morphs <- wkmeans::wkmeans(
+  x = uvp_o %>% select(contains("dim")), # use PCA outputs
+  k = n_clust, # number of clusters
+  nstart = 50, # number of random initialisations, higher is better
+  cores = n_cores
+  )
+
+# Add cluster to table of objects
+uvp_o <- uvp_o %>% mutate(
+  morph = morphs$cluster,
+  morph = str_pad(morph, width = nchar(n_clust), pad = "0"), # add leading zeros
+  morph = paste0("morph_", morph), # Add "morph_" in front
+  morph = as.factor(morph) # convert to factor
+)
+```
+
+Look at size of generated morphs (the red vertical line shows the expected mean).
+
+```{r morphs_size}
+morphs_size <- morphs$size %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  rename(morph = Var1, n = Freq)
+
+summary(morphs_size)
+
+morphs_size %>% 
+  ggplot() +
+  geom_histogram(aes(x = n), bins = n_clust/2) +
+  geom_vline(xintercept = nrow(uvp_o)/n_clust, colour = "red")
+```
+
+##### Relation between morph, taxa and profiles.
+
+Number of individuals of each taxon per morph.
+
+```{r ind_per_taxon_per_morph}
+# Counts per morph and per taxa
+counts_mo_t <- uvp_o %>% select(morph, taxon) %>% count(morph, taxon)
+
+counts_mo_t %>% 
+  ggplot() +
+  geom_boxplot(aes(x = taxon, y = n)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(y = "Number per morph") +
+  scale_y_continuous(trans = "log1p")
+```
+
+Look at number of taxa per morph.
+
+```{r taxon_per_morph}
+# Counts per morph
+counts_mo <- counts_mo_t %>% count(morph)
+ggplot(counts_mo) +
+  geom_histogram(aes(x = n, fill = morph), binwidth = 1, show.legend = FALSE) +
+  labs(x = "Number of taxa per morph") +
+  theme_classic()
+# Each colour bloc represents a morph
+
+counts_mo %>% summary()
+```
+
+The median of number of taxa per morph is `r counts_mo %>% pull(n) %>% median()`: morphs are not representative of taxa.
+
+In how many morphs is a taxa present?
+
+```{r morph_per_taxon}
+# Counts per taxa
+counts_t <- counts_mo_t %>% count(taxon)
+ggplot(counts_t) +
+  geom_col(aes(x = taxon, y = n)) +
+  labs(y = "Number of morphs in which taxon is present") +
+  coord_flip()
+
+counts_t %>% summary()
+```
+
+Gymnosomata and Cephalopoda are present in less than 50 morphs, while Copepoda are present in all of them.
+
+Number of morphs per profile. This limits the number of dimensions we can use to compute metrics. We need at least `n+1` morphs per profile with `n` the number of dimensions.
+
+```{r morphs_per_prof}
+count_p_m <- uvp_o %>% count(profile_id, morph)
+count_p <- count_p_m %>% count(profile_id) %>% arrange(n)
+
+count_p %>% 
+  ggplot() +
+  geom_histogram(aes(x = n, fill = n >= 5 ), bins = 50) +
+  geom_vline(xintercept = 5, colour = "red")
+```
+
+The red line shows the minimum number of morphs that must be present in each profile in order to compute morphological diversity metrics using 4 morphospace axes.
+
+Plot clusters
+
+```{r mspace_plot_morphs}
+uvp_o %>%
+  ggplot(aes(x = mo_dim1, y = mo_dim2, colour = morph)) +
+  geom_point(show.legend = FALSE, size = 0.5, alpha = 0.05)
+```
+
+##### Compute metrics
+
+We need the following matrices:
+
+-   traits values for each morph centre (morphs × traits)
+
+-   morphs assemblages (profiles × morphs)
+
+The following metrics are computed (see Magneville et al. 2022):
+
+-   `fric` (functional richness): The volume of the convex hull shaping the species present in the assemblage
+-   `fide` (functional identity): The weighted average position of species of the assemblage along each axis. NB: note computed as we already have individuals projections on PCA axes.
+-   `fdis` (functional dispersion): The weighted deviation to center of gravity (i.e. defined by the FIde values) of species in the assemblage
+-   `fdiv` (functional divergence): The deviation of biomass-density to the center of gravity of the vertices shaping the convex hull of the studied assemblage
+-   `feve` (functional evenness): The regularity of biomass-density distribution along the minimum spanning tree (i.e. the tree linking all species of the assemblage with the lowest cumulative branch length) for the studied assemblage
+-   `fori` (functional originality): The weighted mean distance to the nearest species from the global species pool
+-   `fspe` (functional specialisation): The weighted mean distance to the centroid of the global species pool (i.e. center of the functional space)
+-   `fmpd` (functional mean pairwise distance): The mean weighted distance between all pairs of species
+-   `fnnd` (functional mean nearest neighbour distance): The weighted distance to the nearest neighbour within the assemblage
+
+```{r compute_morph_metrics}
+# Matrix of trait values for each morph, i.e. centers of morphs in mspace
+# - rows = morphs
+# - columns = traits
+
+mo_coord <- as_tibble(morphs$centers) %>%
+  mutate(
+    morph = row_number(),
+    morph = str_pad(morph, width = nchar(n_clust), pad = "0"),
+    morph = paste0("morph_", morph)
+    ) %>%
+  column_to_rownames("morph") %>%
+  as.matrix()
+
+# Matrix summarising morphs assemblages
+# - rows = profiles (as row names)
+# - columns = morphs
+
+weights <- uvp_o %>%
+  # concentration per date per morph
+  group_by(profile_id, morph) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  arrange(morph) %>%
+  # convert to wide format and fill with 0s
+  pivot_wider(names_from = morph, values_from = n, values_fill = 0) %>%
+  column_to_rownames("profile_id") %>% # set profile_id as rowname
+  as.matrix()
+
+# Compute diversity metrics, which takes a looooooooong time
+morpho_div <- alpha.fd.multidim(
+  sp_faxes_coord = mo_coord,
+  asb_sp_w = weights,
+  ind_vect = c("fdis", "fmpd", "fnnd", "feve", "fric", "fdiv", "fori", "fspe"),
+  details_returned = FALSE,
+  verbose = FALSE
+)
+
+# Clean result
+morpho_div <- morpho_div$functional_diversity_indices %>% 
+  rownames_to_column(var = "profile_id") %>% 
+  as_tibble() %>% 
+  select(-sp_richn) %>% 
+  # rename metrics from functional to morphological
+  set_names(~ str_replace_all(., "^f", "mo_")) 
+
+# And add to table of profiles
+profiles <- profiles %>% 
+  left_join(morpho_div, by = join_by(profile_id))
+```
+
+Plot maps of resulting morphological diversity metrics
+
+```{r plot_morph_metrics}
+ggmap(profiles, var = "mo_ric", type = "point")
+ggmap(profiles, var = "mo_dis", type = "point")
+ggmap(profiles, var = "mo_div", type = "point")
+ggmap(profiles, var = "mo_eve", type = "point")
+ggmap(profiles, var = "mo_ori", type = "point")
+ggmap(profiles, var = "mo_spe", type = "point")
+ggmap(profiles, var = "mo_mpd", type = "point")
+ggmap(profiles, var = "mo_nnd", type = "point")
+```
+
+## Explore features
+
+Let’s do a PCA on the features to get the main trends in the dataset.
+
+```{r exp_pca}
+#| fig-column: body-outset
+#| out-width: 100%
+pl_metrics <- profiles %>% select(prop_crustacea:mo_spe)
+pl_pca <- FactoMineR::PCA(pl_metrics, scale.unit = TRUE, graph = FALSE)
+plot(pl_pca, choix = "var")
+
+# Get eigenvalues
+eig <- pl_pca$eig %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "comp") %>%
+  as_tibble() %>%
+  mutate(
+    comp = str_remove(comp, "comp "),
+    comp = as.numeric(comp),
+    comp = as.factor(comp)
+    ) %>% 
+  rename(var = `percentage of variance`, cum_var = `cumulative percentage of variance`)
+
+eig %>%
+  ggplot() +
+  geom_col(aes(x = comp, y = eigenvalue)) +
+  geom_hline(yintercept = 1, col = "red", linewidth = 0.5) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(x = "PC", y = "Eigenvalue") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# Get coordinates of individuals
+inds <- pl_pca$ind$coord %>% as_tibble() %>% select(Dim.1:Dim.3)
+# Set nice names for columns
+colnames(inds) <- str_c("dim_", paste(c(1:ncol(inds))))
+df <- profiles %>% 
+  select(profile_id, lon, lat, datetime) %>% 
+  bind_cols(inds)
+
+ggmap(df, var = "dim_1", type = "point", palette = div_pal)
+ggmap(df, var = "dim_2", type = "point", palette = div_pal)
+ggmap(df, var = "dim_3", type = "point", palette = div_pal)
+
+df %>% 
+  select(lon, lat, contains("dim_")) %>% 
+  pivot_longer(contains("dim_")) %>% 
+  ggplot(aes(x = lat, y = value)) +
+  geom_point(size = 0.5) + 
+  geom_smooth() +
+  coord_flip() +
+  facet_wrap(~name, nrow = 1)
+```
+
+## Save
+
+Let’s rename morphospace axes according to what we found to make them more meaningful.
+
+```{r mspace_dim_names}
+profiles <- profiles %>% 
+  rename(
+    mo_size_mean = mo_dim1_mean,  # size (positive values = bigger)
+    mo_grey_mean = mo_dim2_mean,  # grey (positive values = transparent, i.e. higher grey values)
+    mo_elon_mean = mo_dim3_mean,  # elongation (positive values = elongated)
+    mo_ghet_mean  = mo_dim4_mean, # grey heterogeneous (positive values = heterogeneous)
+    mo_size_sd = mo_dim1_sd,
+    mo_grey_sd = mo_dim2_sd,
+    mo_elon_sd = mo_dim3_sd,
+    mo_ghet_sd  = mo_dim4_sd,
+  ) %>% 
+  select(-contains("mo_ide"))
+```
+
+```{r save_final}
+#| cache: false
+
+# Save profiles
+save(profiles, file = "data/02.uvp_profiles.Rdata")
+
+# Save filtered objects
+save(uvp_o, file = "data/02.uvp_o.Rdata")
+```

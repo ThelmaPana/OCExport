@@ -14,125 +14,69 @@ execute:
 ## Load data
 
 ```{r load_data}
-#| label: load data
 #| output: false
 source("utils.R")
 
-load("data/01.uvp_profiles.Rdata")
-load("data/02.carbon_data.Rdata")
+load("data/01.uvp_poc.Rdata")
+load("data/02.uvp_profiles.Rdata")
 rm(coast)
 ```
 
-## Round coordinates of UVP data to match carbon data
+## Join UVP plankton data with POC  data
 
-Carbon data is given on a 0.25°×0.25° grid, so we need to round UVP coordinates to match the same grid. We need to floor longitude with `precision = 0.25` and then add 0.125 to the result. We need to floor latitude with `precision = 0.25` and then add 0.125 to the result.
+```{r join}
+# Join UVP profiles with POC profiles
+profiles <- profiles %>% 
+  #select(profile_id:datetime) %>% 
+  left_join(
+    uvp_prof_c %>% select(profile_id, lon, lat, lon_r, lat_r, pix_id, att),
+    by = join_by(profile_id, lon, lat)
+    )
 
-We can start by plotting a map of UVP profiles before rounding coordinates.
+# Some UVP profiles are associated with the same POC profiles
+# We need to average plankton properties of these profiles
+df_all <- profiles %>% 
+  select(pix_id, lon_r, lat_r, att, prop_crustacea:mo_spe) %>% 
+  group_by(pix_id, lon_r, lat_r, att) %>% 
+  summarise_all(mean) %>% # average for all metrics
+  ungroup() %>% 
+  select(-pix_id) %>% # drop POC pixel id
+  select(lon = lon_r, lat = lat_r, att, everything()) # rename lon, lat and reorder
+  
+```
 
-```{r map_uvp}
+## Inspect dataset
+
+The dataset consists of `r nrow(df_all)` points. Let’s plot a map.
+
+```{r map}
 #| fig-column: body-outset
 #| out-width: 100%
-profiles %>% 
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat), alpha = 0.5, size = 0.5) +
-  coord_quickmap()
+ggmap(df_all, var = "att", type = "point")
 ```
 
-Now let’s round the coordinates and replot the map. We also need to average UVP data on our new grid, but before that let’s also compute the number of UVP profiles per carbon pixel.
+Let’s have a look at the distribution of the response variable.
 
-```{r round_uvp_coord}
-#| fig-column: body-outset
-#| out-width: 100%
-profiles_r <- profiles %>%
-    # Drop profile identification
-    select(-profile_id) %>% 
-    arrange(lon, lat) %>%
-    rowwise() %>% 
-    mutate(
-      # for canyon, floor longitude at 0.25 and add 0.125
-      lon = roundp(lon, precision = 0.25, f = floor) + 0.125,
-      # for canyon, floor latitude at 0.25 and add 0.125
-      lat = roundp(lat, precision = 0.25, f = floor) + 0.125
-    ) %>% 
-  add_count(lon, lat)
-
-n_profiles <- profiles_r %>% count(lon, lat)
-
-profiles_r <- profiles_r %>% 
-  # Average all values on carbon pixels
-  group_by(lon, lat, n) %>%
-  summarise_all(mean, na.rm = TRUE) %>%
-  ungroup()
-
-profiles_r %>% 
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat), alpha = 0.2, size = 0.5) +
-  coord_quickmap()
+```{r dist_resp}
+ggplot(df_all) + geom_histogram(aes(x = att), bins = 100)
 ```
 
-UVP profiles are now aligned on the carbon grid. We can also plot the number of UVP profiles per pixel.
+Not too bad.
 
-```{r map_uvp_gridded}
-#| fig-column: body-outset
-#| out-width: 100%
-n_profiles %>% 
-  ggplot() +
-  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "gray") +
-  geom_point(aes(x = lon, y = lat, colour = n), size = 0.5, alpha = 0.5) + 
-  scale_colour_viridis_c(trans = "log1p") +
-  coord_quickmap()
-```
+## Select variables
 
-Let’s have a quick look at Shannon diversity on this new grid.
+```{r}
+df_all <- df_all %>% 
+  select(
+    lon, lat, att,
+    prop_crustacea:prop_other,
+    abund, biovol,
+    ta_ric_1, ta_div_1, ta_eve_1,
+    ss_slope,
+    mo_size_mean, mo_grey_mean, 
+    mo_ric, mo_div, mo_eve
+    )
 
-```{r map_ta_ric}
-#| fig-column: body-outset
-#| out-width: 100%
-ggmap(profiles_r, "ta_ric_1", type = "point")
-```
-
-## Assemble env, UVP and carbon data
-
-Since all three datasets use the same round coordinates, we can join them together. As a result, we will only get env and carbon data where UVP data is available.
-
-```{r assemple}
-df_all <- profiles_r %>%
-  left_join(df_c, by = join_by(lon, lat)) %>% 
-  select(lon, lat, everything())
-```
-
-Our dataset contains `r nrow(df_all)` points.
-
-Now, we can plot POC attenuation data at locations of UVP profiles.
-
-```{r map_poc_uvp}
-#| fig-column: body-outset
-#| out-width: 100%
-ggmap(df_all, "att", type = "point") + scale_colour_viridis_c()
-```
-
-We notice that some POC attenuation is not available at some UVP locations.
-
-```{r summary}
-summary(df_all)
-```
-
-Let’s get rid of these points.
-
-```{r drop_na}
-df_all <- df_all %>% drop_na()
-```
-
-We still have `r nrow(df_all)` points in our dataset.
-
-Let’s redraw our POC map.
-
-```{r map_poc_uvp_no_na}
-#| fig-column: body-outset
-#| out-width: 100%
-ggmap(df_all, "att", type = "point")
 ```
 
 ## Save the resulting dataset

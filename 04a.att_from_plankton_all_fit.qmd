@@ -40,7 +40,7 @@ The distribution is \~ normal, let’s keep it this way.
 # Response variable
 resp_var <- c("att") # keep both untransformed and transformed predictor
 # Explanatory variables
-exp_vars <- df_all %>% select(prop_crustacea:mo_spe) %>% colnames()
+exp_vars <- df_all %>% select(prop_crustacea:mo_eve) %>% colnames() # all variables
 # Metadata
 meta_vars <- c("lon", "lat")
 ```
@@ -51,37 +51,37 @@ To better assess the performance of our model and get a distribution of R² inst
 
 Instead of splitting the data into train and test sets and get a single estimate of R² on the test set, we will use nested cross-validation so that we have several repeats of train/test splits and thus a distribution of R² values. For each fold, a second cross-validation is performed within the training set in order to tune the hyperparameters.
 
-We use 10-fold cross-validation:
+We use 5-fold cross-validation:
 
--   10% of data for testing
+-   20% of data for testing
 
--   90% of data for training. This subset is used for nested cross-validation with:
+-   80% of data for training. This subset is used for nested cross-validation with:
 
-    -   10% of data for validation
+    -   20% of data for validation
 
-    -   90% of data for learning
+    -   80% of data for learning
 
 Two different methods for data splitting are used:
 
--   stratified on deciles of the response variable
+-   stratified on quantiles of the response variable
 
 -   spatial cross-validation using blocks
 
 ```{r split}
 # Number of folds
-n_folds <- 10
+n_folds <- 5
 
 # Transform dataframe to sf object for spatial CV.
 df_all_sf <- st_as_sf(df_all, coords = c("lon", "lat"), crs = 4326)
 
-set.seed(seed)
+#set.seed(seed)
 ## Bind together folds of both nested_cv
 folds <- bind_rows(
   # Stratified CV on deciles of response variable
   nested_cv(
     df_all,
-    outside = vfold_cv(v = n_folds, strata = att, breaks = 9),
-    inside = vfold_cv(v = n_folds, strata = att, breaks = 9)) %>%
+    outside = vfold_cv(v = n_folds, strata = att, breaks = 4),
+    inside = vfold_cv(v = n_folds, strata = att, breaks = 4)) %>%
     mutate(cv_type = "stratified"),
   # Spatial CV
   nested_cv(
@@ -163,7 +163,7 @@ res <- mclapply(1:nrow(folds), function(i){
     add_model(xgb_spec)
 
   ## Gridsearch
-  set.seed(seed)
+  #set.seed(seed)
   xgb_res <- tune_grid(
     xgb_wflow,
     resamples = x$inner_resamples[[1]],
@@ -224,5 +224,3 @@ res <- mclapply(1:nrow(folds), function(i){
 ```{r save}
 save(res, file = output_filename)
 ```
-
-\

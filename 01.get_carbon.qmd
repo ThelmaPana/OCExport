@@ -1,0 +1,410 @@
+---
+title: "Prepare carbon data"
+subtitle: "Read and compute POC attenuation using SOCA data"
+author: "Thelma Panaïotis"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+editor: visual
+execute:
+  cache: false
+  warning: false
+---
+
+```{r set_up}
+#| output: false
+source("utils.R")
+```
+
+## Canyon (ARGO + sat + ML) − Sauzède et al.
+
+Read POC data from Sauzède et al. 2020, built using ML, ARGO and satellite ocean colour observations.
+
+## Read data
+
+```{r read_can}
+# List NC files to read
+files <- list.files("data/raw/soca/", full.names = TRUE)
+
+# Open one file to get dims
+nc <- nc_open(files[1])
+lon <- ncvar_get(nc, "longitude")
+lat <- ncvar_get(nc, "latitude")
+depth <- ncvar_get(nc, "depth")
+nc_close(nc)
+
+# Prepare storage for 12 months
+poc_mo <- array(NA, c(length(lon), length(lat), length(depth), 12))
+# Read all files
+for(i in 1:12) {
+  # get relevant files
+  file <- files[i]
+  # open the file and read the data in it
+  nc <- nc_open(file)
+  poc_mo[,,,i] <- ncvar_get(nc, "poc")
+  nc_close(nc)
+}
+
+# Plot surface POC in January
+image.plot(poc_mo[,,1,1], col = col_poc)
+```
+
+Looks good, compute annual climatology from mensual data.
+
+## Compute annual climatology
+
+```{r ann_clim}
+# Do it parallel on depth
+poc_ann <- mclapply(1:length(depth), function(d) {
+  # Get one layer
+  s_block <- poc_mo[,,d,]
+  # Compute annual mean for each pixel
+  return(apply(s_block, c(1, 2), mean, na.rm = TRUE))
+}, mc.cores = n_cores) %>%
+  abind(along = 3)
+
+# Plot surface climatology
+image.plot(poc_ann[,,1], col = col_poc)
+# Plot 1000 m climatology
+image.plot(poc_ann[,,35], col = col_poc)
+```
+
+## Convert to dataframe
+
+```{r to_df}
+# To vector and to single column df
+df_can <- poc_ann %>% as.vector() %>% as.data.frame() %>% setNames("poc")
+# Add lon, lat and depth
+df_can$lon <- lon
+df_can$lat <- rep(lat, each=length(lon))
+df_can$depth <- rep(depth, each=length(lon)*length(lat))
+# Convert to tibble
+df_can <- df_can %>% as_tibble() %>% select(lon, lat, depth, poc)
+
+# Drop pixels with only NA and generate unique pixel id
+df_can <- df_can %>%
+  drop_na(poc) %>%
+  mutate(pix_id = paste0(lon, "_", lat), .before = lon)
+
+# Plot surface map
+df_can %>%
+  filter(depth == 0) %>%
+  ggplot() +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_tile(aes(x = lon, y = lat, colour = poc, fill = poc)) +
+  scale_colour_cmocean(name = "matter", na.value = NA) + 
+  scale_fill_cmocean(name = "matter", na.value = NA) + 
+  labs(title = "Surface POC") +
+  coord_quickmap(expand = 0)
+```
+
+## Compute attenuation as Martin’s b
+
+### Examples profiles
+
+Compute attenuation on a few profiles and generate some plots.
+
+```{r can_martin}
+#| fig-column: screen-inset
+#| out-width: 100%
+#| fig-width: 10
+#| fig-height: 10
+
+# Select a few profiles for plotting
+# Originally 515000 profiles
+sel_pix <- df_can %>%
+  filter(depth == 0) %>%
+  slice_sample(n = 49)
+df_can_sub <- df_can %>%
+  filter(pix_id %in% sel_pix$pix_id)
+
+# Find reference depth as the depth with maximum poc
+df_can_sub <- df_can_sub %>%
+  arrange(pix_id,) %>% 
+  group_by(pix_id, lon, lat) %>% 
+  mutate(
+    poc_max = cummax(poc),
+    keep = poc_max == max(poc)
+  ) %>% 
+  filter(keep) %>% 
+  mutate(z0 = min(depth)) %>% 
+  ungroup() %>% 
+  select(-c(poc_max, keep))
+
+# Perform linear regression on log-transformed data
+argo_regs <- df_can_sub %>%
+  #filter(depth >= z0) %>%
+  rename(z = depth) %>%
+  arrange(pix_id) %>%
+  nest(data = c(poc, z, z0)) %>%
+  mutate(
+    fit = map(data, ~lm(log(poc) ~ log(z/z0), data = .x)),
+    glance = map(fit, glance),
+    tidied = map(fit, tidy)
+  )
+
+# glance contains all summary of fits
+argo_summ <- argo_regs %>%
+  select(pix_id, lon, lat, glance) %>%
+  unnest(glance)
+
+# tidied contains coefficients
+argo_coef <- argo_regs %>%
+  select(pix_id, lon, lat, tidied) %>%
+  unnest(tidied) %>%
+  # keep only estimates of slope and intercept
+  select(-c(std.error, statistic, p.value)) %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "intercept",
+      .default = "b"
+    )) %>%
+  # 2 rows (intercept + slope) for each profile, reshape to make it 1 row
+  pivot_wider(names_from = term, values_from = estimate)
+
+# Let’s join both together
+argo_coef <- argo_coef %>% left_join(argo_summ, by = join_by(pix_id, lon, lat))
+
+# Make b positive
+argo_coef <- argo_coef %>% mutate(b = -b)
+
+# Plot a few fits
+# Generate data
+b_curve <- df_can_sub %>% 
+  select(pix_id, lon, lat, z = depth, z0) %>% 
+  left_join(
+    argo_coef %>% select(pix_id, intercept, b, adj.r.squared), 
+    by = join_by(pix_id)
+  ) %>% 
+   mutate(poc = exp((-b) * log(z/z0) + intercept))
+# Plo it
+ggplot() +
+  geom_path(data = b_curve, aes(x = poc, y = -z, colour = b), linewidth = 1) +
+  geom_point(data = df_can_sub, aes(x = poc, y = -depth), size = 0.5) +
+  scale_colour_viridis_c() +
+  facet_wrap(~pix_id)
+```
+
+Look at trends of b value in 1/5 of the whole dataset.
+
+```{r b_trend}
+#| fig-column: body-outset
+#| out-width: 100%
+# Get 1/5 pix in both lon and lat to plot map of b values
+df_can_map <- df_can %>% 
+  #select(pix_id, lon, lat) %>% 
+  #unique() %>% 
+  arrange(lat) %>% 
+  group_by(lat) %>% 
+  mutate(lat_id = cur_group_id()) %>% 
+  ungroup() %>% 
+  arrange(lon) %>% 
+  group_by(lon) %>% 
+  mutate(lon_id = cur_group_id()) %>% 
+  ungroup() %>% 
+  filter(lon_id %% 5 == 0) %>% 
+  filter(lat_id %% 5 == 0) %>% 
+  select(-c(lat_id, lon_id))
+
+# Compute reference depth
+df_can_map <- df_can_map %>%
+  filter(depth > 0) %>% # reference depth cannot be 0
+  arrange(pix_id,) %>% 
+  group_by(pix_id, lon, lat) %>% 
+  mutate(
+    poc_max = cummax(poc),
+    keep = poc_max == max(poc)
+  ) %>% 
+  filter(keep) %>% 
+  mutate(z0 = min(depth)) %>% 
+  ungroup() %>% 
+  select(-c(poc_max, keep))
+
+# Perform linear regression on log-transformed data
+argo_map_regs <- df_can_map %>%
+  #filter(depth >= z0) %>%
+  rename(z = depth) %>%
+  arrange(pix_id) %>%
+  nest(data = c(poc, z, z0)) %>%
+  mutate(
+    fit = map(data, ~lm(log(poc) ~ log(z/z0), data = .x)),
+    glance = map(fit, glance),
+    tidied = map(fit, tidy)
+  )
+
+# glance contains all summary of fits
+argo_map_summ <- argo_map_regs %>%
+  select(pix_id, lon, lat, glance) %>%
+  unnest(glance)
+
+# tidied contains coefficients
+argo_map_coef <- argo_map_regs %>%
+  select(pix_id, lon, lat, tidied) %>%
+  unnest(tidied) %>%
+  # keep only estimates of slope and intercept
+  select(-c(std.error, statistic, p.value)) %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "intercept",
+      .default = "b"
+    )) %>%
+  # 2 rows (intercept + slope) for each profile, reshape to make it 1 row
+  pivot_wider(names_from = term, values_from = estimate)
+
+
+# Let’s join both together
+argo_map_coef <- argo_map_coef %>% left_join(argo_map_summ, by = join_by(pix_id, lon, lat))
+
+# Make b positive
+argo_map_coef <- argo_map_coef %>% mutate(b = -b)
+
+# Plot map of b value
+argo_map_coef %>% 
+  ggplot() + 
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_tile(aes(x = lon, y = lat, fill = b, colour = b)) +
+  scale_fill_viridis_c() +
+  scale_colour_viridis_c() +
+  coord_quickmap(expand = 0)
+
+# Save global values of b
+save(argo_map_coef, file = "data/01.argo_map_coef.Rdata")
+```
+
+### UVP profiles
+
+Compute attenuation for locations of UVP profiles.
+
+First, join UVP profiles with canyon profiles by rounding coordinates
+
+```{r match_uvp_can}
+#| fig-column: body-outset
+#| out-width: 100%
+
+# Load UVP data
+load("data/00.all_uvp.Rdata")
+rm(uvp_o)
+
+# Round UVP lon and lat to match POC dataset
+uvp_prof <- uvp_prof %>%
+  #select(profile_id, lon, lat) %>% 
+  mutate(
+    lon_r = roundp(lon, precision = 0.25, f = floor) + 0.125,
+    lat_r = roundp(lat, precision = 0.25, f = floor) + 0.125
+  ) 
+
+# Get POC profiles
+can_prof <- df_can %>% 
+  select(pix_id, lon_r = lon, lat_r = lat) %>% 
+  unique()
+
+# Join UVP and POC profiles on rounded coordinates
+uvp_prof <- uvp_prof %>% 
+  left_join(can_prof, by = join_by(lon_r, lat_r))
+
+sum(is.na(uvp_prof$pix_id))
+
+ggplot(uvp_prof) +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = is.na(pix_id)), size = 0.5) +
+  labs(title = "UVP-canyon matching", colour = "Matched") +
+  coord_quickmap(expand = 0)
+```
+
+Some UVP profiles could not be matched because there is no corresponding data in the canyon dataset. Let’s ignore these UVP profiles. For profiles that could be matched, we extract the corresponding pixels in the canyon dataset and compute attenuation.
+
+```{r b_uvp}
+# Extract matched canyon pixels
+can_pix <- uvp_prof %>% drop_na(pix_id) %>% select(pix_id)
+
+# Keep only these pixels
+df_can_uvp <- df_can %>% filter(pix_id %in% can_pix$pix_id)
+
+# Compute reference depth
+df_can_uvp <- df_can_uvp %>%
+  filter(depth > 0) %>% # reference depth cannot be 0
+  group_by(lon, lat) %>% 
+  mutate(
+    poc_max = cummax(poc),
+    keep = poc_max == max(poc)
+  ) %>% 
+  filter(keep) %>% 
+  mutate(z0 = min(depth)) %>% 
+  ungroup() %>% 
+  select(-c(poc_max, keep))
+
+# Perform linear regression on log-transformed data
+argo_uvp_regs <- df_can_uvp %>%
+  filter(depth >= z0) %>%
+  rename(z = depth) %>%
+  nest(data = c(poc, z, z0)) %>%
+  mutate(
+    fit = map(data, ~lm(log(poc) ~ log(z/z0), data = .x)),
+    glance = map(fit, glance),
+    tidied = map(fit, tidy)
+  )
+
+# glance contains all summary of fits
+argo_uvp_summ <- argo_uvp_regs %>%
+  select(lon, lat, glance) %>%
+  unnest(glance)
+
+# tidied contains coefficients
+argo_uvp_coef <- argo_uvp_regs %>%
+  select(lon, lat, tidied) %>%
+  unnest(tidied) %>%
+  # keep only estimates of slope and intercept
+  select(-c(std.error, statistic, p.value)) %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "intercept",
+      .default = "b"
+    )) %>%
+  # 2 rows (intercept + slope) for each profile, reshape to make it 1 row
+  pivot_wider(names_from = term, values_from = estimate)
+
+# Make b positive
+argo_uvp_coef <- argo_uvp_coef %>% mutate(b = -b)
+
+# Add info regarding reference depth and POC at reference depth
+argo_uvp_coef <- argo_uvp_coef %>% 
+  rename(att = b) %>% 
+  left_join(
+    df_can_uvp %>% 
+     filter(depth == z0) %>% 
+     select(lon, lat, z0, poc0 = poc),
+    by = join_by(lon, lat)
+  )
+
+# Join with UVP profiles
+uvp_prof_c <- uvp_prof %>% 
+  left_join(argo_uvp_coef %>% rename(lon_r = lon, lat_r = lat), by = join_by(lon_r, lat_r))
+
+# Plot map of profiles
+ggplot(uvp_prof_c) +
+  geom_polygon(data = world, aes(x = lon, y = lat, group = group), fill = "grey") +
+  geom_point(aes(x = lon, y = lat, colour = att), size = 0.5) +
+  scale_colour_viridis_c() +
+  labs(title = "Map of b values for UVP dataset") +
+  coord_quickmap(expand = 0)
+
+# Plot latitudinal trend
+ggplot(uvp_prof_c, aes(x = lat, y = att)) +
+  geom_point(size = 0.5) +
+  geom_smooth() +
+  coord_flip()
+```
+
+Quick dataset summary: 
+
+-   out of the `r nrow(uvp_prof)` UVP5 profiles, POC attenuation could be computed for `r sum(!is.na(uvp_prof$att))` of them.
+
+-   this corresponds to `r nrow(uvp_prof %>% drop_na(att) %>% select(pix_id) %>% distinct())` unique POC profiles on the 0.25×0.25° grid.
+
+## Save
+
+```{r save}
+save(uvp_prof_c, file = "data/01.uvp_poc.Rdata")
+```
