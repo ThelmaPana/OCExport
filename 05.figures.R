@@ -514,6 +514,39 @@ p5
 ggsave(p5, file = "figures/figure_5.png", width = 120, height = 120, units = "mm", bg = "white")
 
 
+# Fit all models and get predictions
+results <- df5 %>%
+  arrange(lat) |> # sort by latitude
+  mutate(id = floor((row_number() - 1)/ 4)) |> # generate unique ID for each observation (NB, df is in long format, so 4 rows per obs)
+  select(-nice_name) |> # drop nice name
+  nest_by(name) %>% # nest by name
+  mutate(
+    # fit loess model
+    model = list(loess(value ~ lat, data = data, span = 0.75, degree = 2)),
+    # get predictions
+    fitted = list(predict(model)),
+    # compute R²
+    r_squared = cor(data$value, fitted)^2
+  )
+results |> select(name, r_squared)
+
+# Extract splines for comparison
+splines_df <- results %>%
+  select(name, data, fitted) %>%
+  unnest(cols = c(data, fitted)) %>%
+  ungroup()
+
+# Compare each zooplankton metric spline to attenuation spline
+attenuation_spline <- splines_df %>% filter(name == "att") # get attenuation spline
+
+spline_comparisons <- splines_df %>%
+  filter(name != "att") %>% # discard attenuation spline
+  left_join(attenuation_spline, by = c("lat", "id"), suffix = c("", "_att")) %>% # join with attenuation spline by lat and ID
+  group_by(name) %>% # group by plankton metric
+  summarise(spline_correlation = cor(fitted, fitted_att)^2) # compute R²
+spline_comparisons
+
+
 ## Figure 6: correlations among predictors ----
 #--------------------------------------------------------------------------#
 # Build correlation matrix, using Spearman correlation
